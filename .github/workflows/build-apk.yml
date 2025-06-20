@@ -1,0 +1,111 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache Yarn dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.yarn/berry/cache
+            .yarn/cache
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build Android bindings
+        run: yarn ubrn:android
+
+      - name: Install example dependencies
+        working-directory: ./example
+        run: yarn install --immutable
+
+      - name: Build APK
+        working-directory: ./example
+        run: |
+          # Build the APK using yarn android command
+          yarn android --no-jetifier || true
+          
+          # The above command might fail if no device is connected, but APK should still be built
+          # Let's also run gradlew directly to ensure APK is built
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Find and copy APK
+        run: |
+          # Find the generated APK (debug build)
+          APK_PATH=$(find example/android/app/build/outputs/apk/debug -name "*.apk" | head -1)
+          
+          if [ -z "$APK_PATH" ]; then
+            echo "No debug APK found, looking in other locations"
+            APK_PATH=$(find example/android/app/build/outputs/apk -name "*.apk" | head -1)
+          fi
+          
+          if [ -n "$APK_PATH" ]; then
+            echo "Found APK at: $APK_PATH"
+            # Remove any existing APK in example folder
+            rm -f example/*.apk
+            # Copy the new APK to example folder with a consistent name
+            cp "$APK_PATH" "example/nostr-client-example.apk"
+            echo "APK copied to example/nostr-client-example.apk"
+            ls -la example/nostr-client-example.apk
+          else
+            echo "Error: No APK found!"
+            exit 1
+          fi
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit and push APK
+        run: |
+          git add example/nostr-client-example.apk
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update APK build [skip ci]"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
