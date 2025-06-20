@@ -40,6 +40,27 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Cache Cargo dependencies and binaries
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install cargo-ndk
+        run: |
+          # Check if cargo-ndk is already installed (from cache)
+          if ! command -v cargo-ndk &> /dev/null; then
+            cargo install cargo-ndk
+          fi
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+
       - name: Cache Yarn dependencies
         uses: actions/cache@v3
         with:
