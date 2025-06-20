@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK and Create Release
 
 on:
   push:
@@ -134,30 +134,50 @@ jobs:
           
           if [ -n "$APK_PATH" ]; then
             echo "Found APK at: $APK_PATH"
-            # Remove any existing APK in example folder
-            rm -f example/*.apk
-            # Copy the new APK to example folder with a consistent name
-            cp "$APK_PATH" "example/nostr-client-example.apk"
-            echo "APK copied to example/nostr-client-example.apk"
-            ls -la example/nostr-client-example.apk
+            # Copy the APK to root directory with a consistent name
+            cp "$APK_PATH" "nostr-client-example.apk"
+            echo "APK copied to nostr-client-example.apk"
+            ls -la nostr-client-example.apk
+            # Set output for next steps
+            echo "APK_FILE=nostr-client-example.apk" >> $GITHUB_ENV
           else
             echo "Error: No APK found!"
             exit 1
           fi
 
-      - name: Configure Git
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+      - name: Delete existing release
+        uses: dev-drprasad/delete-tag-and-release@v1.0
+        with:
+          delete_release: true
+          tag_name: latest-build
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
-      - name: Commit and push APK
-        run: |
-          git add example/nostr-client-example.apk
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: update APK build [skip ci]"
-            git push
-          fi
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: latest-build
+          release_name: Latest APK Build
+          body: |
+            Automated build from master branch
+            
+            **Commit:** ${{ github.sha }}
+            **Date:** ${{ github.event.head_commit.timestamp }}
+            **Message:** ${{ github.event.head_commit.message }}
+            
+            This release is automatically updated on every push to master.
+          draft: false
+          prerelease: false
+
+      - name: Upload APK to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./nostr-client-example.apk
+          asset_name: nostr-client-example.apk
+          asset_content_type: application/vnd.android.package-archive 
