@@ -64,6 +64,8 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
   const [loading, setLoading] = useState(false);
   const [client, setClient] = useState<Client | null>(null);
   const [isClientReady, setIsClientReady] = useState(false);
+  const [userName, setUserName] = useState<string>('');
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Initialize client on mount
   useEffect(() => {
@@ -105,10 +107,76 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
     };
   }, []);
 
-  // Auto-fetch posts when client is ready
+  // Fetch user profile/name
+  const fetchUserProfile = async () => {
+    if (!client || !isClientReady || !userNpub) return;
+    
+    setProfileLoading(true);
+    try {
+      const publicKey = PublicKey.parse(userNpub);
+      
+      // Create filter for kind 0 (metadata/profile) events
+      const profileFilter = new Filter()
+        .author(publicKey)
+        .kinds([new Kind(0)])
+        .limit(1n);
+      
+      console.log('Fetching user profile...');
+      
+      try {
+        const events = await client.fetchEvents(profileFilter, 10000 as any);
+        const eventArray = events.toVec();
+        
+        if (eventArray.length > 0) {
+          const profileEvent = eventArray[0];
+          if (profileEvent) {
+            const content = profileEvent.content();
+            
+            try {
+              const profileData = JSON.parse(content);
+              const name = profileData.name || profileData.display_name || profileData.username;
+              
+              if (name) {
+                setUserName(name);
+                console.log('Found user name:', name);
+              } else {
+                // Fallback to shortened npub
+                const shortNpub = userNpub.substring(0, 8) + '...';
+                setUserName(shortNpub);
+              }
+            } catch (parseError) {
+              console.error('Error parsing profile JSON:', parseError);
+              // Fallback to shortened npub
+              const shortNpub = userNpub.substring(0, 8) + '...';
+              setUserName(shortNpub);
+            }
+          }
+        } else {
+          // No profile found, use shortened npub
+          const shortNpub = userNpub.substring(0, 8) + '...';
+          setUserName(shortNpub);
+        }
+      } catch (fetchError) {
+        console.error('Error fetching profile:', fetchError);
+        // Fallback to shortened npub
+        const shortNpub = userNpub.substring(0, 8) + '...';
+        setUserName(shortNpub);
+      }
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+      // Fallback to shortened npub
+      const shortNpub = userNpub.substring(0, 8) + '...';
+      setUserName(shortNpub);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  // Auto-fetch posts and profile when client is ready
   useEffect(() => {
     if (isClientReady && userNpub) {
       fetchPosts();
+      fetchUserProfile();
     }
   }, [isClientReady, userNpub]);
 
@@ -255,16 +323,34 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
     return date.toLocaleString();
   };
 
+  const handleUserNamePress = () => {
+    Alert.alert(
+      'User Profile',
+      `Full npub: ${userNpub}\n\nName: ${userName}`,
+      [
+        { text: 'Copy npub', onPress: () => console.log('Copy functionality not implemented') },
+        { text: 'OK' }
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>Your Posts</Text>
+        <View style={styles.headerTop}>
+          <Button 
+            title={profileLoading ? '...' : userName || 'Loading...'} 
+            onPress={handleUserNamePress}
+            disabled={profileLoading}
+          />
+          <Text style={styles.title}>Your Posts</Text>
+          <Button title="Logout" onPress={onLogout} />
+        </View>
         <Text style={styles.subtitle}>
           {isClientReady ? '✅ Connected to relays' : '⏳ Connecting to relays...'}
         </Text>
         <View style={styles.headerButtons}>
           <Button title="Refresh" onPress={fetchPosts} disabled={loading || !isClientReady} />
-          <Button title="Logout" onPress={onLogout} />
         </View>
       </View>
 
