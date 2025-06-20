@@ -4,8 +4,62 @@ import { PublicKey, Client, Filter, Kind } from '../../src';
 import type { EventInterface, TimestampInterface } from '../../src';
 import { styles } from './App.styles';
 
-export default function App() {
+// Login Screen Component
+function LoginScreen({ onLogin }: { onLogin: (npub: string) => void }) {
   const [npubInput, setNpubInput] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!npubInput.trim()) {
+      Alert.alert('Error', 'Please enter your npub key');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Validate the npub key by trying to parse it
+      PublicKey.parse(npubInput.trim());
+      onLogin(npubInput.trim());
+    } catch (error) {
+      Alert.alert('Error', 'Invalid npub key. Please check and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.loginContainer}>
+        <Text style={styles.loginTitle}>Welcome to Nostr</Text>
+        <Text style={styles.loginSubtitle}>Enter your npub to view your posts</Text>
+        
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your npub key (e.g., npub1...)"
+          value={npubInput}
+          onChangeText={setNpubInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+        />
+        
+        <Button 
+          title={loading ? "Validating..." : "Login"} 
+          onPress={handleLogin} 
+          disabled={loading}
+        />
+        
+        <Text style={styles.loginHint}>
+          Don't have an npub? You can test with:{'\n'}
+          npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// Posts Screen Component (renamed from the main component)
+function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () => void }) {
   const [posts, setPosts] = useState<EventInterface[]>([]);
   const [loading, setLoading] = useState(false);
   const [client, setClient] = useState<Client | null>(null);
@@ -42,7 +96,7 @@ export default function App() {
     };
 
     initClient();
-
+    
     // Cleanup on unmount
     return () => {
       if (client) {
@@ -51,12 +105,14 @@ export default function App() {
     };
   }, []);
 
-  const fetchPosts = async () => {
-    if (!npubInput.trim()) {
-      Alert.alert('Error', 'Please enter an npub key');
-      return;
+  // Auto-fetch posts when client is ready
+  useEffect(() => {
+    if (isClientReady && userNpub) {
+      fetchPosts();
     }
+  }, [isClientReady, userNpub]);
 
+  const fetchPosts = async () => {
     if (!client || !isClientReady) {
       Alert.alert('Error', 'Client not ready. Please wait and try again.');
       return;
@@ -67,7 +123,7 @@ export default function App() {
 
     try {
       // Parse the npub key
-      const publicKey = PublicKey.parse(npubInput.trim());
+      const publicKey = PublicKey.parse(userNpub);
       console.log('Parsed public key:', publicKey.toHex());
       console.log('Public key bech32:', publicKey.toBech32());
       
@@ -177,19 +233,17 @@ export default function App() {
         Alert.alert(
           'No posts found', 
           'This could be because:\n' +
-          '1. The user has no posts\n' +
-          '2. The relays might not have this user\'s data\n' +
+          '1. You have no posts yet\n' +
+          '2. The relays might not have your data\n' +
           '3. The connection might be slow\n\n' +
-          'Try again in a few seconds.\n\n' +
-          'You can also try testing with jack\'s npub:\n' +
-          'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m'
+          'Try refreshing in a few seconds.'
         );
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
       Alert.alert(
         'Error', 
-        `Failed to fetch posts: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease check the npub key and try again.`
+        `Failed to fetch posts: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again.`
       );
     } finally {
       setLoading(false);
@@ -203,30 +257,21 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.inputContainer}>
-        <Text style={styles.title}>Nostr Post Viewer</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.title}>Your Posts</Text>
         <Text style={styles.subtitle}>
           {isClientReady ? '✅ Connected to relays' : '⏳ Connecting to relays...'}
         </Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter npub key (e.g., npub1...)"
-          value={npubInput}
-          onChangeText={setNpubInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <Button 
-          title="Fetch Posts" 
-          onPress={fetchPosts} 
-          disabled={loading || !isClientReady} 
-        />
+        <View style={styles.headerButtons}>
+          <Button title="Refresh" onPress={fetchPosts} disabled={loading || !isClientReady} />
+          <Button title="Logout" onPress={onLogout} />
+        </View>
       </View>
 
       {loading && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Fetching posts...</Text>
+          <Text style={styles.loadingText}>Fetching your posts...</Text>
         </View>
       )}
 
@@ -244,4 +289,26 @@ export default function App() {
       </ScrollView>
     </View>
   );
+}
+
+// Main App Component
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userNpub, setUserNpub] = useState('');
+
+  const handleLogin = (npub: string) => {
+    setUserNpub(npub);
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUserNpub('');
+  };
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  return <PostsScreen userNpub={userNpub} onLogout={handleLogout} />;
 }
