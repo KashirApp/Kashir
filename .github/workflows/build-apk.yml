@@ -13,6 +13,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Free disk space
+        run: |
+          echo "Available storage before cleanup:"
+          df -h
+          
+          # Remove unnecessary tools to free up space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          
+          # Clean apt cache
+          sudo apt-get clean
+          
+          echo "Available storage after cleanup:"
+          df -h
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -48,7 +65,6 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -76,6 +92,20 @@ jobs:
 
       - name: Build Android bindings
         run: yarn ubrn:android
+
+      - name: Clean up Rust build artifacts
+        run: |
+          echo "Disk usage before Rust cleanup:"
+          df -h
+          
+          # Clean up Rust target directories to free space
+          find deps/nostr-sdk-ffi/target -type f -name "*.rlib" -delete || true
+          find deps/nostr-sdk-ffi/target -type f -name "*.rmeta" -delete || true
+          find deps/nostr-sdk-ffi/target -type d -name "incremental" -exec rm -rf {} + || true
+          find deps/nostr-sdk-ffi/target -type d -name "deps" -exec rm -rf {} + || true
+          
+          echo "Disk usage after Rust cleanup:"
+          df -h
 
       - name: Install example dependencies
         working-directory: ./example
