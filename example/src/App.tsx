@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Text, View, TextInput, Button, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { Text, View, TextInput, Button, ScrollView, ActivityIndicator, Alert, SafeAreaView } from 'react-native';
 import { PublicKey, Client, Filter, Kind } from '../../src';
 import type { EventInterface, TimestampInterface } from '../../src';
 import { styles } from './App.styles';
@@ -28,7 +28,7 @@ function LoginScreen({ onLogin }: { onLogin: (npub: string) => void }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.loginContainer}>
         <Text style={styles.loginTitle}>Welcome to Nostr</Text>
         <Text style={styles.loginSubtitle}>Enter your npub to view your posts</Text>
@@ -54,7 +54,7 @@ function LoginScreen({ onLogin }: { onLogin: (npub: string) => void }) {
           npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m
         </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -335,7 +335,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
         <View style={styles.headerTop}>
           <Button 
@@ -373,7 +373,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
           </View>
         ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
