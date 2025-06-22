@@ -28,7 +28,7 @@ function LoginScreen({ onLogin }: { onLogin: (npub: string) => void }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.loginSafeArea}>
       <View style={styles.loginContainer}>
         <Text style={styles.loginTitle}>Welcome to Nostr</Text>
         <Text style={styles.loginSubtitle}>Enter your npub to view your posts</Text>

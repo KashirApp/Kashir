@@ -6,18 +6,15 @@ export const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   // Login Screen Styles
+  loginSafeArea: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
   loginContainer: {
     flex: 1,
     justifyContent: 'center',
     padding: 20,
     backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
   },
   loginTitle: {
     fontSize: 32,
