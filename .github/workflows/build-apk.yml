@@ -91,7 +91,7 @@ jobs:
         run: yarn install --immutable
 
       - name: Build Android bindings
-        run: yarn ubrn:android
+        run: yarn ubrn:android --release
 
       - name: Clean up Rust build artifacts
         run: |
@@ -114,32 +114,31 @@ jobs:
       - name: Build APK
         working-directory: ./example
         run: |
-          # Build the APK using yarn android command
-          yarn android --no-jetifier || true
+          # Build the release APK
+          yarn build:android:release || true
           
-          # The above command might fail if no device is connected, but APK should still be built
-          # Let's also run gradlew directly to ensure APK is built
+          # Also run gradlew directly to ensure release APK is built
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Find and copy APK
         run: |
-          # Find the generated APK (debug build)
-          APK_PATH=$(find example/android/app/build/outputs/apk/debug -name "*.apk" | head -1)
+          # Find the generated APK (release build)
+          APK_PATH=$(find example/android/app/build/outputs/apk/release -name "*.apk" | head -1)
           
           if [ -z "$APK_PATH" ]; then
-            echo "No debug APK found, looking in other locations"
+            echo "No release APK found, looking in other locations"
             APK_PATH=$(find example/android/app/build/outputs/apk -name "*.apk" | head -1)
           fi
           
           if [ -n "$APK_PATH" ]; then
             echo "Found APK at: $APK_PATH"
             # Copy the APK to root directory with a consistent name
-            cp "$APK_PATH" "nostr-client-example.apk"
-            echo "APK copied to nostr-client-example.apk"
-            ls -la nostr-client-example.apk
+            cp "$APK_PATH" "nostr-client-example-release.apk"
+            echo "APK copied to nostr-client-example-release.apk"
+            ls -la nostr-client-example-release.apk
             # Set output for next steps
-            echo "APK_FILE=nostr-client-example.apk" >> $GITHUB_ENV
+            echo "APK_FILE=nostr-client-example-release.apk" >> $GITHUB_ENV
           else
             echo "Error: No APK found!"
             exit 1
@@ -160,10 +159,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: latest-build
-          release_name: Latest APK Build
+          release_name: Latest APK Build (Release)
           body: |
-            Automated build from master branch
+            Automated release build from master branch
             
+            **Build Type:** Release (Optimized)
             **Commit:** ${{ github.sha }}
             **Date:** ${{ github.event.head_commit.timestamp }}
             **Message:** ${{ github.event.head_commit.message }}
@@ -178,6 +178,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./nostr-client-example.apk
-          asset_name: nostr-client-example.apk
+          asset_path: ./nostr-client-example-release.apk
+          asset_name: nostr-client-example-release.apk
           asset_content_type: application/vnd.android.package-archive 
