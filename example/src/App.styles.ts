@@ -134,4 +134,44 @@ export const styles = StyleSheet.create({
     backgroundColor: '#eee',
     marginTop: 15,
   },
+  // Tab Navigation Styles
+  tabContainer: {
+    flexDirection: 'row',
+    marginTop: 10,
+    marginBottom: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  activeTabText: {
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  postAuthor: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4a90e2',
+    marginBottom: 4,
+  },
 }); 
