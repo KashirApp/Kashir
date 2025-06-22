@@ -1,7 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Text, View, TextInput, Button, ScrollView, ActivityIndicator, Alert, SafeAreaView, TouchableOpacity } from 'react-native';
+import {
+  Text,
+  View,
+  TextInput,
+  Button,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  TouchableOpacity,
+} from 'react-native';
 import { PublicKey, Client, Filter, Kind } from '../../src';
-import type { EventInterface, TimestampInterface } from '../../src';
+import type {
+  EventInterface,
+  TimestampInterface,
+  PublicKeyInterface,
+} from '../../src';
 import { styles } from './App.styles';
 
 // Login Screen Component
@@ -31,8 +45,10 @@ function LoginScreen({ onLogin }: { onLogin: (npub: string) => void }) {
     <SafeAreaView style={styles.loginSafeArea}>
       <View style={styles.loginContainer}>
         <Text style={styles.loginTitle}>Welcome to Nostr</Text>
-        <Text style={styles.loginSubtitle}>Enter your npub to view your posts</Text>
-        
+        <Text style={styles.loginSubtitle}>
+          Enter your npub to view your posts
+        </Text>
+
         <TextInput
           style={styles.input}
           placeholder="Enter your npub key (e.g., npub1...)"
@@ -42,13 +58,13 @@ function LoginScreen({ onLogin }: { onLogin: (npub: string) => void }) {
           autoCorrect={false}
           editable={!loading}
         />
-        
-        <Button 
-          title={loading ? "Validating..." : "Login"} 
-          onPress={handleLogin} 
+
+        <Button
+          title={loading ? 'Validating...' : 'Login'}
+          onPress={handleLogin}
           disabled={loading}
         />
-        
+
         <Text style={styles.loginHint}>
           Don't have an npub? You can test with:{'\n'}
           npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m
@@ -62,7 +78,13 @@ function LoginScreen({ onLogin }: { onLogin: (npub: string) => void }) {
 type TabType = 'your-posts' | 'following';
 
 // Posts Screen Component (renamed from the main component)
-function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () => void }) {
+function PostsScreen({
+  userNpub,
+  onLogout,
+}: {
+  userNpub: string;
+  onLogout: () => void;
+}) {
   const [posts, setPosts] = useState<EventInterface[]>([]);
   const [followingPosts, setFollowingPosts] = useState<EventInterface[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,7 +95,9 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('your-posts');
   const [followingList, setFollowingList] = useState<PublicKey[]>([]);
-  const [profileCache, setProfileCache] = useState<Map<string, { name: string, loaded: boolean }>>(new Map());
+  const [profileCache, setProfileCache] = useState<
+    Map<string, { name: string; loaded: boolean }>
+  >(new Map());
 
   // Initialize client on mount
   useEffect(() => {
@@ -81,7 +105,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
       try {
         // Create a new client without signer (we're just reading)
         const newClient = new Client();
-        
+
         // Add some popular Nostr relays
         await newClient.addRelay('wss://relay.damus.io');
         await newClient.addRelay('wss://nos.lol');
@@ -89,13 +113,13 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
         await newClient.addRelay('wss://relay.nostr.info');
         await newClient.addRelay('wss://nostr.wine');
         await newClient.addRelay('wss://relay.snort.social');
-        
+
         // Connect to relays
         await newClient.connect();
-        
+
         // Wait a bit for connections to stabilize
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
         setClient(newClient);
         setIsClientReady(true);
         console.log('Client initialized and connected to relays');
@@ -106,49 +130,55 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
     };
 
     initClient();
-    
+
     // Cleanup on unmount
     return () => {
       if (client) {
         client.disconnect();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch profile for a specific public key
-  const fetchProfileForPubkey = async (pubkey: PublicKey): Promise<string | null> => {
+  const fetchProfileForPubkey = async (
+    pubkey: PublicKeyInterface
+  ): Promise<string | null> => {
     if (!client || !isClientReady) return null;
-    
+
     const hexKey = pubkey.toHex();
-    
+
     // Check cache first
     const cached = profileCache.get(hexKey);
     if (cached && cached.loaded) {
       return cached.name || null;
     }
-    
+
     try {
       // Create filter for kind 0 (metadata/profile) events
       const profileFilter = new Filter()
         .author(pubkey)
         .kinds([new Kind(0)])
         .limit(1n);
-      
+
       const events = await client.fetchEvents(profileFilter, 10000 as any);
       const eventArray = events.toVec();
-      
+
       if (eventArray.length > 0) {
         const profileEvent = eventArray[0];
         if (profileEvent) {
           const content = profileEvent.content();
-          
+
           try {
             const profileData = JSON.parse(content);
-            const name = profileData.name || profileData.display_name || profileData.username;
-            
+            const name =
+              profileData.name ||
+              profileData.display_name ||
+              profileData.username;
+
             if (name) {
               // Update cache
-              setProfileCache(prev => {
+              setProfileCache((prev) => {
                 const newCache = new Map(prev);
                 newCache.set(hexKey, { name, loaded: true });
                 return newCache;
@@ -160,14 +190,14 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
           }
         }
       }
-      
+
       // Mark as loaded even if no name found
-      setProfileCache(prev => {
+      setProfileCache((prev) => {
         const newCache = new Map(prev);
         newCache.set(hexKey, { name: '', loaded: true });
         return newCache;
       });
-      
+
       return null;
     } catch (error) {
       console.error('Error fetching profile for pubkey:', error);
@@ -178,54 +208,57 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
   // Batch fetch profiles for multiple public keys
   const fetchProfilesForPubkeys = async (pubkeys: PublicKey[]) => {
     if (!client || !isClientReady || pubkeys.length === 0) return;
-    
+
     // Filter out already cached profiles
-    const uncachedPubkeys = pubkeys.filter(pk => {
+    const uncachedPubkeys = pubkeys.filter((pk) => {
       const cached = profileCache.get(pk.toHex());
       return !cached || !cached.loaded;
     });
-    
+
     if (uncachedPubkeys.length === 0) return;
-    
+
     console.log(`Fetching profiles for ${uncachedPubkeys.length} users...`);
-    
+
     // Fetch profiles in parallel (limit to 10 at a time to avoid overwhelming)
     const batchSize = 10;
     for (let i = 0; i < uncachedPubkeys.length; i += batchSize) {
       const batch = uncachedPubkeys.slice(i, i + batchSize);
-      await Promise.all(batch.map(pk => fetchProfileForPubkey(pk)));
+      await Promise.all(batch.map((pk) => fetchProfileForPubkey(pk)));
     }
   };
 
   // Fetch user profile/name
   const fetchUserProfile = async () => {
     if (!client || !isClientReady || !userNpub) return;
-    
+
     setProfileLoading(true);
     try {
       const publicKey = PublicKey.parse(userNpub);
-      
+
       // Create filter for kind 0 (metadata/profile) events
       const profileFilter = new Filter()
         .author(publicKey)
         .kinds([new Kind(0)])
         .limit(1n);
-      
+
       console.log('Fetching user profile...');
-      
+
       try {
         const events = await client.fetchEvents(profileFilter, 10000 as any);
         const eventArray = events.toVec();
-        
+
         if (eventArray.length > 0) {
           const profileEvent = eventArray[0];
           if (profileEvent) {
             const content = profileEvent.content();
-            
+
             try {
               const profileData = JSON.parse(content);
-              const name = profileData.name || profileData.display_name || profileData.username;
-              
+              const name =
+                profileData.name ||
+                profileData.display_name ||
+                profileData.username;
+
               if (name) {
                 setUserName(name);
                 console.log('Found user name:', name);
@@ -265,35 +298,33 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
   // Fetch following list
   const fetchFollowingList = async () => {
     if (!client || !isClientReady || !userNpub) return;
-    
+
     try {
       const publicKey = PublicKey.parse(userNpub);
-      
+
       // Create filter for kind 3 (contact list) events
       const contactListFilter = new Filter()
         .author(publicKey)
         .kinds([new Kind(3)])
         .limit(1n);
-      
+
       console.log('Fetching following list...');
-      
+
       const events = await client.fetchEvents(contactListFilter, 10000 as any);
       const eventArray = events.toVec();
-      
+
       if (eventArray.length > 0) {
         const contactListEvent = eventArray[0];
         if (contactListEvent) {
           const tags = contactListEvent.tags();
-          
+
           const followingPubkeys: PublicKey[] = [];
-          
+
           // Extract public keys from p tags
           let tagArray: any[] = [];
           try {
-            // Based on Python example, should be to_vec() with underscore
-            if (tags && typeof tags.to_vec === 'function') {
-              tagArray = tags.to_vec();
-            } else if (tags && typeof tags.toVec === 'function') {
+            // Use the correct method name (toVec in camelCase)
+            if (tags && typeof tags.toVec === 'function') {
               tagArray = tags.toVec();
             } else if (Array.isArray(tags)) {
               tagArray = tags;
@@ -303,9 +334,9 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
           } catch (e) {
             console.error('Error converting tags to array:', e);
           }
-          
+
           console.log(`Processing ${tagArray.length} tags`);
-          
+
           for (const tag of tagArray) {
             try {
               // Based on Python example, should be as_vec() with underscore
@@ -319,15 +350,15 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
               } else if (tag && typeof tag.toVec === 'function') {
                 tagData = tag.toVec();
               }
-              
+
               if (tagData.length > 1 && tagData[0] === 'p') {
                 try {
                   // tagData[1] contains the hex string
                   const hexPubkey = tagData[1] as string;
-                  
+
                   // Try different approaches to create PublicKey from hex
                   let pubkey = null;
-                  
+
                   // Check if Tag has a method to extract public key
                   if (tag && typeof tag.publicKey === 'function') {
                     pubkey = tag.publicKey();
@@ -347,7 +378,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
                       }
                     }
                   }
-                  
+
                   if (pubkey) {
                     followingPubkeys.push(pubkey);
                   }
@@ -359,13 +390,15 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
               console.error('Error processing tag:', tagError);
             }
           }
-          
-          console.log(`Found ${followingPubkeys.length} people in following list`);
+
+          console.log(
+            `Found ${followingPubkeys.length} people in following list`
+          );
           setFollowingList(followingPubkeys);
           return followingPubkeys;
         }
       }
-      
+
       return [];
     } catch (error) {
       console.error('Error fetching following list:', error);
@@ -387,9 +420,10 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
       // First fetch the following list if we don't have it
       let following = followingList;
       if (following.length === 0) {
-        following = await fetchFollowingList();
+        const fetchedFollowing = await fetchFollowingList();
+        following = fetchedFollowing || [];
       }
-      
+
       if (following.length === 0) {
         Alert.alert('No Following', 'You are not following anyone yet.');
         setFollowingLoading(false);
@@ -397,20 +431,20 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
       }
 
       console.log(`Fetching posts from ${following.length} people...`);
-      
+
       // Create filter for posts from following
       const followingFilter = new Filter()
         .authors(following)
         .kinds([new Kind(1)])
         .limit(100n);
-      
+
       console.log('Fetching following posts...');
-      
+
       const events = await client.fetchEvents(followingFilter, 30000 as any);
       const eventArray = events.toVec();
-      
+
       console.log(`Fetched ${eventArray.length} posts from following`);
-      
+
       if (eventArray.length > 0) {
         // Sort by timestamp
         eventArray.sort((a, b) => {
@@ -418,38 +452,42 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
           const timeB = b.createdAt().asSecs();
           return Number(timeB - timeA);
         });
-        
+
         setFollowingPosts(eventArray);
-        
+
         // Fetch profiles for all unique authors
         const uniqueAuthors = new Set<string>();
-        eventArray.forEach(event => {
+        eventArray.forEach((event) => {
           uniqueAuthors.add(event.author().toHex());
         });
-        
-        const authorPubkeys = Array.from(uniqueAuthors).map(hex => {
-          try {
-            // We need to reconstruct PublicKey from the event's author
-            return eventArray.find(e => e.author().toHex() === hex)?.author();
-          } catch (e) {
-            return null;
-          }
-        }).filter(pk => pk !== null && pk !== undefined) as PublicKey[];
-        
+
+        const authorPubkeys = Array.from(uniqueAuthors)
+          .map((hex) => {
+            try {
+              // We need to reconstruct PublicKey from the event's author
+              return eventArray
+                .find((e) => e.author().toHex() === hex)
+                ?.author();
+            } catch (e) {
+              return null;
+            }
+          })
+          .filter((pk) => pk !== null && pk !== undefined) as PublicKey[];
+
         // Fetch profiles in background
-        fetchProfilesForPubkeys(authorPubkeys).catch(err => 
+        fetchProfilesForPubkeys(authorPubkeys).catch((err) =>
           console.error('Error fetching profiles:', err)
         );
       } else {
         Alert.alert(
-          'No posts found', 
+          'No posts found',
           'No recent posts from people you follow.'
         );
       }
     } catch (error) {
       console.error('Error fetching following posts:', error);
       Alert.alert(
-        'Error', 
+        'Error',
         `Failed to fetch posts from following: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     } finally {
@@ -464,6 +502,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
       fetchUserProfile();
       fetchFollowingList();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClientReady, userNpub]);
 
   const fetchPosts = async () => {
@@ -478,58 +517,61 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
     try {
       // Parse the npub key
       const publicKey = PublicKey.parse(userNpub);
-      
+
       // Create filter with chaining - try with regular number for limit
       const filter = new Filter()
         .author(publicKey)
         .kinds([new Kind(1)])
-        .limit(50n);  // Use BigInt as expected by the SDK
-      
+        .limit(50n); // Use BigInt as expected by the SDK
+
       let allEvents: EventInterface[] = [];
-      
+
       try {
-                  // Try with milliseconds as integer
-          const timeoutMs = 30000; // 30 seconds in milliseconds
-          const events = await client.fetchEvents(filter, timeoutMs as any);
-          
-          const eventArray = events.toVec();
-          console.log(`Fetched ${eventArray.length} events`);
-        
+        // Try with milliseconds as integer
+        const timeoutMs = 30000; // 30 seconds in milliseconds
+        const events = await client.fetchEvents(filter, timeoutMs as any);
+
+        const eventArray = events.toVec();
+        console.log(`Fetched ${eventArray.length} events`);
+
         if (eventArray.length > 0) {
           allEvents = eventArray;
         }
       } catch (fetchError) {
-        console.error('Error during fetch with milliseconds timeout:', fetchError);
-        
+        console.error(
+          'Error during fetch with milliseconds timeout:',
+          fetchError
+        );
+
         // Try with Duration-like object
         try {
           // Try passing an object that might match Duration structure
           const duration = { secs: 30n, nanos: 0 }; // BigInt for seconds
           console.log('Trying with Duration object:', duration);
-          
+
           const events2 = await client.fetchEvents(filter, duration as any);
           const eventArray2 = events2.toVec();
           console.log(`Second attempt fetched ${eventArray2.length} events`);
-          
+
           if (eventArray2.length > 0) {
             allEvents = eventArray2;
           }
         } catch (fetchError2) {
           console.error('Error during second fetch attempt:', fetchError2);
-          
+
           // Try one more time with a simple filter and different timeout format
           console.log('Trying simplified approach...');
           const simpleFilter = new Filter().author(publicKey);
-          
+
           try {
             // Try with just seconds as BigInt
             const events3 = await client.fetchEvents(simpleFilter, 30n as any);
             const eventArray3 = events3.toVec();
             console.log(`Simple filter fetched ${eventArray3.length} events`);
-            
+
             if (eventArray3.length > 0) {
               // Filter for kind 1 manually
-              const textNotes = eventArray3.filter(event => {
+              const textNotes = eventArray3.filter((event) => {
                 try {
                   const eventKind = event.kind();
                   console.log('Event kind:', eventKind);
@@ -539,13 +581,13 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
                   return false;
                 }
               });
-              
+
               console.log(`Found ${textNotes.length} text notes`);
               allEvents = textNotes;
             }
           } catch (fetchError3) {
             console.error('Error during third fetch attempt:', fetchError3);
-            
+
             // Final attempt with nanoseconds
             try {
               const nanos = 30_000_000_000n; // 30 seconds in nanoseconds as BigInt
@@ -553,7 +595,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
               const events4 = await client.fetchEvents(filter, nanos as any);
               const eventArray4 = events4.toVec();
               console.log(`Final attempt fetched ${eventArray4.length} events`);
-              
+
               if (eventArray4.length > 0) {
                 allEvents = eventArray4;
               }
@@ -563,7 +605,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
           }
         }
       }
-      
+
       // Sort and set posts
       if (allEvents.length > 0) {
         allEvents.sort((a, b) => {
@@ -571,22 +613,22 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
           const timeB = b.createdAt().asSecs();
           return Number(timeB - timeA);
         });
-        
+
         setPosts(allEvents);
       } else {
         Alert.alert(
-          'No posts found', 
+          'No posts found',
           'This could be because:\n' +
-          '1. You have no posts yet\n' +
-          '2. The relays might not have your data\n' +
-          '3. The connection might be slow\n\n' +
-          'Try refreshing in a few seconds.'
+            '1. You have no posts yet\n' +
+            '2. The relays might not have your data\n' +
+            '3. The connection might be slow\n\n' +
+            'Try refreshing in a few seconds.'
         );
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
       Alert.alert(
-        'Error', 
+        'Error',
         `Failed to fetch posts: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again.`
       );
     } finally {
@@ -600,14 +642,13 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
   };
 
   const handleUserNamePress = () => {
-    Alert.alert(
-      'User Profile',
-      `Full npub: ${userNpub}\n\nName: ${userName}`,
-      [
-        { text: 'Copy npub', onPress: () => console.log('Copy functionality not implemented') },
-        { text: 'OK' }
-      ]
-    );
+    Alert.alert('User Profile', `Full npub: ${userNpub}\n\nName: ${userName}`, [
+      {
+        text: 'Copy npub',
+        onPress: () => console.log('Copy functionality not implemented'),
+      },
+      { text: 'OK' },
+    ]);
   };
 
   const handleRefresh = () => {
@@ -618,15 +659,19 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
     }
   };
 
-  const renderPost = (post: EventInterface, index: number, totalPosts: number) => {
+  const renderPost = (
+    post: EventInterface,
+    index: number,
+    totalPosts: number
+  ) => {
     // Get author info for following posts
     const isFollowingTab = activeTab === 'following';
     let authorName = '';
-    
+
     if (isFollowingTab) {
       const authorPubkey = post.author();
       const hexKey = authorPubkey.toHex();
-      
+
       // Get name from cache
       const cached = profileCache.get(hexKey);
       if (cached && cached.name) {
@@ -634,10 +679,10 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
       } else {
         // Fallback to shortened hex if name not loaded yet
         authorName = hexKey.substring(0, 8) + '...';
-        
+
         // Trigger profile fetch if not already loading
         if (!cached || !cached.loaded) {
-          fetchProfileForPubkey(authorPubkey).catch(err => 
+          fetchProfileForPubkey(authorPubkey).catch((err) =>
             console.error('Error fetching profile in render:', err)
           );
         }
@@ -646,9 +691,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
 
     return (
       <View key={post.id().toHex()} style={styles.postCard}>
-        {isFollowingTab && (
-          <Text style={styles.postAuthor}>@{authorName}</Text>
-        )}
+        {isFollowingTab && <Text style={styles.postAuthor}>@{authorName}</Text>}
         <Text style={styles.postDate}>{formatTimestamp(post.createdAt())}</Text>
         <Text style={styles.postContent}>{post.content()}</Text>
         {index < totalPosts - 1 && <View style={styles.separator} />}
@@ -657,14 +700,15 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
   };
 
   const currentPosts = activeTab === 'your-posts' ? posts : followingPosts;
-  const currentLoading = activeTab === 'your-posts' ? loading : followingLoading;
+  const currentLoading =
+    activeTab === 'your-posts' ? loading : followingLoading;
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
         <View style={styles.headerTop}>
-          <Button 
-            title={profileLoading ? '...' : userName || 'Loading...'} 
+          <Button
+            title={profileLoading ? '...' : userName || 'Loading...'}
             onPress={handleUserNamePress}
             disabled={profileLoading}
           />
@@ -672,20 +716,27 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
           <Button title="Logout" onPress={onLogout} />
         </View>
         <Text style={styles.subtitle}>
-          {isClientReady ? '✅ Connected to relays' : '⏳ Connecting to relays...'}
+          {isClientReady
+            ? '✅ Connected to relays'
+            : '⏳ Connecting to relays...'}
         </Text>
-        
+
         {/* Tab Navigation */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'your-posts' && styles.activeTab]}
             onPress={() => setActiveTab('your-posts')}
           >
-            <Text style={[styles.tabText, activeTab === 'your-posts' && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'your-posts' && styles.activeTabText,
+              ]}
+            >
               Your Posts
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'following' && styles.activeTab]}
             onPress={() => {
               setActiveTab('following');
@@ -695,17 +746,23 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
               }
             }}
           >
-            <Text style={[styles.tabText, activeTab === 'following' && styles.activeTabText]}>
-              Following {followingList.length > 0 ? `(${followingList.length})` : ''}
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'following' && styles.activeTabText,
+              ]}
+            >
+              Following{' '}
+              {followingList.length > 0 ? `(${followingList.length})` : ''}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.headerButtons}>
-          <Button 
-            title="Refresh" 
-            onPress={handleRefresh} 
-            disabled={currentLoading || !isClientReady} 
+          <Button
+            title="Refresh"
+            onPress={handleRefresh}
+            disabled={currentLoading || !isClientReady}
           />
         </View>
       </View>
@@ -714,7 +771,9 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
           <Text style={styles.loadingText}>
-            {activeTab === 'your-posts' ? 'Fetching your posts...' : 'Fetching posts from following...'}
+            {activeTab === 'your-posts'
+              ? 'Fetching your posts...'
+              : 'Fetching posts from following...'}
           </Text>
         </View>
       )}
@@ -722,10 +781,13 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
       <ScrollView style={styles.postsContainer}>
         {currentPosts.length > 0 && (
           <Text style={styles.postCount}>
-            Found {currentPosts.length} {activeTab === 'your-posts' ? 'posts' : 'posts from following'}
+            Found {currentPosts.length}{' '}
+            {activeTab === 'your-posts' ? 'posts' : 'posts from following'}
           </Text>
         )}
-        {currentPosts.map((post, index) => renderPost(post, index, currentPosts.length))}
+        {currentPosts.map((post, index) =>
+          renderPost(post, index, currentPosts.length)
+        )}
       </ScrollView>
     </SafeAreaView>
   );
