@@ -73,6 +73,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('your-posts');
   const [followingList, setFollowingList] = useState<PublicKey[]>([]);
+  const [profileCache, setProfileCache] = useState<Map<string, { name: string, loaded: boolean }>>(new Map());
 
   // Initialize client on mount
   useEffect(() => {
@@ -113,6 +114,88 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
       }
     };
   }, []);
+
+  // Fetch profile for a specific public key
+  const fetchProfileForPubkey = async (pubkey: PublicKey): Promise<string | null> => {
+    if (!client || !isClientReady) return null;
+    
+    const hexKey = pubkey.toHex();
+    
+    // Check cache first
+    const cached = profileCache.get(hexKey);
+    if (cached && cached.loaded) {
+      return cached.name || null;
+    }
+    
+    try {
+      // Create filter for kind 0 (metadata/profile) events
+      const profileFilter = new Filter()
+        .author(pubkey)
+        .kinds([new Kind(0)])
+        .limit(1n);
+      
+      const events = await client.fetchEvents(profileFilter, 10000 as any);
+      const eventArray = events.toVec();
+      
+      if (eventArray.length > 0) {
+        const profileEvent = eventArray[0];
+        if (profileEvent) {
+          const content = profileEvent.content();
+          
+          try {
+            const profileData = JSON.parse(content);
+            const name = profileData.name || profileData.display_name || profileData.username;
+            
+            if (name) {
+              // Update cache
+              setProfileCache(prev => {
+                const newCache = new Map(prev);
+                newCache.set(hexKey, { name, loaded: true });
+                return newCache;
+              });
+              return name;
+            }
+          } catch (parseError) {
+            console.error('Error parsing profile JSON:', parseError);
+          }
+        }
+      }
+      
+      // Mark as loaded even if no name found
+      setProfileCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(hexKey, { name: '', loaded: true });
+        return newCache;
+      });
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching profile for pubkey:', error);
+      return null;
+    }
+  };
+
+  // Batch fetch profiles for multiple public keys
+  const fetchProfilesForPubkeys = async (pubkeys: PublicKey[]) => {
+    if (!client || !isClientReady || pubkeys.length === 0) return;
+    
+    // Filter out already cached profiles
+    const uncachedPubkeys = pubkeys.filter(pk => {
+      const cached = profileCache.get(pk.toHex());
+      return !cached || !cached.loaded;
+    });
+    
+    if (uncachedPubkeys.length === 0) return;
+    
+    console.log(`Fetching profiles for ${uncachedPubkeys.length} users...`);
+    
+    // Fetch profiles in parallel (limit to 10 at a time to avoid overwhelming)
+    const batchSize = 10;
+    for (let i = 0; i < uncachedPubkeys.length; i += batchSize) {
+      const batch = uncachedPubkeys.slice(i, i + batchSize);
+      await Promise.all(batch.map(pk => fetchProfileForPubkey(pk)));
+    }
+  };
 
   // Fetch user profile/name
   const fetchUserProfile = async () => {
@@ -200,40 +283,7 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
       if (eventArray.length > 0) {
         const contactListEvent = eventArray[0];
         if (contactListEvent) {
-          // Check if event has direct methods for getting following
-          console.log('Contact list event:', contactListEvent);
-          console.log('Contact list event type:', typeof contactListEvent);
-          if (contactListEvent && typeof contactListEvent === 'object') {
-            const eventMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(contactListEvent));
-            console.log('Contact list event methods:', eventMethods);
-            // Check for following-related methods
-            const followingMethods = eventMethods.filter(m => 
-              m.toLowerCase().includes('follow') || 
-              m.toLowerCase().includes('contact') ||
-              m.toLowerCase().includes('pubkey') ||
-              m.toLowerCase().includes('public')
-            );
-            if (followingMethods.length > 0) {
-              console.log('Found following-related methods:', followingMethods);
-            }
-          }
-          
           const tags = contactListEvent.tags();
-          
-          // Debug: log the tags object structure
-          console.log('Tags object:', tags);
-          console.log('Tags type:', typeof tags);
-          console.log('Tags constructor:', tags?.constructor?.name);
-          
-          // Try to see what methods are available
-          if (tags) {
-            const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(tags));
-            console.log('Available methods:', methods);
-            // Check if there's a method to get public keys directly
-            if (methods.includes('publicKeys') || methods.includes('public_keys')) {
-              console.log('Found publicKeys method');
-            }
-          }
           
           const followingPubkeys: PublicKey[] = [];
           
@@ -256,15 +306,6 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
           
           console.log(`Processing ${tagArray.length} tags`);
           
-          for (let i = 0; i < tagArray.length && i < 3; i++) {
-            const tag = tagArray[i];
-            console.log(`Tag ${i}:`, tag);
-            console.log(`Tag ${i} type:`, typeof tag);
-            if (tag && typeof tag === 'object') {
-              console.log(`Tag ${i} methods:`, Object.getOwnPropertyNames(Object.getPrototypeOf(tag)));
-            }
-          }
-          
           for (const tag of tagArray) {
             try {
               // Based on Python example, should be as_vec() with underscore
@@ -283,7 +324,6 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
                 try {
                   // tagData[1] contains the hex string
                   const hexPubkey = tagData[1] as string;
-                  console.log('Processing hex pubkey:', hexPubkey.substring(0, 8) + '...');
                   
                   // Try different approaches to create PublicKey from hex
                   let pubkey = null;
@@ -303,15 +343,13 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
                       try {
                         pubkey = PublicKey.parse('hex:' + hexPubkey);
                       } catch (e2) {
-                        console.log('Could not parse hex pubkey directly');
+                        // Could not parse hex pubkey directly
                       }
                     }
                   }
                   
                   if (pubkey) {
                     followingPubkeys.push(pubkey);
-                  } else {
-                    console.log('Could not create PublicKey from hex:', hexPubkey.substring(0, 8) + '...');
                   }
                 } catch (error) {
                   console.error('Error parsing pubkey from tag:', error);
@@ -382,6 +420,26 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
         });
         
         setFollowingPosts(eventArray);
+        
+        // Fetch profiles for all unique authors
+        const uniqueAuthors = new Set<string>();
+        eventArray.forEach(event => {
+          uniqueAuthors.add(event.author().toHex());
+        });
+        
+        const authorPubkeys = Array.from(uniqueAuthors).map(hex => {
+          try {
+            // We need to reconstruct PublicKey from the event's author
+            return eventArray.find(e => e.author().toHex() === hex)?.author();
+          } catch (e) {
+            return null;
+          }
+        }).filter(pk => pk !== null && pk !== undefined) as PublicKey[];
+        
+        // Fetch profiles in background
+        fetchProfilesForPubkeys(authorPubkeys).catch(err => 
+          console.error('Error fetching profiles:', err)
+        );
       } else {
         Alert.alert(
           'No posts found', 
@@ -420,11 +478,6 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
     try {
       // Parse the npub key
       const publicKey = PublicKey.parse(userNpub);
-      console.log('Parsed public key:', publicKey.toHex());
-      console.log('Public key bech32:', publicKey.toBech32());
-      
-      // Try different filter approaches
-      console.log('Creating filter...');
       
       // Create filter with chaining - try with regular number for limit
       const filter = new Filter()
@@ -432,20 +485,15 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
         .kinds([new Kind(1)])
         .limit(50n);  // Use BigInt as expected by the SDK
       
-      console.log('Final filter:', filter.asJson());
-      
-      console.log('Fetching events with filter...');
-      
       let allEvents: EventInterface[] = [];
       
       try {
-        // Try with milliseconds as integer
-        const timeoutMs = 30000; // 30 seconds in milliseconds
-        const events = await client.fetchEvents(filter, timeoutMs as any);
-        console.log('Fetched events:', events);
-        
-        const eventArray = events.toVec();
-        console.log(`Fetched ${eventArray.length} events`);
+                  // Try with milliseconds as integer
+          const timeoutMs = 30000; // 30 seconds in milliseconds
+          const events = await client.fetchEvents(filter, timeoutMs as any);
+          
+          const eventArray = events.toVec();
+          console.log(`Fetched ${eventArray.length} events`);
         
         if (eventArray.length > 0) {
           allEvents = eventArray;
@@ -577,8 +625,23 @@ function PostsScreen({ userNpub, onLogout }: { userNpub: string, onLogout: () =>
     
     if (isFollowingTab) {
       const authorPubkey = post.author();
-      // Show shortened hex for now - in a real app you'd fetch profiles
-      authorName = authorPubkey.toHex().substring(0, 8) + '...';
+      const hexKey = authorPubkey.toHex();
+      
+      // Get name from cache
+      const cached = profileCache.get(hexKey);
+      if (cached && cached.name) {
+        authorName = cached.name;
+      } else {
+        // Fallback to shortened hex if name not loaded yet
+        authorName = hexKey.substring(0, 8) + '...';
+        
+        // Trigger profile fetch if not already loading
+        if (!cached || !cached.loaded) {
+          fetchProfileForPubkey(authorPubkey).catch(err => 
+            console.error('Error fetching profile in render:', err)
+          );
+        }
+      }
     }
 
     return (
