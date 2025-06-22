@@ -115,11 +115,11 @@ jobs:
         working-directory: ./example
         run: |
           # Build the release APK
-          yarn build:android:release || true
+          yarn build:android:release
           
           # Also run gradlew directly to ensure release APK is built
           cd android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --stacktrace
 
       - name: Find and copy APK
         run: |
@@ -144,22 +144,21 @@ jobs:
             exit 1
           fi
 
-      - name: Delete existing release
-        uses: dev-drprasad/delete-tag-and-release@v1.0
-        with:
-          delete_release: true
-          tag_name: latest-build
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
+      - name: Verify APK exists before release
+        run: |
+          if [ -f "nostr-client-example-release.apk" ]; then
+            echo "✅ APK file exists and is ready for upload"
+            ls -la nostr-client-example-release.apk
+          else
+            echo "❌ APK file not found!"
+            exit 1
+          fi
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create or Update Release
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: latest-build
-          release_name: Latest APK Build (Release)
+          tag: latest-build
+          name: Latest APK Build (Release)
           body: |
             Automated release build from master branch
             
@@ -169,15 +168,8 @@ jobs:
             **Message:** ${{ github.event.head_commit.message }}
             
             This release is automatically updated on every push to master.
-          draft: false
-          prerelease: false
-
-      - name: Upload APK to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./nostr-client-example-release.apk
-          asset_name: nostr-client-example-release.apk
-          asset_content_type: application/vnd.android.package-archive 
+          artifacts: "nostr-client-example-release.apk"
+          allowUpdates: true
+          removeArtifacts: true
+          replacesArtifacts: true
+          token: ${{ secrets.GITHUB_TOKEN }} 
