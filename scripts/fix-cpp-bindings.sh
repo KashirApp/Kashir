@@ -6,7 +6,7 @@ set -e
 
 CPP_FILE="cpp/rust-nostr-nostr-sdk-react-native.cpp"
 TS_FILE="src/index.tsx"
-PODSPEC_FILE="rust-nostr-nostr-sdk-react-native.podspec"
+PODSPEC_FILE="NostrSdkReactNative.podspec"
 
 echo "🔧 Fixing all files to include both nostr-sdk and cdk dependencies..."
 echo "   - C++ bindings"

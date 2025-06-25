@@ -40,13 +40,12 @@
   "scripts": {
     "ubrn:ios:nostr": "ubrn build ios --config ubrn.nostr.config.yaml --and-generate",
     "ubrn:android:nostr": "ubrn build android --config ubrn.nostr.config.yaml --and-generate",
-    
     "ubrn:ios:cdk": "IPHONEOS_DEPLOYMENT_TARGET=18.0 ubrn build ios --config ubrn.cdk.config.yaml --and-generate",
     "ubrn:android:cdk": "ubrn build android --config ubrn.cdk.config.yaml --and-generate",
-                "ubrn:combine": "./scripts/combine-frameworks.sh && ./scripts/fix-cpp-bindings.sh",
-      "ubrn:ios": "yarn ubrn:ios:nostr && yarn ubrn:ios:cdk && ./scripts/fix-cpp-bindings.sh && (cd example/ios && pod install)",
+    "ubrn:combine": "./scripts/combine-frameworks.sh && ./scripts/fix-cpp-bindings.sh",
+    "ubrn:ios": "yarn ubrn:ios:nostr && yarn ubrn:ios:cdk && ./scripts/fix-cpp-bindings.sh && (cd example/ios && pod install)",
     "ubrn:android": "yarn ubrn:android:nostr && yarn ubrn:android:cdk",
-          "ubrn:clean": "rm -Rf cpp/ android/src/main/java ios/ src/Native* src/generated/ src/index.ts* NostrSdkFramework.xcframework CdkFramework.xcframework",
+    "ubrn:clean": "rm -Rf cpp/ android/src/main/java ios/ src/Native* src/generated/ src/index.ts* NostrSdkFramework.xcframework CdkFramework.xcframework",
     "example": "yarn workspace nostr-sdk-react-native-example",
     "test": "jest",
     "typecheck": "tsc",
@@ -186,6 +185,6 @@
     "version": "0.49.0"
   },
   "dependencies": {
-    "uniffi-bindgen-react-native": "^0.28.3-5"
+    "uniffi-bindgen-react-native": "^0.29.3-0"
   }
 }
