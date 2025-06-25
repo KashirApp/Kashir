@@ -80,7 +80,8 @@ android/keystores/debug.keystore
 lib/
 
 # React Native Codegen
-RustNostrNostrSdkReactNativeFramework.xcframework/
+NostrSdkFramework.xcframework/
+CdkFramework.xcframework/
 rust-nostr-nostr-sdk-react-native.podspec
 ios/
 android/

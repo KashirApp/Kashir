@@ -1,0 +1,7 @@
+---
+rust:
+  directory: deps/cdk-ffi
+  manifestPath: Cargo.toml
+
+ios:
+  frameworkName: CdkFramework

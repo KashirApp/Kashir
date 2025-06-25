@@ -1,7 +1,0 @@
----
-rust:
-  directory: deps/foobar
-  manifestPath: Cargo.toml
-
-ios:
-  frameworkName: FoobarFramework 

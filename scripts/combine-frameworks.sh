@@ -3,7 +3,7 @@
 # Script to combine multiple UniFFI frameworks into a single framework
 set -e
 
-echo "🔧 Combining NostrSdk and Foobar frameworks..."
+echo "🔧 Combining NostrSdk and CDK frameworks..."
 
 # Clean up any existing combined framework
 rm -rf RustNostrNostrSdkReactNativeFramework.xcframework
@@ -16,13 +16,13 @@ mkdir -p combined-libs/ios-arm64-simulator
 echo "📱 Combining arm64 libraries..."
 libtool -static -o combined-libs/ios-arm64/libcombined.a \
   NostrSdkFramework.xcframework/ios-arm64/libnostr_sdk_ffi.a \
-  FoobarFramework.xcframework/ios-arm64/libfoobar.a
+  CdkFramework.xcframework/ios-arm64/libcdk_ffi.a
 
 # Combine the .a files for simulator  
 echo "🖥️  Combining simulator libraries..."
 libtool -static -o combined-libs/ios-arm64-simulator/libcombined.a \
   NostrSdkFramework.xcframework/ios-arm64-simulator/libnostr_sdk_ffi.a \
-  FoobarFramework.xcframework/ios-arm64-simulator/libfoobar.a
+  CdkFramework.xcframework/ios-arm64-simulator/libcdk_ffi.a
 
 # Create the combined xcframework
 echo "📦 Creating combined xcframework..."
@@ -35,4 +35,9 @@ xcodebuild -create-xcframework \
 rm -rf combined-libs
 
 echo "✅ Combined framework created: RustNostrNostrSdkReactNativeFramework.xcframework"
-echo "   Contains both nostr-sdk-ffi and foobar libraries" 
+echo "   Contains both nostr-sdk-ffi and cdk libraries"
+
+# Optional: Clean up individual frameworks since we're using the combined one
+# Uncomment the lines below if you want to keep only the combined framework
+# echo "🧹 Cleaning up individual frameworks..."
+# rm -rf NostrSdkFramework.xcframework CdkFramework.xcframework 
