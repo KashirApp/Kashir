@@ -3,4 +3,5 @@ export { PostsScreen } from './PostsScreen';
 export { Header } from './Header';
 export { TabNavigation } from './TabNavigation';
 export { Post } from './Post';
-export { PostList } from './PostList'; 
+export { PostList } from './PostList';
+export { WalletScreen } from './WalletScreen'; 

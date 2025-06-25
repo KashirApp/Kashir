@@ -53,6 +53,10 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  userActions: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   headerButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
