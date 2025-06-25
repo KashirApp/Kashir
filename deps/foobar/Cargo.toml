@@ -1,0 +1,15 @@
+[package]
+name = "foobar"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "foobar"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+uniffi = "=0.28.3"
+thiserror = "2.0.11"
+
+[build-dependencies]
+uniffi = "=0.28.3" 

@@ -7,7 +7,7 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
-import { PublicKey } from '../../../src';
+import NostrSdk from '../../../src';
 import { styles } from '../App.styles';
 
 interface LoginScreenProps {
@@ -27,7 +27,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setLoading(true);
     try {
       // Validate the npub key by trying to parse it
-      PublicKey.parse(npubInput.trim());
+      NostrSdk.nostr_sdk.PublicKey.parse(npubInput.trim());
       onLogin(npubInput.trim());
     } catch (error) {
       Alert.alert('Error', 'Invalid npub key. Please check and try again.');

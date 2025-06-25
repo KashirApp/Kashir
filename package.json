@@ -38,10 +38,14 @@
     "!**/.*"
   ],
   "scripts": {
-    "ubrn:ios": "ubrn build ios --config ubrn.config.yaml --and-generate && (cd example/ios && pod install)",
-    "ubrn:android": "ubrn build android --config ubrn.config.yaml --and-generate",
-    "ubrn:checkout": "ubrn checkout --config ubrn.config.yaml",
-    "ubrn:clean": "rm -Rf cpp/ android/src/main/java ios/ src/Native* src/generated/ src/index.ts*",
+    "ubrn:ios:nostr": "ubrn build ios --config ubrn.nostr.config.yaml --and-generate",
+    "ubrn:android:nostr": "ubrn build android --config ubrn.nostr.config.yaml --and-generate",
+    "ubrn:ios:foobar": "ubrn build ios --config ubrn.foobar.config.yaml --and-generate",
+    "ubrn:android:foobar": "ubrn build android --config ubrn.foobar.config.yaml --and-generate",
+    "ubrn:combine": "./scripts/combine-frameworks.sh",
+    "ubrn:ios": "yarn ubrn:ios:nostr && yarn ubrn:ios:foobar && yarn ubrn:combine && (cd example/ios && pod install)",
+    "ubrn:android": "yarn ubrn:android:nostr && yarn ubrn:android:foobar",
+    "ubrn:clean": "rm -Rf cpp/ android/src/main/java ios/ src/Native* src/generated/ src/index.ts* NostrSdkFramework.xcframework FoobarFramework.xcframework RustNostrNostrSdkReactNativeFramework.xcframework",
     "example": "yarn workspace nostr-sdk-react-native-example",
     "test": "jest",
     "typecheck": "tsc",
