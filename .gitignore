@@ -82,7 +82,7 @@ lib/
 # React Native Codegen
 NostrSdkFramework.xcframework/
 CdkFramework.xcframework/
-NostrSdkReactNative.podspec
+rust-nostr-nostr-sdk-react-native.podspec
 ios/
 android/
 cpp/

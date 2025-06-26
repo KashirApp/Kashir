@@ -22,15 +22,14 @@ done
 
 CPP_FILE="cpp/rust-nostr-nostr-sdk-react-native.cpp"
 TS_FILE="src/index.tsx"
-PODSPEC_FILE="NostrSdkReactNative.podspec"
 
 echo "🔧 Fixing files to include both nostr-sdk and cdk dependencies..."
 echo "   - C++ bindings"
 echo "   - TypeScript exports"
 if [[ $SKIP_IOS == false ]]; then
-    echo "   - Podspec frameworks"
+    echo "   - Auto-generated podspec frameworks"
 else
-    echo "   - Podspec frameworks (SKIPPED - iOS-specific)"
+    echo "   - Auto-generated podspec frameworks (SKIPPED - iOS-specific)"
 fi
 
 if [ ! -f "$CPP_FILE" ]; then
@@ -172,51 +171,33 @@ else
     echo "✅ TypeScript file already has both dependencies configured"
 fi
 
-# Fix the podspec file (iOS-specific)
+# Fix the auto-generated podspec to include both frameworks (iOS-specific)
 if [[ $SKIP_IOS == false ]]; then
     echo ""
-    echo "🔧 Fixing podspec file..."
-
-    if [ ! -f "$PODSPEC_FILE" ]; then
-        echo "❌ Podspec file not found: $PODSPEC_FILE"
-        exit 1
-    fi
-
-    # Check if the podspec has both frameworks
-    has_nostr_framework=$(grep -c "NostrSdkFramework.xcframework" "$PODSPEC_FILE" || true)
-    has_cdk_framework=$(grep -c "CdkFramework.xcframework" "$PODSPEC_FILE" || true)
-
-    echo "📊 Podspec current state:"
-    echo "   - NostrSdk framework: $has_nostr_framework"
-    echo "   - CDK framework: $has_cdk_framework"
-
-    # Check if podspec needs fixing
-    podspec_needs_fix=false
-    if [[ $has_nostr_framework -eq 0 || $has_cdk_framework -eq 0 ]]; then
-        podspec_needs_fix=true
-    fi
-
-    if [[ $podspec_needs_fix == true ]]; then
-        echo "🛠️  Updating podspec to include both frameworks..."
+    echo "🔧 Fixing auto-generated podspec to include both frameworks..."
+    AUTO_GENERATED_PODSPEC="rust-nostr-nostr-sdk-react-native.podspec"
+    if [ -f "$AUTO_GENERATED_PODSPEC" ]; then
+        # Check if it needs both frameworks
+        has_both_frameworks=$(grep -c '"NostrSdkFramework.xcframework", "CdkFramework.xcframework"' "$AUTO_GENERATED_PODSPEC" || true)
         
-        # Fix the vendored_frameworks line to include both
-        if grep -q "s.vendored_frameworks" "$PODSPEC_FILE"; then
-            # Replace the existing vendored_frameworks line
-            sed -i '' 's/s\.vendored_frameworks = .*/s.vendored_frameworks = "NostrSdkFramework.xcframework", "CdkFramework.xcframework"/' "$PODSPEC_FILE"
+        if [[ $has_both_frameworks -eq 0 ]]; then
+            echo "🛠️  Updating auto-generated podspec to include both frameworks..."
+            
+            # Replace the vendored_frameworks line to include both
+            sed -i '' 's/s\.vendored_frameworks = "CdkFramework\.xcframework"/s.vendored_frameworks = "NostrSdkFramework.xcframework", "CdkFramework.xcframework"/' "$AUTO_GENERATED_PODSPEC"
+            
+            echo "✅ Fixed auto-generated podspec to include both frameworks"
+            echo "   - NostrSdkFramework.xcframework"
+            echo "   - CdkFramework.xcframework"
         else
-            # Add vendored_frameworks line if it doesn't exist (insert after source_files)
-            sed -i '' '/s\.source_files/a\
-      s.vendored_frameworks = "NostrSdkFramework.xcframework", "CdkFramework.xcframework"
-    ' "$PODSPEC_FILE"
+            echo "✅ Auto-generated podspec already has both frameworks"
         fi
-        
-        echo "✅ Fixed podspec to include both frameworks"
-        echo "   - NostrSdkFramework.xcframework"
-        echo "   - CdkFramework.xcframework"
     else
-        echo "✅ Podspec already has both frameworks configured"
+        echo "⚠️  Auto-generated podspec not found: $AUTO_GENERATED_PODSPEC"
+        echo "   This is expected on first run before UBRN generates it"
     fi
 else
     echo ""
-    echo "⏭️  Skipping podspec file (iOS-specific)"
+    echo "⏭️  Skipping auto-generated podspec file (iOS-specific)"
 fi
+
