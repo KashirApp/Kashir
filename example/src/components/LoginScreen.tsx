@@ -11,7 +11,7 @@ import NostrSdk from '../../../src';
 import { styles } from '../App.styles';
 
 interface LoginScreenProps {
-  onLogin: (npub: string) => void;
+  onLogin: (npub: string) => Promise<void>;
 }
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
@@ -28,7 +28,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     try {
       // Validate the npub key by trying to parse it
       NostrSdk.nostr_sdk.PublicKey.parse(npubInput.trim());
-      onLogin(npubInput.trim());
+      await onLogin(npubInput.trim());
     } catch (error) {
       Alert.alert('Error', 'Invalid npub key. Please check and try again.');
     } finally {

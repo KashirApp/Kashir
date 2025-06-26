@@ -12,7 +12,7 @@ import { styles } from '../App.styles';
 
 interface PostsScreenProps {
   userNpub: string;
-  onLogout: () => void;
+  onLogout: () => Promise<void>;
   onShowWallet: () => void;
 }
 
@@ -99,9 +99,9 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     clientService.disconnect();
-    onLogout();
+    await onLogout();
   };
 
   const currentPosts = activeTab === 'your-posts' ? posts : followingPosts;

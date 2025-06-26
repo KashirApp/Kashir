@@ -8,7 +8,7 @@ interface HeaderProps {
   profileLoading: boolean;
   isClientReady: boolean;
   currentLoading: boolean;
-  onLogout: () => void;
+  onLogout: () => Promise<void>;
   onRefresh: () => void;
   onShowWallet: () => void;
 }
@@ -49,7 +49,7 @@ export function Header({
           disabled={profileLoading}
         />
         <Text style={styles.title}>Nostr Feed</Text>
-        <Button title="Logout" onPress={onLogout} />
+        <Button title="Logout" onPress={() => onLogout()} />
       </View>
       <View style={styles.userActions}>
         <Button
