@@ -229,8 +229,25 @@ set_target_properties(my_cdk_lib PROPERTIES IMPORTED_LOCATION ${MY_CDK_LIB})
   my_cdk_lib/' "$CMAKE_FILE"
         fi
         
+        # Add linker flag to allow multiple definitions (resolves secp256k1 symbol conflicts)
+        has_linker_flag=$(grep -c "allow-multiple-definition" "$CMAKE_FILE" || true)
+        if [[ $has_linker_flag -eq 0 ]]; then
+            # Add the linker flag after the last set_target_properties line
+            sed -i '' '/set_target_properties(my_cdk_lib PROPERTIES IMPORTED_LOCATION \${MY_CDK_LIB})/a\
+\
+# Allow multiple definitions to resolve secp256k1 symbol conflicts between nostr-sdk and cdk\
+set_target_properties(rust-nostr-nostr-sdk-react-native PROPERTIES\
+  LINK_FLAGS "-Wl,--allow-multiple-definition"\
+)
+' "$CMAKE_FILE"
+            echo "✅ Added linker flag to allow multiple definitions"
+        else
+            echo "✅ Linker flag already present"
+        fi
+        
         echo "✅ Fixed CMakeLists.txt to include both dependencies"
         echo "   - Added both cpp and library files"
+        echo "   - Added linker flag for symbol conflict resolution"
     else
         echo "✅ CMakeLists.txt already has both dependencies configured"
     fi
