@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Button, Alert } from 'react-native';
+import { View, Text, Button, Alert, Clipboard } from 'react-native';
 import { styles } from '../App.styles';
 
 interface HeaderProps {
@@ -27,7 +27,10 @@ export function Header({
     Alert.alert('User Profile', `Full npub: ${userNpub}\n\nName: ${userName}`, [
       {
         text: 'Copy npub',
-        onPress: () => console.log('Copy functionality not implemented'),
+        onPress: () => {
+          Clipboard.setString(userNpub);
+          Alert.alert('Copied!', 'npub copied to clipboard');
+        },
       },
       { text: 'OK' },
     ]);

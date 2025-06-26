@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -15,29 +15,51 @@ import {
   Clipboard,
 } from 'react-native';
 import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget } from '../../../src';
+import RNFS from 'react-native-fs';
 
 interface WalletScreenProps {
   onClose: () => void;
 }
 
+// Utility function to extract error messages from various error types
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  
+  if (typeof error === 'object' && error !== null) {
+    const anyError = error as any;
+    // Try CDK-specific error format first
+    if (anyError.inner?.msg) {
+      return anyError.inner.msg;
+    }
+    // Try standard message property
+    if (anyError.message) {
+      return anyError.message;
+    }
+  }
+  
+  return String(error);
+};
+
 export function WalletScreen({ onClose }: WalletScreenProps) {
-  const [balance, setBalance] = React.useState<bigint>(BigInt(0));
-  const [moduleStatus, setModuleStatus] = React.useState<string>('Loading...');
-  const [cdkModule, setCdkModule] = React.useState<any>(null);
-  const [wallet, setWallet] = React.useState<any>(null);
-  const [showReceiveModal, setShowReceiveModal] = React.useState(false);
-  const [receiveAmount, setReceiveAmount] = React.useState('');
-  const [invoice, setInvoice] = React.useState('');
-  const [isLoadingInvoice, setIsLoadingInvoice] = React.useState(false);
-  const [quoteId, setQuoteId] = React.useState('');
-  const [showSendModal, setShowSendModal] = React.useState(false);
-  const [lightningInvoice, setLightningInvoice] = React.useState('');
-  const [isSending, setIsSending] = React.useState(false);
+  const [balance, setBalance] = useState<bigint>(BigInt(0));
+  const [moduleStatus, setModuleStatus] = useState<string>('Loading...');
+  const [cdkModule, setCdkModule] = useState<any>(null);
+  const [wallet, setWallet] = useState<any>(null);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [receiveAmount, setReceiveAmount] = useState('');
+  const [invoice, setInvoice] = useState('');
+  const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
+  const [quoteId, setQuoteId] = useState('');
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [lightningInvoice, setLightningInvoice] = useState('');
+  const [isSending, setIsSending] = useState(false);
   
   const mintUrl = 'https://mint.103100.xyz';
 
   // Test CDK module loading step by step
-  React.useEffect(() => {
+  useEffect(() => {
     const testCdkLoading = () => {
       try {
         setModuleStatus('Testing CDK import...');
@@ -61,7 +83,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
         
       } catch (error) {
         console.error('CDK loading error:', error);
-        setModuleStatus(`CDK loading failed: ${error instanceof Error ? error.message : String(error)}`);
+        setModuleStatus(`CDK loading failed: ${getErrorMessage(error)}`);
       }
     };
     
@@ -82,7 +104,43 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
         seedView[i] = Math.floor(Math.random() * 256);
       }
       
-      const localStore = new FfiLocalStore();
+      let localStore;
+      try {
+        // Use react-native-fs to get the proper app internal storage directory
+        const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+        localStore = FfiLocalStore.newWithPath(dbPath);
+      } catch (storeError) {
+        console.error('FfiLocalStore creation failed:', storeError);
+        const errorMsg = getErrorMessage(storeError);
+        
+        // Try fallback to default constructor (uses temp directory)
+        try {
+          localStore = new FfiLocalStore();
+        } catch (fallbackError) {
+          const fallbackErrorMsg = getErrorMessage(fallbackError);
+          
+          Alert.alert(
+            'CDK Storage Error', 
+            `Failed to create CDK storage with both RNFS and default paths.\n\nRNFS error: ${errorMsg}\nFallback error: ${fallbackErrorMsg}\n\nThis indicates a device storage restriction issue.`,
+            [
+              { 
+                text: 'OK', 
+                onPress: () => {
+                  setModuleStatus('CDK storage failed - all paths inaccessible');
+                }
+              }
+            ]
+          );
+          return;
+        }
+      }
+      
+      // Ensure localStore was created successfully
+      if (!localStore) {
+        console.error('LocalStore is undefined, cannot create wallet');
+        return;
+      }
+      
       const walletInstance = new FfiWallet(
         mintUrl,
         FfiCurrencyUnit.Sat,
@@ -120,7 +178,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       
     } catch (error) {
       console.error('Wallet creation error:', error);
-      Alert.alert('Error', `Wallet creation failed: ${error instanceof Error ? error.message : String(error)}`);
+      Alert.alert('Wallet Creation Failed', `Error: ${getErrorMessage(error)}\n\nThis might be a device-specific issue. Try restarting the app.`);
     }
   };
 
@@ -166,7 +224,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       
     } catch (error) {
       console.error('Failed to create invoice:', error);
-      const errorMsg = (error as any)?.inner?.msg || (error as any)?.message || String(error);
+      const errorMsg = getErrorMessage(error);
       Alert.alert('Error', `Failed to create invoice: ${errorMsg}`);
     } finally {
       setIsLoadingInvoice(false);
@@ -190,13 +248,12 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       Alert.alert('Balance Updated', `Current balance: ${walletBalance.value} sats`);
     } catch (error) {
       console.error('Failed to refresh balance:', error);
-      Alert.alert('Error', `Failed to refresh balance: ${error instanceof Error ? error.message : String(error)}`);
+      Alert.alert('Error', `Failed to refresh balance: ${getErrorMessage(error)}`);
     }
   };
 
   const checkAndMintPendingTokens = async () => {
     if (!wallet || !quoteId) {
-      console.log('No wallet or quote to check');
       return;
     }
     
@@ -221,7 +278,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
             setShowReceiveModal(false);
           } catch (mintError) {
             console.error('Failed to mint tokens:', mintError);
-            Alert.alert('Error', `Failed to mint tokens: ${mintError instanceof Error ? mintError.message : String(mintError)}`);
+            Alert.alert('Error', `Failed to mint tokens: ${getErrorMessage(mintError)}`);
           }
         }
       } else {
@@ -229,7 +286,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       }
     } catch (error) {
       console.error('Failed to check mint quote:', error);
-      Alert.alert('Error', `Failed to check payment status: ${error instanceof Error ? error.message : String(error)}`);
+      Alert.alert('Error', `Failed to check payment status: ${getErrorMessage(error)}`);
     }
   };
 
@@ -251,12 +308,8 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
 
     setIsSending(true);
     try {
-      console.log('Attempting to send payment...');
-      console.log('Lightning invoice:', lightningInvoice);
-      
       // Check current balance first
       const currentBalance = wallet.balance();
-      console.log('Current balance before send:', currentBalance.value);
       
       if (currentBalance.value <= 0) {
         Alert.alert('Error', 'Insufficient balance to send payment');
@@ -281,8 +334,6 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
         );
         return;
       }
-      
-      console.log('Preparing Lightning payment...');
       
       try {
         const meltQuote = await wallet.meltQuote(lightningInvoice);
@@ -335,7 +386,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
                 } catch (sendError) {
                   console.error('Payment failed:', sendError);
                   
-                  const errorMsg = (sendError as any)?.inner?.msg || (sendError as any)?.message || String(sendError);
+                  const errorMsg = getErrorMessage(sendError);
                   
                   Alert.alert('Payment Failed', errorMsg);
                 } finally {
@@ -352,7 +403,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       
     } catch (error) {
       console.error('Payment preparation failed:', error);
-      const errorMsg = (error as any)?.inner?.msg || (error as any)?.message || String(error);
+      const errorMsg = getErrorMessage(error);
       Alert.alert('Error', `Failed to prepare payment: ${errorMsg}`);
       setIsSending(false);
     }
