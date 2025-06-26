@@ -4,6 +4,15 @@
 # Fixes: C++ bindings, TypeScript exports, and podspec frameworks
 set -e
 
+# Cross-platform sed -i compatibility
+sed_inplace() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
 # Parse command line arguments
 SKIP_IOS=false
 while [[ $# -gt 0 ]]; do
@@ -202,7 +211,7 @@ if [ -f "$CMAKE_FILE" ]; then
         
         # Add nostr_sdk cpp file if missing
         if [[ $has_nostr_cpp -eq 0 && $has_cdk_cpp -eq 1 ]]; then
-            sed -i '' '/..\/cpp\/generated\/cdk_ffi.cpp/i\
+            sed_inplace '/..\/cpp\/generated\/cdk_ffi.cpp/i\
     ../cpp/generated/nostr_sdk.cpp
 ' "$CMAKE_FILE"
         fi
@@ -210,10 +219,10 @@ if [ -f "$CMAKE_FILE" ]; then
                  # Fix library paths if they're pointing to wrong libraries
         if [[ $has_nostr_lib -eq 0 && $has_cdk_lib -gt 0 ]]; then
             # Change MY_RUST_LIB from cdk to nostr-sdk
-            sed -i '' 's/libcdk_ffi\.a/libnostr_sdk_ffi.a/' "$CMAKE_FILE"
+            sed_inplace 's/libcdk_ffi\.a/libnostr_sdk_ffi.a/' "$CMAKE_FILE"
             
             # Add CDK library definition after the rust lib
-            sed -i '' '/set_target_properties(my_rust_lib PROPERTIES IMPORTED_LOCATION \${MY_RUST_LIB})/a\
+            sed_inplace '/set_target_properties(my_rust_lib PROPERTIES IMPORTED_LOCATION \${MY_RUST_LIB})/a\
 \
 cmake_path(\
   SET MY_CDK_LIB\
@@ -225,7 +234,7 @@ set_target_properties(my_cdk_lib PROPERTIES IMPORTED_LOCATION ${MY_CDK_LIB})
 ' "$CMAKE_FILE"
             
             # Add CDK library to target_link_libraries (only in the final target_link_libraries section)
-            sed -i '' '/target_link_libraries(/,/my_rust_lib/s/my_rust_lib/my_rust_lib\
+            sed_inplace '/target_link_libraries(/,/my_rust_lib/s/my_rust_lib/my_rust_lib\
   my_cdk_lib/' "$CMAKE_FILE"
         fi
         
@@ -233,7 +242,7 @@ set_target_properties(my_cdk_lib PROPERTIES IMPORTED_LOCATION ${MY_CDK_LIB})
         has_linker_flag=$(grep -c "allow-multiple-definition" "$CMAKE_FILE" || true)
         if [[ $has_linker_flag -eq 0 ]]; then
             # Add the linker flag after the last set_target_properties line
-            sed -i '' '/set_target_properties(my_cdk_lib PROPERTIES IMPORTED_LOCATION \${MY_CDK_LIB})/a\
+            sed_inplace '/set_target_properties(my_cdk_lib PROPERTIES IMPORTED_LOCATION \${MY_CDK_LIB})/a\
 \
 # Allow multiple definitions to resolve secp256k1 symbol conflicts between nostr-sdk and cdk\
 set_target_properties(rust-nostr-nostr-sdk-react-native PROPERTIES\
@@ -269,7 +278,7 @@ if [[ $SKIP_IOS == false ]]; then
             echo "🛠️  Updating auto-generated podspec to include both frameworks..."
             
             # Replace the vendored_frameworks line to include both
-            sed -i '' 's/s\.vendored_frameworks = "CdkFramework\.xcframework"/s.vendored_frameworks = "NostrSdkFramework.xcframework", "CdkFramework.xcframework"/' "$AUTO_GENERATED_PODSPEC"
+            sed_inplace 's/s\.vendored_frameworks = "CdkFramework\.xcframework"/s.vendored_frameworks = "NostrSdkFramework.xcframework", "CdkFramework.xcframework"/' "$AUTO_GENERATED_PODSPEC"
             
             echo "✅ Fixed auto-generated podspec to include both frameworks"
             echo "   - NostrSdkFramework.xcframework"
