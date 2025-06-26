@@ -12,6 +12,6 @@ echo "Building cdk-ffi for Android..."
 ubrn build android --config ubrn.cdk.config.yaml --and-generate "$@"
 
 echo "Fixing C++ bindings to include both nostr-sdk and cdk..."
-./scripts/fix-cpp-bindings.sh
+./scripts/fix-cpp-bindings.sh --skip-ios
 
 echo "Android build completed successfully!" 
