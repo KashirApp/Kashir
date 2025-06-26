@@ -74,15 +74,13 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
     fetchProfile();
   }, [client, isClientReady, userNpub, profileService]);
 
-  // Auto-fetch posts and following list when client is ready
+  // Auto-fetch following data when client is ready (since Following is the default tab)
   useEffect(() => {
     if (isClientReady && userNpub) {
-      fetchPosts(userNpub);
       fetchFollowingList(userNpub);
-      // Also fetch following posts since Following is now the default tab
       fetchFollowingPosts(userNpub);
     }
-  }, [isClientReady, userNpub, fetchPosts, fetchFollowingList, fetchFollowingPosts]);
+  }, [isClientReady, userNpub, fetchFollowingList, fetchFollowingPosts]);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
