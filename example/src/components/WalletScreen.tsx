@@ -14,6 +14,7 @@ import {
   ScrollView,
   Clipboard,
 } from 'react-native';
+import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget } from '@rust-nostr/nostr-sdk-react-native';
 
 interface WalletScreenProps {
   onClose: () => void;
@@ -37,87 +38,25 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
 
   // Test CDK module loading step by step
   React.useEffect(() => {
-    const testCdkLoading = async () => {
+    const testCdkLoading = () => {
       try {
         setModuleStatus('Testing CDK import...');
         
-        // Try importing the CDK module
-        const cdkModuleImport = await import('../../../src/generated/cdk_ffi');
-        console.log('CDK module imported:', cdkModuleImport);
-        
-        setModuleStatus('Initializing CDK native module...');
-        
-        // CRITICAL: Initialize the native module BEFORE using any CDK functions
-        console.log('Full CDK module import:', Object.keys(cdkModuleImport));
-        const defaultExport = cdkModuleImport.default;
-        console.log('Default export:', defaultExport);
-        console.log('Default export keys:', defaultExport ? Object.keys(defaultExport) : 'no default export');
-        
-        // Check if the React Native module is available
-        console.log('Checking React Native modules...');
-        const { NativeModules } = require('react-native');
-        console.log('Available NativeModules:', Object.keys(NativeModules));
-        console.log('CdkRn module:', NativeModules.CdkRn);
-        console.log('NativeCdkRn module:', NativeModules.NativeCdkRn);
-        
-        // Check global object for JSI modules
-        console.log('Checking globalThis for JSI modules...');
-        console.log('globalThis.NativeCdkFfi:', (globalThis as any).NativeCdkFfi);
-        console.log('Available globals:', Object.getOwnPropertyNames(globalThis).filter(name => name.includes('Cdk') || name.includes('cdk')));
-        
-        // Try to manually call installRustCrate if the module exists
-        if (NativeModules.CdkRn && typeof NativeModules.CdkRn.installRustCrate === 'function') {
-          console.log('Manually calling installRustCrate...');
-          try {
-            const result = await NativeModules.CdkRn.installRustCrate();
-            console.log('installRustCrate result:', result);
-            console.log('After installRustCrate - globalThis.NativeCdkFfi:', (globalThis as any).NativeCdkFfi);
-          } catch (installError) {
-            console.error('Manual installRustCrate failed:', installError);
-          }
-        }
-        
-        if (defaultExport && typeof defaultExport.initialize === 'function') {
-          console.log('Calling CDK initialize...');
-          try {
-            defaultExport.initialize();
-            console.log('CDK native module initialized successfully!');
-            setModuleStatus('CDK native module initialized!');
-            
-            // Test if native module is actually working now
-            console.log('Testing native module access after init...');
-            const nativeModule = (cdkModuleImport as any).nativeModule;
-            console.log('Native module:', nativeModule);
-            if (nativeModule && typeof nativeModule === 'function') {
-              const moduleInstance = nativeModule();
-              console.log('Native module instance:', moduleInstance);
-              console.log('Native module functions available:', Object.keys(moduleInstance || {}));
-              
-              // Check for the specific function we need
-              const targetFunction = 'ubrn_uniffi_cdk_ffi_fn_constructor_ffilocalstore_new';
-              if (moduleInstance && moduleInstance[targetFunction]) {
-                console.log(`✅ ${targetFunction} is available!`);
-              } else {
-                console.log(`❌ ${targetFunction} is NOT available!`);
-                console.log('Available functions:', Object.keys(moduleInstance || {}));
-              }
-            }
-          } catch (initError) {
-            console.error('Initialize function threw an error:', initError);
-            throw new Error(`Initialization failed: ${initError instanceof Error ? initError.message : String(initError)}`);
-          }
+        if (FfiLocalStore && FfiWallet && FfiCurrencyUnit) {
+          setModuleStatus('All CDK components available!');
+          
+          // Create a CDK module object for compatibility with existing code
+          const cdkModuleImport = {
+            FfiLocalStore,
+            FfiWallet,
+            FfiCurrencyUnit,
+            FfiMintQuoteState,
+            FfiSplitTarget,
+          };
+          setCdkModule(cdkModuleImport);
         } else {
-          console.error('Initialize function not found or not a function');
-          throw new Error('CDK initialize function not found');
-        }
-        
-        setCdkModule(cdkModuleImport);
-        
-        // Test basic components availability  
-        if (cdkModuleImport.FfiLocalStore && cdkModuleImport.FfiWallet) {
-          setModuleStatus('All CDK components available and initialized!');
-        } else {
-          setModuleStatus('Some CDK components missing');
+          console.error('CDK components not found');
+          throw new Error('CDK components not found');
         }
         
       } catch (error) {
@@ -136,9 +75,6 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
     }
     
     try {
-      console.log('Testing wallet creation...');
-      const { FfiLocalStore, FfiWallet, FfiCurrencyUnit } = cdkModule;
-      
       // Generate a simple seed
       const seed = new ArrayBuffer(32);
       const seedView = new Uint8Array(seed);
@@ -147,67 +83,39 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       }
       
       const localStore = new FfiLocalStore();
-      console.log('Local store created');
-      
       const walletInstance = new FfiWallet(
         mintUrl,
         FfiCurrencyUnit.Sat,
         localStore,
         seed
       );
-      console.log('Wallet created successfully!');
       
-      // Try to initialize wallet with mint keysets and mint info
+      // Initialize wallet with mint information
       try {
-        console.log('Initializing wallet with mint...');
-        console.log('Available wallet methods:', Object.getOwnPropertyNames(walletInstance));
-        
-        // Try to get mint info to verify connection
-        const mintUrlCheck = walletInstance.mintUrl();
-        console.log('Wallet connected to mint:', mintUrlCheck);
-        
-        // Initialize mint information - this is crucial to fix "Token does not match wallet mint" error
         if (typeof walletInstance.getMintInfo === 'function') {
-          console.log('Fetching and initializing mint information...');
-          try {
-            const mintInitResult = await walletInstance.getMintInfo();
-            console.log('Mint initialization result:', mintInitResult);
-          } catch (mintInfoError) {
-            console.log('Mint info initialization failed:', mintInfoError);
-            // Continue anyway, but this might cause issues later
-          }
-        } else {
-          console.log('getMintInfo method not available');
+          await walletInstance.getMintInfo();
         }
         
-        // Force the wallet to sync by checking balance - this might trigger keyset fetching
-        console.log('Attempting initial sync...');
+        // Attempt initial balance sync
         try {
-          const initialBalance = walletInstance.balance();
-          console.log('Initial balance sync successful:', initialBalance.value);
+          walletInstance.balance();
         } catch (balanceError) {
-          console.log('Initial balance check failed (might be expected for new wallet):', balanceError);
-          // This might fail for a new wallet, but it should trigger keyset fetching
+          // Expected for new wallets
         }
-        
       } catch (initError) {
-        console.log('Wallet initialization warning:', initError);
-        // Continue anyway, this might not be required
+        // Continue anyway, initialization might not be required
       }
       
-      // Save wallet instance for later use
       setWallet(walletInstance);
       
-      // Try to get balance, but handle the case where wallet is not yet initialized
+      // Get wallet balance
       try {
         const walletBalance = walletInstance.balance();
         setBalance(walletBalance.value);
-        console.log('Balance retrieved:', walletBalance.value);
-        Alert.alert('Success!', `Wallet created and balance retrieved: ${walletBalance.value} sats`);
+        Alert.alert('Success!', `Wallet created! Balance: ${walletBalance.value} sats`);
       } catch (balanceError) {
-        console.log('Balance retrieval failed (expected for new wallet):', balanceError);
         setBalance(BigInt(0));
-        Alert.alert('Success!', 'Wallet created successfully! Balance is 0 sats (new wallet)');
+        Alert.alert('Success!', 'Wallet created successfully! Balance: 0 sats');
       }
       
     } catch (error) {
@@ -244,41 +152,12 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
 
     setIsLoadingInvoice(true);
     try {
-      console.log('Creating invoice for amount:', receiveAmount);
-      console.log('Wallet instance:', wallet);
-      console.log('Wallet methods:', Object.getOwnPropertyNames(wallet));
-      
-      // Check if wallet has required methods
       if (typeof wallet.mintQuote !== 'function') {
         throw new Error('Wallet mintQuote method not available');
       }
       
-      // Check wallet state before making quote
-      try {
-        const mintUrlCheck = wallet.mintUrl();
-        console.log('Wallet mint URL:', mintUrlCheck);
-      } catch (urlErr) {
-        console.log('Could not get mint URL:', urlErr);
-      }
-      
-      // Try to sync wallet state by checking balance first
-      try {
-        const currentBalance = wallet.balance();
-        console.log('Current wallet balance before quote:', currentBalance.value);
-      } catch (balanceErr) {
-        console.log('Balance check before quote failed:', balanceErr);
-        // This might indicate the wallet isn't properly synced
-      }
-      
       const amount = { value: BigInt(receiveAmount) };
-      console.log('Calling mintQuote with amount:', amount);
-      
-      // Add a small delay to ensure wallet is ready
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       const mintQuote = await wallet.mintQuote(amount, 'Cashu wallet receive');
-      
-      console.log('MintQuote successful:', mintQuote);
       
       setInvoice(mintQuote.request);
       setQuoteId(mintQuote.id);
@@ -287,34 +166,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       
     } catch (error) {
       console.error('Failed to create invoice:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error constructor:', error?.constructor?.name);
-      
-      // Try to get more specific error information
-      let errorMsg = 'Unknown error';
-      
-      // Check if it's a CDK FFI error with detailed message
-      if (error && typeof error === 'object' && 'tag' in error && 'inner' in error && 
-          error.tag === 'WalletError' && error.inner && typeof error.inner === 'object' && 'msg' in error.inner) {
-        const walletError = error as { tag: string; inner: { msg: string } };
-        errorMsg = `WalletError: ${walletError.inner.msg}`;
-        console.error('Detailed WalletError message:', walletError.inner.msg);
-      } else if (error && typeof error === 'object' && 'inner' in error && 
-                 error.inner && typeof error.inner === 'object' && 'msg' in error.inner) {
-        const cdkError = error as { inner: { msg: string } };
-        errorMsg = `CDK Error: ${cdkError.inner.msg}`;
-        console.error('CDK Error details:', cdkError.inner.msg);
-      } else if (error instanceof Error) {
-        errorMsg = error.message;
-        console.error('Error stack:', error.stack);
-      } else if (typeof error === 'string') {
-        errorMsg = error;
-      } else if (error && typeof error === 'object') {
-        // Log the full error structure for debugging
-        console.error('Full error object:', JSON.stringify(error, null, 2));
-        errorMsg = JSON.stringify(error);
-      }
-      
+      const errorMsg = (error as any)?.inner?.msg || (error as any)?.message || String(error);
       Alert.alert('Error', `Failed to create invoice: ${errorMsg}`);
     } finally {
       setIsLoadingInvoice(false);
@@ -333,10 +185,8 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
     }
     
     try {
-      console.log('Refreshing balance...');
       const walletBalance = wallet.balance();
       setBalance(walletBalance.value);
-      console.log('Balance refreshed:', walletBalance.value);
       Alert.alert('Balance Updated', `Current balance: ${walletBalance.value} sats`);
     } catch (error) {
       console.error('Failed to refresh balance:', error);
@@ -351,24 +201,16 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
     }
     
     try {
-      console.log('Checking mint quote status for:', quoteId);
-      
       if (typeof wallet.mintQuoteState !== 'function') {
-        console.log('mintQuoteState method not available');
         return;
       }
       
       const quoteState = await wallet.mintQuoteState(quoteId);
-      console.log('Quote state:', quoteState);
       
-      if (quoteState.state === cdkModule.FfiMintQuoteState.Paid) {
-        console.log('Quote has been paid! Minting tokens...');
-        
+      if (quoteState.state === FfiMintQuoteState.Paid) {
         if (typeof wallet.mint === 'function') {
           try {
-            const mintedAmount = await wallet.mint(quoteId, cdkModule.FfiSplitTarget.Default);
-            console.log('Successfully minted:', mintedAmount.value, 'sats');
-            
+            const mintedAmount = await wallet.mint(quoteId, FfiSplitTarget.Default);
             const newBalance = wallet.balance();
             setBalance(newBalance.value);
             
@@ -383,7 +225,6 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
           }
         }
       } else {
-        console.log('Quote not yet paid, state:', quoteState.state);
         Alert.alert('Waiting', 'Invoice not yet paid. Please complete the payment.');
       }
     } catch (error) {
@@ -441,23 +282,25 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
         return;
       }
       
-      console.log('Using meltQuote for Lightning payment...');
       console.log('Preparing Lightning payment...');
       
-      // Use melt methods for Lightning payments
-      console.log('Calling meltQuote for Lightning invoice...');
       try {
         const meltQuote = await wallet.meltQuote(lightningInvoice);
-        console.log('Melt quote result:', meltQuote);
         
         const prepareResult = {
           amount: meltQuote.amount,
           totalFee: meltQuote.feeReserve || { value: BigInt(0) }
         };
         
-        console.log('Prepared result from melt quote:', prepareResult);
-        
         const totalAmount = prepareResult.amount.value + prepareResult.totalFee.value;
+        
+        // Check if wallet has sufficient balance
+        const currentBalance = wallet.balance();
+        if (currentBalance.value < totalAmount) {
+          Alert.alert('Insufficient Balance', `You need ${totalAmount} sats but only have ${currentBalance.value} sats`);
+          setIsSending(false);
+          return;
+        }
         
         // Confirm the payment with the user
         Alert.alert(
@@ -473,10 +316,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
               text: 'Send',
               onPress: async () => {
                 try {
-                  console.log('Executing Lightning payment...');
-                  console.log('Calling melt to execute Lightning payment with quote ID:', meltQuote.id);
                   const sendResult = await wallet.melt(meltQuote.id);
-                  console.log('Melt successful:', sendResult);
                   
                   // Update balance
                   const newBalance = wallet.balance();
@@ -493,8 +333,11 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
                   setShowSendModal(false);
                   
                 } catch (sendError) {
-                  console.error('Send execution failed:', sendError);
-                  Alert.alert('Error', `Failed to send payment: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
+                  console.error('Payment failed:', sendError);
+                  
+                  const errorMsg = (sendError as any)?.inner?.msg || (sendError as any)?.message || String(sendError);
+                  
+                  Alert.alert('Payment Failed', errorMsg);
                 } finally {
                   setIsSending(false);
                 }
@@ -508,32 +351,8 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       }
       
     } catch (error) {
-      console.error('Send preparation failed:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error constructor:', error?.constructor?.name);
-      
-      let errorMsg = 'Unknown error';
-      
-      if (error && typeof error === 'object' && 'tag' in error && 'inner' in error && 
-          error.tag === 'WalletError' && error.inner && typeof error.inner === 'object' && 'msg' in error.inner) {
-        const walletError = error as { tag: string; inner: { msg: string } };
-        errorMsg = `WalletError: ${walletError.inner.msg}`;
-        console.error('Detailed WalletError message:', walletError.inner.msg);
-      } else if (error && typeof error === 'object' && 'inner' in error && 
-                 error.inner && typeof error.inner === 'object' && 'msg' in error.inner) {
-        const cdkError = error as { inner: { msg: string } };
-        errorMsg = `CDK Error: ${cdkError.inner.msg}`;
-        console.error('CDK Error details:', cdkError.inner.msg);
-      } else if (error instanceof Error) {
-        errorMsg = error.message;
-        console.error('Error stack:', error.stack);
-      } else if (typeof error === 'string') {
-        errorMsg = error;
-      } else if (error && typeof error === 'object') {
-        console.error('Full error object:', JSON.stringify(error, null, 2));
-        errorMsg = JSON.stringify(error);
-      }
-      
+      console.error('Payment preparation failed:', error);
+      const errorMsg = (error as any)?.inner?.msg || (error as any)?.message || String(error);
       Alert.alert('Error', `Failed to prepare payment: ${errorMsg}`);
       setIsSending(false);
     }
