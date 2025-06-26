@@ -11,6 +11,7 @@ export function useWallet() {
   const [moduleStatus, setModuleStatus] = useState<string>('Loading...');
   const [cdkModule, setCdkModule] = useState<any>(null);
   const [wallet, setWallet] = useState<any>(null);
+  const [isLoadingWallet, setIsLoadingWallet] = useState(true);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveAmount, setReceiveAmount] = useState('');
   const [invoice, setInvoice] = useState('');
@@ -19,6 +20,57 @@ export function useWallet() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [lightningInvoice, setLightningInvoice] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Check if wallet database exists and load existing wallet
+  const loadExistingWallet = async () => {
+    if (!cdkModule) return;
+
+    try {
+      const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+      const dbExists = await RNFS.exists(dbPath);
+      
+      if (dbExists) {
+        setModuleStatus('Loading existing wallet...');
+        
+        // Create wallet instance with existing database (no seed needed)
+        const localStore = FfiLocalStore.newWithPath(dbPath);
+        const walletInstance = new FfiWallet(
+          mintUrl,
+          FfiCurrencyUnit.Sat,
+          localStore,
+          new ArrayBuffer(32) // Dummy seed since the wallet already exists in the database
+        );
+
+        // Initialize wallet
+        try {
+          if (typeof walletInstance.getMintInfo === 'function') {
+            await walletInstance.getMintInfo();
+          }
+        } catch (initError) {
+          // Continue anyway, initialization might not be required
+        }
+
+        setWallet(walletInstance);
+
+        // Get current balance
+        try {
+          const walletBalance = walletInstance.balance();
+          setBalance(walletBalance.value);
+          setModuleStatus('Wallet loaded successfully!');
+        } catch (balanceError) {
+          setBalance(BigInt(0));
+          setModuleStatus('Wallet loaded successfully!');
+        }
+      } else {
+        setModuleStatus('Ready to create wallet');
+      }
+    } catch (error) {
+      console.error('Failed to check/load existing wallet:', error);
+      setModuleStatus(`Failed to load wallet: ${getErrorMessage(error)}`);
+    } finally {
+      setIsLoadingWallet(false);
+    }
+  };
 
   // Initialize CDK module
   useEffect(() => {
@@ -44,11 +96,19 @@ export function useWallet() {
       } catch (error) {
         console.error('CDK loading error:', error);
         setModuleStatus(`CDK loading failed: ${getErrorMessage(error)}`);
+        setIsLoadingWallet(false);
       }
     };
     
     testCdkLoading();
   }, []);
+
+  // Load existing wallet when CDK module is ready
+  useEffect(() => {
+    if (cdkModule) {
+      loadExistingWallet();
+    }
+  }, [cdkModule]);
 
   const testWalletCreation = async () => {
     if (!cdkModule) {
@@ -361,6 +421,7 @@ export function useWallet() {
     moduleStatus,
     wallet,
     mintUrl,
+    isLoadingWallet,
     showReceiveModal,
     receiveAmount,
     invoice,

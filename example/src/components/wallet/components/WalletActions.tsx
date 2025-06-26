@@ -3,15 +3,24 @@ import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 
 interface WalletActionsProps {
   wallet: any;
+  isLoadingWallet: boolean;
   onCreateWallet: () => void;
   onReceive: () => void;
   onSend: () => void;
 }
 
-export function WalletActions({ wallet, onCreateWallet, onReceive, onSend }: WalletActionsProps) {
+export function WalletActions({ wallet, isLoadingWallet, onCreateWallet, onReceive, onSend }: WalletActionsProps) {
   return (
     <View style={styles.buttonsContainer}>
-      {!wallet ? (
+      {isLoadingWallet ? (
+        <TouchableOpacity 
+          style={[styles.button, styles.loadingButton]} 
+          disabled={true}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.buttonText}>Loading...</Text>
+        </TouchableOpacity>
+      ) : !wallet ? (
         <TouchableOpacity 
           style={[styles.button, styles.testButton]} 
           onPress={onCreateWallet}
@@ -66,6 +75,9 @@ const styles = StyleSheet.create({
   },
   testButton: {
     backgroundColor: '#2196F3',
+  },
+  loadingButton: {
+    backgroundColor: '#666666',
   },
   receiveButton: {
     backgroundColor: '#4CAF50',

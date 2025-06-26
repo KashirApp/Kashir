@@ -22,6 +22,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
     moduleStatus,
     wallet,
     mintUrl,
+    isLoadingWallet,
     showReceiveModal,
     receiveAmount,
     invoice,
@@ -63,6 +64,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
       
       <WalletActions
         wallet={wallet}
+        isLoadingWallet={isLoadingWallet}
         onCreateWallet={testWalletCreation}
         onReceive={handleReceive}
         onSend={handleSend}
