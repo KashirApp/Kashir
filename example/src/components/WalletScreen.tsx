@@ -14,7 +14,7 @@ import {
   ScrollView,
   Clipboard,
 } from 'react-native';
-import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget } from '@rust-nostr/nostr-sdk-react-native';
+import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget } from '../../../src';
 
 interface WalletScreenProps {
   onClose: () => void;
