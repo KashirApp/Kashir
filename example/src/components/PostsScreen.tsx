@@ -20,7 +20,7 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
   const [isClientReady, setIsClientReady] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('your-posts');
+  const [activeTab, setActiveTab] = useState<TabType>('following');
 
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
@@ -79,8 +79,10 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
     if (isClientReady && userNpub) {
       fetchPosts(userNpub);
       fetchFollowingList(userNpub);
+      // Also fetch following posts since Following is now the default tab
+      fetchFollowingPosts(userNpub);
     }
-  }, [isClientReady, userNpub, fetchPosts, fetchFollowingList]);
+  }, [isClientReady, userNpub, fetchPosts, fetchFollowingList, fetchFollowingPosts]);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
