@@ -26,6 +26,9 @@ TS_FILE="src/index.tsx"
 echo "🔧 Fixing files to include both nostr-sdk and cdk dependencies..."
 echo "   - C++ bindings"
 echo "   - TypeScript exports"
+if [[ $SKIP_IOS == true ]]; then
+    echo "   - Android CMakeLists.txt"
+fi
 if [[ $SKIP_IOS == false ]]; then
     echo "   - Auto-generated podspec frameworks"
 else
@@ -170,6 +173,71 @@ EOF
 else
     echo "✅ TypeScript file already has both dependencies configured"
 fi
+
+# Fix the Android CMakeLists.txt file (Android-specific)
+if [[ $SKIP_IOS == true ]]; then
+    echo ""
+    echo "🔧 Fixing Android CMakeLists.txt..."
+CMAKE_FILE="android/CMakeLists.txt"
+if [ -f "$CMAKE_FILE" ]; then
+    # Check if it already has both dependencies
+    has_nostr_cpp=$(grep -c "../cpp/generated/nostr_sdk.cpp" "$CMAKE_FILE" || true)
+    has_cdk_cpp=$(grep -c "../cpp/generated/cdk_ffi.cpp" "$CMAKE_FILE" || true)
+    has_nostr_lib=$(grep -c "libnostr_sdk_ffi.a" "$CMAKE_FILE" || true)
+    has_cdk_lib=$(grep -c "libcdk_ffi.a" "$CMAKE_FILE" || true)
+    
+    echo "📊 CMakeLists.txt current state:"
+    echo "   - Nostr SDK cpp: $has_nostr_cpp"
+    echo "   - CDK cpp: $has_cdk_cpp"
+    echo "   - Nostr SDK lib: $has_nostr_lib"
+    echo "   - CDK lib: $has_cdk_lib"
+    
+    cmake_needs_fix=false
+    if [[ $has_nostr_cpp -eq 0 || $has_cdk_cpp -eq 0 || $has_nostr_lib -eq 0 || $has_cdk_lib -eq 0 ]]; then
+        cmake_needs_fix=true
+    fi
+    
+    if [[ $cmake_needs_fix == true ]]; then
+        echo "🛠️  Updating CMakeLists.txt to include both dependencies..."
+        
+        # Add nostr_sdk cpp file if missing
+        if [[ $has_nostr_cpp -eq 0 && $has_cdk_cpp -eq 1 ]]; then
+            sed -i '' '/..\/cpp\/generated\/cdk_ffi.cpp/i\
+    ../cpp/generated/nostr_sdk.cpp
+' "$CMAKE_FILE"
+        fi
+        
+                 # Fix library paths if they're pointing to wrong libraries
+        if [[ $has_nostr_lib -eq 0 && $has_cdk_lib -gt 0 ]]; then
+            # Change MY_RUST_LIB from cdk to nostr-sdk
+            sed -i '' 's/libcdk_ffi\.a/libnostr_sdk_ffi.a/' "$CMAKE_FILE"
+            
+            # Add CDK library definition after the rust lib
+            sed -i '' '/set_target_properties(my_rust_lib PROPERTIES IMPORTED_LOCATION \${MY_RUST_LIB})/a\
+\
+cmake_path(\
+  SET MY_CDK_LIB\
+  ${CMAKE_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libcdk_ffi.a\
+  NORMALIZE\
+)\
+add_library(my_cdk_lib STATIC IMPORTED)\
+set_target_properties(my_cdk_lib PROPERTIES IMPORTED_LOCATION ${MY_CDK_LIB})
+' "$CMAKE_FILE"
+            
+            # Add CDK library to target_link_libraries (only in the final target_link_libraries section)
+            sed -i '' '/target_link_libraries(/,/my_rust_lib/s/my_rust_lib/my_rust_lib\
+  my_cdk_lib/' "$CMAKE_FILE"
+        fi
+        
+        echo "✅ Fixed CMakeLists.txt to include both dependencies"
+        echo "   - Added both cpp and library files"
+    else
+        echo "✅ CMakeLists.txt already has both dependencies configured"
+    fi
+else
+    echo "⚠️  CMakeLists.txt not found: $CMAKE_FILE"
+fi
+fi  # End of Android-specific CMakeLists.txt fixing
 
 # Fix the auto-generated podspec to include both frameworks (iOS-specific)
 if [[ $SKIP_IOS == false ]]; then
