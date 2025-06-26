@@ -160,7 +160,17 @@ jobs:
             exit 1
           fi
 
-      - name: Create or Update Release
+      - name: Delete existing release and tag (if exists)
+        run: |
+          # Delete the release if it exists
+          gh release delete latest-build --yes || echo "Release latest-build doesn't exist yet"
+          
+          # Delete the tag if it exists  
+          git push --delete origin latest-build || echo "Tag latest-build doesn't exist yet"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           tag: latest-build
@@ -175,7 +185,7 @@ jobs:
             
             This release is automatically updated on every push to master.
           artifacts: "nostr-client-example-release.apk"
-          allowUpdates: true
-          removeArtifacts: true
-          replacesArtifacts: true
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          makeLatest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+ 
