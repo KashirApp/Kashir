@@ -76,12 +76,10 @@ export default function App() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
-      {/* Keep PostsScreen always mounted */}
-      <View style={{ flex: 1 }}>
-        <PostsScreen userNpub={userNpub} onLogout={handleLogout} onShowWallet={handleShowWallet} />
-      </View>
+      {/* Keep PostsScreen always mounted to preserve state */}
+      <PostsScreen userNpub={userNpub} onLogout={handleLogout} onShowWallet={handleShowWallet} />
       
-      {/* WalletScreen overlays on top when needed */}
+      {/* WalletScreen overlays on top when needed - using Modal-like approach for Android compatibility */}
       {showWallet && (
         <View style={{ 
           position: 'absolute', 
@@ -90,7 +88,8 @@ export default function App() {
           right: 0, 
           bottom: 0,
           backgroundColor: '#1a1a1a',
-          zIndex: 999
+          elevation: 1000, // Android-specific elevation
+          zIndex: 1000,    // iOS-specific z-index
         }}>
           <WalletScreen onClose={handleCloseWallet} />
         </View>
