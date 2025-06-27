@@ -180,15 +180,30 @@ jobs:
             exit 1
           fi
 
-      - name: Delete existing release and tag (if exists)
+      - name: Delete all existing releases and tags
         run: |
-          echo "Using release name: $APK_NAME"
+          echo "Deleting all existing releases and tags to keep only the latest..."
           
-          # Delete the release if it exists
-          gh release delete "$APK_NAME" --yes || echo "Release $APK_NAME doesn't exist yet"
+          # Delete all existing releases
+          echo "Deleting all releases..."
+          gh release list --json tagName --jq '.[].tagName' | while read tag; do
+            if [ -n "$tag" ]; then
+              echo "Deleting release: $tag"
+              gh release delete "$tag" --yes || echo "Failed to delete release $tag"
+            fi
+          done
           
-          # Delete the tag if it exists  
-          git push --delete origin "$APK_NAME" || echo "Tag $APK_NAME doesn't exist yet"
+          # Delete all existing tags (both remote and local)
+          echo "Deleting all tags..."
+          git tag -l | while read tag; do
+            if [ -n "$tag" ]; then
+              echo "Deleting tag: $tag"
+              git push --delete origin "$tag" || echo "Failed to delete remote tag $tag"
+              git tag -d "$tag" || echo "Failed to delete local tag $tag"
+            fi
+          done
+          
+          echo "Cleanup completed. New release will be the only one."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
