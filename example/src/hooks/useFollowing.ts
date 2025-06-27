@@ -134,7 +134,7 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
       const followingFilter = new Filter()
         .authors(following)
         .kinds([new Kind(1)])
-        .limit(100n);
+        .limit(10n);
 
       console.log('Fetching following posts...');
 
