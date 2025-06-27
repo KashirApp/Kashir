@@ -137,7 +137,7 @@ jobs:
           cd example/android/app
           VERSION_NAME=$(grep 'versionName' build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
           VERSION_CODE=${{ github.run_number }}
-          TAG_NAME="${VERSION_NAME}-${VERSION_CODE}"
+          TAG_NAME="${VERSION_NAME}(${VERSION_CODE})"
           
           echo "Generated tag name: $TAG_NAME"
           echo "APK_NAME=$TAG_NAME" >> $GITHUB_ENV
