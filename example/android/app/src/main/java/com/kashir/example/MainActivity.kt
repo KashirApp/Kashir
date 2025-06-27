@@ -1,4 +1,4 @@
-package nostrsdkreactnative.example
+package com.kashir.example
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

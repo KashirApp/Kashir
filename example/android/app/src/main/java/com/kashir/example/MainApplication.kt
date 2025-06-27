@@ -1,4 +1,4 @@
-package nostrsdkreactnative.example
+package com.kashir.example
 
 import android.app.Application
 import com.facebook.react.PackageList
@@ -41,4 +41,4 @@ class MainApplication : Application(), ReactApplication {
       load()
     }
   }
-}
+} 
