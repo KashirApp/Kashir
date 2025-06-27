@@ -196,7 +196,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.VERSION_NAME }}(${{ env.VERSION_CODE }})
-          name: Kashir ${{ env.VERSION_NAME }} (Build ${{ env.VERSION_CODE }})
+          name: ${{ env.VERSION_NAME }}(${{ env.VERSION_CODE }})
           body: |
             Automated release build from master branch
             
