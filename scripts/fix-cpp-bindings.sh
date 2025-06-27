@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to automatically fix all generated files to include both nostr-sdk and cdk dependencies
-# Fixes: C++ bindings, TypeScript exports, and podspec frameworks
+# Fixes: C++ bindings, TypeScript exports, podspec frameworks, and iOS header imports
 set -e
 
 # Cross-platform sed -i compatibility
@@ -39,9 +39,9 @@ if [[ $SKIP_IOS == true ]]; then
     echo "   - Android CMakeLists.txt"
 fi
 if [[ $SKIP_IOS == false ]]; then
-    echo "   - Auto-generated podspec frameworks"
+    echo "   - Auto-generated podspec frameworks and iOS header imports"
 else
-    echo "   - Auto-generated podspec frameworks (SKIPPED - iOS-specific)"
+    echo "   - Auto-generated podspec frameworks and iOS header imports (SKIPPED - iOS-specific)"
 fi
 
 if [ ! -f "$CPP_FILE" ]; then
@@ -285,6 +285,25 @@ if [[ $SKIP_IOS == false ]]; then
             echo "   - CdkFramework.xcframework"
         else
             echo "✅ Auto-generated podspec already has both frameworks"
+        fi
+        
+        # Fix iOS header import to use relative path (resolves case-insensitive filename collision)
+        IOS_HEADER_FILE="ios/Kashir.h"
+        if [ -f "$IOS_HEADER_FILE" ]; then
+            has_relative_import=$(grep -c '#import "../cpp/kashir.h"' "$IOS_HEADER_FILE" || true)
+            has_direct_import=$(grep -c '#import "kashir.h"' "$IOS_HEADER_FILE" || true)
+            
+            if [[ $has_direct_import -gt 0 && $has_relative_import -eq 0 ]]; then
+                echo "🛠️  Fixing iOS header import to use relative path..."
+                sed_inplace 's|#import "kashir.h"|#import "../cpp/kashir.h"|' "$IOS_HEADER_FILE"
+                echo "✅ Fixed iOS header to use relative path: #import \"../cpp/kashir.h\""
+                echo "   - Resolves case-insensitive filename collision between ios/Kashir.h and cpp/kashir.h"
+            else
+                echo "✅ iOS header already uses relative path import"
+            fi
+        else
+            echo "⚠️  iOS header file not found: $IOS_HEADER_FILE"
+            echo "   This is expected on first run before UBRN generates it"
         fi
     else
         echo "⚠️  Auto-generated podspec not found: $AUTO_GENERATED_PODSPEC"
