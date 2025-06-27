@@ -119,13 +119,24 @@ jobs:
 
       - name: Build APK
         working-directory: ./example
+        env:
+          VERSION_CODE: ${{ github.run_number }}
         run: |
+          echo "Building APK with build number: $VERSION_CODE"
+          
           # Build the release APK
           yarn build:android:release
           
           # Also run gradlew directly to ensure release APK is built
           cd android
           ./gradlew assembleRelease --stacktrace
+
+      - name: Extract version from build.gradle
+        working-directory: ./example/android/app
+        run: |
+          VERSION_NAME=$(grep 'versionName' build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "Extracted version: $VERSION_NAME"
 
       - name: Find and copy APK
         run: |
@@ -179,6 +190,7 @@ jobs:
             Automated release build from master branch
             
             **Build Type:** Release (Optimized)
+            **Version:** ${{ env.VERSION_NAME }} (Build ${{ github.run_number }})
             **Commit:** ${{ github.sha }}
             **Date:** ${{ github.event.head_commit.timestamp }}
             **Message:** ${{ github.event.head_commit.message }}

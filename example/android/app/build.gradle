@@ -82,7 +82,7 @@ android {
         applicationId "nostrsdkreactnative.example"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode (System.getenv("VERSION_CODE") ?: "1") as Integer
         versionName "0.0.1"
     }
     signingConfigs {
