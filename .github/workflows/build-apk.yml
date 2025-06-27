@@ -197,16 +197,6 @@ jobs:
         with:
           tag: ${{ env.VERSION_NAME }}(${{ env.VERSION_CODE }})
           name: ${{ env.VERSION_NAME }}(${{ env.VERSION_CODE }})
-          body: |
-            Automated release build from master branch
-            
-            **Build Type:** Release (Optimized)
-            **Version:** ${{ env.VERSION_NAME }} (Build ${{ env.VERSION_CODE }})
-            **Commit:** ${{ github.sha }}
-            **Date:** ${{ github.event.head_commit.timestamp }}
-            **Message:** ${{ github.event.head_commit.message }}
-            
-            This release is automatically updated on every push to master.
           artifacts: "${{ env.APK_FILE }}"
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}
