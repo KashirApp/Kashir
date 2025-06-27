@@ -150,12 +150,15 @@ jobs:
           
           if [ -n "$APK_PATH" ]; then
             echo "Found APK at: $APK_PATH"
-            # Copy the APK to root directory with a consistent name
-            cp "$APK_PATH" "kashir-release.apk"
-            echo "APK copied to kashir-release.apk"
-            ls -la kashir-release.apk
+            # Create APK filename with version and build number
+            APK_FILENAME="${VERSION_NAME}(${VERSION_CODE}).apk"
+            echo "APK filename will be: $APK_FILENAME"
+            # Copy the APK to root directory with version-based name
+            cp "$APK_PATH" "$APK_FILENAME"
+            echo "APK copied to $APK_FILENAME"
+            ls -la "$APK_FILENAME"
             # Set output for next steps
-            echo "APK_FILE=kashir-release.apk" >> $GITHUB_ENV
+            echo "APK_FILE=$APK_FILENAME" >> $GITHUB_ENV
           else
             echo "Error: No APK found!"
             exit 1
@@ -163,9 +166,9 @@ jobs:
 
       - name: Verify APK exists before release
         run: |
-          if [ -f "kashir-release.apk" ]; then
+          if [ -f "$APK_FILE" ]; then
             echo "✅ APK file exists and is ready for upload"
-            ls -la kashir-release.apk
+            ls -la "$APK_FILE"
           else
             echo "❌ APK file not found!"
             exit 1
@@ -196,7 +199,7 @@ jobs:
             **Message:** ${{ github.event.head_commit.message }}
             
             This release is automatically updated on every push to master.
-          artifacts: "kashir-release.apk"
+          artifacts: "${{ env.APK_FILE }}"
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
