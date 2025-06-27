@@ -140,11 +140,11 @@ jobs:
           if [ -n "$APK_PATH" ]; then
             echo "Found APK at: $APK_PATH"
             # Copy the APK to root directory with a consistent name
-            cp "$APK_PATH" "nostr-client-example-release.apk"
-            echo "APK copied to nostr-client-example-release.apk"
-            ls -la nostr-client-example-release.apk
+            cp "$APK_PATH" "kashir-release.apk"
+            echo "APK copied to kashir-release.apk"
+            ls -la kashir-release.apk
             # Set output for next steps
-            echo "APK_FILE=nostr-client-example-release.apk" >> $GITHUB_ENV
+            echo "APK_FILE=kashir-release.apk" >> $GITHUB_ENV
           else
             echo "Error: No APK found!"
             exit 1
@@ -152,9 +152,9 @@ jobs:
 
       - name: Verify APK exists before release
         run: |
-          if [ -f "nostr-client-example-release.apk" ]; then
+          if [ -f "kashir-release.apk" ]; then
             echo "✅ APK file exists and is ready for upload"
-            ls -la nostr-client-example-release.apk
+            ls -la kashir-release.apk
           else
             echo "❌ APK file not found!"
             exit 1
@@ -184,7 +184,7 @@ jobs:
             **Message:** ${{ github.event.head_commit.message }}
             
             This release is automatically updated on every push to master.
-          artifacts: "nostr-client-example-release.apk"
+          artifacts: "kashir-release.apk"
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
