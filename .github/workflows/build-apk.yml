@@ -131,11 +131,15 @@ jobs:
           cd android
           ./gradlew assembleRelease --stacktrace
 
-      - name: Extract tag name
+      - name: Generate tag name from version
         run: |
-          # Get the current tag name
-          TAG_NAME=$(git describe --tags --exact-match)
-          echo "Using tag name: $TAG_NAME"
+          # Generate tag name using version from build.gradle and run number
+          cd example/android/app
+          VERSION_NAME=$(grep 'versionName' build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
+          VERSION_CODE=${{ github.run_number }}
+          TAG_NAME="${VERSION_NAME}(${VERSION_CODE})"
+          
+          echo "Generated tag name: $TAG_NAME"
           echo "APK_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "APK will be named: $TAG_NAME.apk"
 
