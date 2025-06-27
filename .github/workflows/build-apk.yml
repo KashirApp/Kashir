@@ -138,10 +138,13 @@ jobs:
           VERSION_NAME=$(grep 'versionName' build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
           VERSION_CODE=${{ github.run_number }}
           TAG_NAME="${VERSION_NAME}(${VERSION_CODE})"
+          APK_NAME="${VERSION_NAME}-${VERSION_CODE}"
           
           echo "Generated tag name: $TAG_NAME"
-          echo "APK_NAME=$TAG_NAME" >> $GITHUB_ENV
-          echo "APK will be named: $TAG_NAME.apk"
+          echo "Generated APK name: $APK_NAME"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
+          echo "APK will be named: $APK_NAME.apk"
 
       - name: Find and copy APK
         run: |
@@ -210,8 +213,8 @@ jobs:
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ env.APK_NAME }}
-          name: ${{ env.APK_NAME }}
+          tag: ${{ env.TAG_NAME }}
+          name: ${{ env.TAG_NAME }}
           artifacts: "${{ env.APK_FILE }}"
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}
