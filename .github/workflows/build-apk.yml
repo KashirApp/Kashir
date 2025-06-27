@@ -135,8 +135,11 @@ jobs:
         working-directory: ./example/android/app
         run: |
           VERSION_NAME=$(grep 'versionName' build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
+          VERSION_CODE=${{ github.run_number }}
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "Extracted version: $VERSION_NAME"
+          echo "Build number: $VERSION_CODE"
 
       - name: Find and copy APK
         run: |
@@ -153,6 +156,8 @@ jobs:
             # Create APK filename with version and build number
             APK_FILENAME="${VERSION_NAME}(${VERSION_CODE}).apk"
             echo "APK filename will be: $APK_FILENAME"
+            echo "VERSION_NAME: $VERSION_NAME"
+            echo "VERSION_CODE: $VERSION_CODE"
             # Copy the APK to root directory with version-based name
             cp "$APK_PATH" "$APK_FILENAME"
             echo "APK copied to $APK_FILENAME"
