@@ -164,7 +164,7 @@
     ]
   },
   "codegenConfig": {
-    "name": "RNNostrSdkReactNativeSpec",
+    "name": "RNKashirSpec",
     "type": "modules",
     "jsSrcsDir": "src",
     "outputDir": {
@@ -172,7 +172,7 @@
       "android": "android/generated"
     },
     "android": {
-      "javaPackageName": "com.nostrsdkreactnative"
+      "javaPackageName": "com.kashir"
     },
     "includesGeneratedCode": true
   },
