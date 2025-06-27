@@ -77,7 +77,7 @@ cat > "$CPP_FILE" << 'EOF'
 #include "generated/nostr_sdk.hpp"
 #include "generated/cdk_ffi.hpp"
 
-namespace rustnostr_nostrsdkreactnative {
+namespace kashir {
 	using namespace facebook;
 
 	uint8_t installRustCrate(jsi::Runtime &runtime, std::shared_ptr<react::CallInvoker> callInvoker) {
