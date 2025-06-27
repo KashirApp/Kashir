@@ -1,7 +1,7 @@
 {
-  "name": "@rust-nostr/nostr-sdk-react-native",
+  "name": "kashir",
   "version": "0.1.0",
-  "description": "Nostr SDK - React Native Trubo module",
+  "description": "Kashir - Nostr client with built-in Cashu wallet",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
