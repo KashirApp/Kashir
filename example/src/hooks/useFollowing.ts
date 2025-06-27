@@ -8,7 +8,7 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
   const [followingPosts, setFollowingPosts] = useState<EventInterface[]>([]);
   const [followingList, setFollowingList] = useState<PublicKey[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
-  const [profilesLoadedForCurrentPosts, setProfilesLoadedForCurrentPosts] = useState(true);
+  const [profilesLoading, setProfilesLoading] = useState(false);
 
   const fetchFollowingList = useCallback(async (userNpub: string) => {
     if (!client) return [];
@@ -114,7 +114,6 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
 
     setFollowingLoading(true);
     setFollowingPosts([]);
-    setProfilesLoadedForCurrentPosts(false);
 
     try {
       // First fetch the following list if we don't have it
@@ -125,9 +124,7 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
       }
 
       if (following.length === 0) {
-        setProfilesLoadedForCurrentPosts(true); // No following means no profiles to load
         Alert.alert('No Following', 'You are not following anyone yet.');
-        setFollowingLoading(false);
         return;
       }
 
@@ -156,7 +153,8 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
 
         setFollowingPosts(eventArray);
 
-        // Fetch profiles for all unique authors
+        // Fetch profiles in background - don't block the UI
+        setProfilesLoading(true);
         const uniqueAuthors = new Set<string>();
         eventArray.forEach((event) => {
           uniqueAuthors.add(event.author().toHex());
@@ -174,22 +172,20 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
           })
           .filter((pk) => pk !== null && pk !== undefined) as PublicKey[];
 
-        // Fetch profiles in background
+        // Fetch profiles in background without affecting main loading state
         if (authorPubkeys.length > 0) {
           profileService.fetchProfilesForPubkeys(client, authorPubkeys)
             .then(() => {
-              setProfilesLoadedForCurrentPosts(true);
+              setProfilesLoading(false);
             })
             .catch((err) => {
               console.error('Error fetching profiles:', err);
-              setProfilesLoadedForCurrentPosts(true); // Still mark as done even if failed
+              setProfilesLoading(false);
             });
         } else {
-          // No authors to fetch profiles for
-          setProfilesLoadedForCurrentPosts(true);
+          setProfilesLoading(false);
         }
       } else {
-        setProfilesLoadedForCurrentPosts(true); // No posts means no profiles to load
         Alert.alert(
           'No posts found',
           'No recent posts from people you follow.'
@@ -197,7 +193,6 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
       }
     } catch (error) {
       console.error('Error fetching following posts:', error);
-      setProfilesLoadedForCurrentPosts(true); // Mark as done on error
       Alert.alert(
         'Error',
         `Failed to fetch posts from following: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -206,15 +201,12 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
       setFollowingLoading(false);
     }
   }, [client, followingList, fetchFollowingList, profileService]);
-
-  // Combined loading: loading posts OR have posts but profiles not loaded yet
-  const isCompletelyLoaded = followingLoading === false && 
-    (followingPosts.length === 0 || profilesLoadedForCurrentPosts);
   
   return {
     followingPosts,
     followingList,
-    followingLoading: !isCompletelyLoaded,
+    followingLoading,
+    profilesLoading,
     fetchFollowingList,
     fetchFollowingPosts,
   };

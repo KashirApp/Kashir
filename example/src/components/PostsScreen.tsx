@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Button, SafeAreaView, Alert } from 'react-native';
 import { NostrClientService } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
@@ -21,6 +21,9 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('following');
+  
+  // Use ref to track if initial fetch has been triggered
+  const hasInitialFetchStarted = useRef(false);
 
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
@@ -32,7 +35,8 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
   const { 
     followingPosts, 
     followingList, 
-    followingLoading, 
+    followingLoading,
+    profilesLoading,
     fetchFollowingList, 
     fetchFollowingPosts 
   } = useFollowing(client, profileService);
@@ -74,9 +78,10 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
     fetchProfile();
   }, [client, isClientReady, userNpub, profileService]);
 
-  // Auto-fetch following data when client is ready (since Following is the default tab)
+  // Auto-fetch following data when client is ready (only once)
   useEffect(() => {
-    if (isClientReady && userNpub) {
+    if (isClientReady && userNpub && !hasInitialFetchStarted.current) {
+      hasInitialFetchStarted.current = true;
       fetchFollowingList(userNpub);
       fetchFollowingPosts(userNpub);
     }
@@ -85,9 +90,11 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     
-    // Fetch following posts if not already loaded
+    // Only fetch if we're switching to a tab that has no data and isn't currently loading
     if (tab === 'following' && followingPosts.length === 0 && !followingLoading) {
       fetchFollowingPosts(userNpub);
+    } else if (tab === 'your-posts' && posts.length === 0 && !loading) {
+      fetchPosts(userNpub);
     }
   };
 
