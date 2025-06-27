@@ -131,15 +131,13 @@ jobs:
           cd android
           ./gradlew assembleRelease --stacktrace
 
-      - name: Extract version from build.gradle
-        working-directory: ./example/android/app
+      - name: Extract tag name
         run: |
-          VERSION_NAME=$(grep 'versionName' build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
-          VERSION_CODE=${{ github.run_number }}
-          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
-          echo "Extracted version: $VERSION_NAME"
-          echo "Build number: $VERSION_CODE"
+          # Get the current tag name
+          TAG_NAME=$(git describe --tags --exact-match)
+          echo "Using tag name: $TAG_NAME"
+          echo "APK_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "APK will be named: $TAG_NAME.apk"
 
       - name: Find and copy APK
         run: |
@@ -153,12 +151,11 @@ jobs:
           
           if [ -n "$APK_PATH" ]; then
             echo "Found APK at: $APK_PATH"
-            # Create APK filename with version and build number
-            APK_FILENAME="${VERSION_NAME}(${VERSION_CODE}).apk"
+            # Create APK filename using tag name or fallback version
+            APK_FILENAME="${APK_NAME}.apk"
             echo "APK filename will be: $APK_FILENAME"
-            echo "VERSION_NAME: $VERSION_NAME"
-            echo "VERSION_CODE: $VERSION_CODE"
-            # Copy the APK to root directory with version-based name
+            echo "APK_NAME: $APK_NAME"
+            # Copy the APK to root directory with tag-based name
             cp "$APK_PATH" "$APK_FILENAME"
             echo "APK copied to $APK_FILENAME"
             ls -la "$APK_FILENAME"
@@ -181,22 +178,21 @@ jobs:
 
       - name: Delete existing release and tag (if exists)
         run: |
-          TAG_NAME="${VERSION_NAME}(${VERSION_CODE})"
-          echo "Using tag name: $TAG_NAME"
+          echo "Using release name: $APK_NAME"
           
           # Delete the release if it exists
-          gh release delete "$TAG_NAME" --yes || echo "Release $TAG_NAME doesn't exist yet"
+          gh release delete "$APK_NAME" --yes || echo "Release $APK_NAME doesn't exist yet"
           
           # Delete the tag if it exists  
-          git push --delete origin "$TAG_NAME" || echo "Tag $TAG_NAME doesn't exist yet"
+          git push --delete origin "$APK_NAME" || echo "Tag $APK_NAME doesn't exist yet"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ env.VERSION_NAME }}(${{ env.VERSION_CODE }})
-          name: ${{ env.VERSION_NAME }}(${{ env.VERSION_CODE }})
+          tag: ${{ env.APK_NAME }}
+          name: ${{ env.APK_NAME }}
           artifacts: "${{ env.APK_FILE }}"
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}
