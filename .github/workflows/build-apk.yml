@@ -140,12 +140,7 @@ jobs:
           TAG_NAME="${VERSION_NAME}(${VERSION_CODE})"
           
           echo "Generated tag name: $TAG_NAME"
-          
-          # Use GitHub Actions heredoc format to properly handle parentheses
-          echo "APK_NAME<<EOF" >> $GITHUB_ENV
-          echo "$TAG_NAME" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          
+          echo "APK_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "APK will be named: $TAG_NAME.apk"
 
       - name: Find and copy APK
