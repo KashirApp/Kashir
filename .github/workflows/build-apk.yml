@@ -181,24 +181,27 @@ jobs:
 
       - name: Delete existing release and tag (if exists)
         run: |
+          TAG_NAME="${VERSION_NAME}(${VERSION_CODE})"
+          echo "Using tag name: $TAG_NAME"
+          
           # Delete the release if it exists
-          gh release delete latest-build --yes || echo "Release latest-build doesn't exist yet"
+          gh release delete "$TAG_NAME" --yes || echo "Release $TAG_NAME doesn't exist yet"
           
           # Delete the tag if it exists  
-          git push --delete origin latest-build || echo "Tag latest-build doesn't exist yet"
+          git push --delete origin "$TAG_NAME" || echo "Tag $TAG_NAME doesn't exist yet"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: latest-build
-          name: Latest APK Build (Release)
+          tag: ${{ env.VERSION_NAME }}(${{ env.VERSION_CODE }})
+          name: Kashir ${{ env.VERSION_NAME }} (Build ${{ env.VERSION_CODE }})
           body: |
             Automated release build from master branch
             
             **Build Type:** Release (Optimized)
-            **Version:** ${{ env.VERSION_NAME }} (Build ${{ github.run_number }})
+            **Version:** ${{ env.VERSION_NAME }} (Build ${{ env.VERSION_CODE }})
             **Commit:** ${{ github.sha }}
             **Date:** ${{ github.event.head_commit.timestamp }}
             **Message:** ${{ github.event.head_commit.message }}
