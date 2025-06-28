@@ -46,7 +46,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
         <TextInput
           style={styles.input}
-          placeholder="Enter your npub key (e.g., npub1...)"
+          placeholder="Enter your npub key"
           value={npubInput}
           onChangeText={setNpubInput}
           autoCapitalize="none"
