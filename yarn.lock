@@ -9028,6 +9028,7 @@ __metadata:
     react: 19.0.0
     react-native: 0.78.1
     react-native-builder-bob: ^0.38.3
+    react-native-confetti-cannon: ^1.5.2
     react-native-fs: ^2.20.0
     react-native-qrcode-svg: ^6.3.2
     react-native-svg: ^15.8.1
@@ -9934,6 +9935,13 @@ __metadata:
   bin:
     bob: bin/bob
   checksum: fbbe12375a5e567d476fbc07fa8c7cda6d4e4b0631abef7f2243b21fd8329d192bcb28fb58fa0beaee7b39831c0bc79264e70827635e4e48b3033bf6640cfcc9
+  languageName: node
+  linkType: hard
+
+"react-native-confetti-cannon@npm:^1.5.2":
+  version: 1.5.2
+  resolution: "react-native-confetti-cannon@npm:1.5.2"
+  checksum: 09026fd93304c0f3c3acfcf8dfc9b25003b30826031dffd81df6eea3b66dcee84f6ac4237719a84d3d71cb430f4fbf53d4c22b64ef17d439d5a3e5986c2ada83
   languageName: node
   linkType: hard
 

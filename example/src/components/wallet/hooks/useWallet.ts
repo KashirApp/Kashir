@@ -24,6 +24,8 @@ export function useWallet() {
   const [isSending, setIsSending] = useState(false);
   const [showMintUrlModal, setShowMintUrlModal] = useState(false);
   const [shouldCreateWalletAfterMint, setShouldCreateWalletAfterMint] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [paymentReceivedAmount, setPaymentReceivedAmount] = useState<bigint>(BigInt(0));
   
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
@@ -573,8 +575,12 @@ export function useWallet() {
             setQuoteId('');
             setShowReceiveModal(false);
             
-            // Show success message
-            Alert.alert('Payment Received!', `Successfully received ${mintedAmount.value} sats! New balance: ${newBalance.value} sats`);
+            // Show confetti animation
+            setPaymentReceivedAmount(mintedAmount.value);
+            setShowConfetti(true);
+            
+            // Hide confetti after 3 seconds
+            setTimeout(() => setShowConfetti(false), 3000);
             
             return true;
           } catch (mintError) {
@@ -742,6 +748,8 @@ export function useWallet() {
     lightningInvoice,
     isSending,
     showMintUrlModal,
+    showConfetti,
+    paymentReceivedAmount,
     
     // Actions
     testWalletCreation,
