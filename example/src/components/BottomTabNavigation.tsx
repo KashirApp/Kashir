@@ -11,19 +11,6 @@ export function BottomTabNavigation({ activeTab, onTabChange }: BottomTabNavigat
   return (
     <View style={styles.tabContainer}>
       <TouchableOpacity
-        style={[styles.tab, activeTab === 'nostr' && styles.activeTab]}
-        onPress={() => onTabChange('nostr')}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            activeTab === 'nostr' && styles.activeTabText,
-          ]}
-        >
-          Nostr
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
         style={[styles.tab, activeTab === 'wallet' && styles.activeTab]}
         onPress={() => onTabChange('wallet')}
       >
@@ -34,6 +21,19 @@ export function BottomTabNavigation({ activeTab, onTabChange }: BottomTabNavigat
           ]}
         >
           Wallet
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === 'nostr' && styles.activeTab]}
+        onPress={() => onTabChange('nostr')}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === 'nostr' && styles.activeTabText,
+          ]}
+        >
+          Nostr
         </Text>
       </TouchableOpacity>
     </View>

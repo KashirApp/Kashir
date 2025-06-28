@@ -10,7 +10,7 @@ import type { MainTabType } from './types';
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userNpub, setUserNpub] = useState('');
-  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('nostr');
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('wallet');
   const [isLoadingStoredNpub, setIsLoadingStoredNpub] = useState(true);
 
   // Check for stored npub on app startup
