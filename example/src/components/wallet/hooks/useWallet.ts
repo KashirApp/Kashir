@@ -32,6 +32,8 @@ export function useWallet() {
   const [generatedMnemonic, setGeneratedMnemonic] = useState<string>('');
   const [showMnemonicModal, setShowMnemonicModal] = useState(false);
   const [pendingWalletCreation, setPendingWalletCreation] = useState<any>(null);
+  const [showRecoverModal, setShowRecoverModal] = useState(false);
+  const [shouldShowRecoverAfterMint, setShouldShowRecoverAfterMint] = useState(false);
   
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
@@ -165,6 +167,13 @@ export function useWallet() {
     if (shouldCreateWalletAfterMint) {
       setIsLoadingWallet(true);
       setModuleStatus('Mint URL set. Creating wallet...');
+    } else if (shouldShowRecoverAfterMint) {
+      setModuleStatus('Mint URL set. Ready to recover wallet.');
+      // Show recovery modal after a brief delay
+      setTimeout(() => {
+        setShowRecoverModal(true);
+        setShouldShowRecoverAfterMint(false);
+      }, 100);
     } else {
       setModuleStatus('Mint URL set. Ready to create wallet.');
     }
@@ -177,6 +186,7 @@ export function useWallet() {
     // If mint URL was set, let the useEffect handle the flag
     if (!mintUrl) {
       setShouldCreateWalletAfterMint(false);
+      setShouldShowRecoverAfterMint(false);
       setModuleStatus('Mint URL required to continue');
     }
   };
@@ -782,6 +792,87 @@ export function useWallet() {
     }
   };
 
+  // Handle recover wallet button
+  const handleRecoverWallet = () => {
+    if (!cdkModule) {
+      setModuleStatus('CDK module not loaded');
+      return;
+    }
+    
+    if (!mintUrl) {
+      setModuleStatus('Please set a mint URL first');
+      setShouldShowRecoverAfterMint(true);
+      promptForMintUrl();
+      return;
+    }
+    
+    setShowRecoverModal(true);
+  };
+
+  // Handle wallet recovery from mnemonic
+  const handleWalletRecovery = async (mnemonic: string) => {
+    if (!cdkModule || !mintUrl) {
+      Alert.alert('Error', 'CDK module or mint URL not available');
+      return;
+    }
+
+    setIsLoadingWallet(true);
+    setShowRecoverModal(false);
+
+    try {
+      let localStore;
+      try {
+        const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+        localStore = FfiLocalStore.newWithPath(dbPath);
+      } catch (storeError) {
+        console.error('FfiLocalStore creation failed:', storeError);
+        try {
+          localStore = new FfiLocalStore();
+        } catch (fallbackError) {
+          const fallbackErrorMsg = getErrorMessage(fallbackError);
+          setModuleStatus(`CDK storage failed: ${getErrorMessage(storeError)}. Fallback failed: ${fallbackErrorMsg}`);
+          setIsLoadingWallet(false);
+          return;
+        }
+      }
+
+      if (!localStore) {
+        console.error('LocalStore is undefined, cannot recover wallet');
+        Alert.alert('Error', 'Failed to initialize wallet storage');
+        setIsLoadingWallet(false);
+        return;
+      }
+
+      // Use restoreFromMnemonic which calls restore() internally
+      const walletInstance = FfiWallet.restoreFromMnemonic(
+        mintUrl,
+        FfiCurrencyUnit.Sat,
+        localStore,
+        mnemonic
+      );
+
+      setWallet(walletInstance);
+
+      try {
+        const walletBalance = walletInstance.balance();
+        setBalance(walletBalance.value);
+        setModuleStatus('Wallet recovered successfully!');
+      } catch (balanceError) {
+        setBalance(BigInt(0));
+        setModuleStatus('Wallet recovered successfully!');
+      }
+
+      setIsLoadingWallet(false);
+
+    } catch (error) {
+      console.error('Wallet recovery error:', error);
+      const errorMsg = getErrorMessage(error);
+      setModuleStatus(`Wallet recovery failed: ${errorMsg}`);
+      Alert.alert('Recovery Failed', `Failed to recover wallet: ${errorMsg}`);
+      setIsLoadingWallet(false);
+    }
+  };
+
   return {
     // State
     balance,
@@ -805,6 +896,8 @@ export function useWallet() {
     generatedMnemonic,
     showMnemonicModal,
     pendingWalletCreation,
+    showRecoverModal,
+    shouldShowRecoverAfterMint,
     
     // Actions
     testWalletCreation,
@@ -826,5 +919,8 @@ export function useWallet() {
     setLightningInvoice,
     handleMintUrlModalClose,
     handleMnemonicModalDone,
+    handleRecoverWallet,
+    handleWalletRecovery,
+    setShowRecoverModal,
   };
 } 

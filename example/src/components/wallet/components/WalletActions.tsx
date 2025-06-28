@@ -5,11 +5,12 @@ interface WalletActionsProps {
   wallet: any;
   isLoadingWallet: boolean;
   onCreateWallet: () => void;
+  onRecoverWallet: () => void;
   onReceive: () => void;
   onSend: () => void;
 }
 
-export function WalletActions({ wallet, isLoadingWallet, onCreateWallet, onReceive, onSend }: WalletActionsProps) {
+export function WalletActions({ wallet, isLoadingWallet, onCreateWallet, onRecoverWallet, onReceive, onSend }: WalletActionsProps) {
   return (
     <View style={styles.buttonsContainer}>
       {isLoadingWallet ? (
@@ -21,13 +22,23 @@ export function WalletActions({ wallet, isLoadingWallet, onCreateWallet, onRecei
           <Text style={styles.buttonText}>Loading...</Text>
         </TouchableOpacity>
       ) : !wallet ? (
-        <TouchableOpacity 
-          style={[styles.button, styles.testButton]} 
-          onPress={onCreateWallet}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>Create Wallet</Text>
-        </TouchableOpacity>
+        <View style={styles.noWalletActions}>
+          <TouchableOpacity 
+            style={[styles.button, styles.testButton]} 
+            onPress={onCreateWallet}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.buttonText}>Create Wallet</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.button, styles.recoverButton]} 
+            onPress={onRecoverWallet}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.buttonText}>Recover Wallet</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <View style={styles.walletActions}>
           <TouchableOpacity 
@@ -60,6 +71,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 15,
   },
+  noWalletActions: {
+    flexDirection: 'column',
+    gap: 15,
+  },
   button: {
     paddingVertical: 18,
     borderRadius: 12,
@@ -78,6 +93,9 @@ const styles = StyleSheet.create({
   },
   loadingButton: {
     backgroundColor: '#666666',
+  },
+  recoverButton: {
+    backgroundColor: '#2196F3',
   },
   receiveButton: {
     backgroundColor: '#4CAF50',

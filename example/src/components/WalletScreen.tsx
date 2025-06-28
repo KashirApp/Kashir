@@ -12,6 +12,7 @@ import {
   useWallet,
 } from './wallet';
 import { MnemonicModal } from './wallet/components/MnemonicModal';
+import { RecoverWalletModal } from './wallet/components/RecoverWalletModal';
 
 export function WalletScreen() {
   const [showQRScanner, setShowQRScanner] = React.useState(false);
@@ -37,6 +38,7 @@ export function WalletScreen() {
     showSendingLoader,
     generatedMnemonic,
     showMnemonicModal,
+    showRecoverModal,
     
     // Actions
     testWalletCreation,
@@ -47,6 +49,8 @@ export function WalletScreen() {
     sendPayment,
     promptForMintUrl,
     handleMintUrlSubmit,
+    handleRecoverWallet,
+    handleWalletRecovery,
     
     // Modal controls
     closeReceiveModal,
@@ -55,6 +59,7 @@ export function WalletScreen() {
     setLightningInvoice,
     handleMintUrlModalClose,
     handleMnemonicModalDone,
+    setShowRecoverModal,
   } = useWallet();
 
   const handleShowScanner = () => {
@@ -93,6 +98,7 @@ export function WalletScreen() {
           wallet={wallet}
           isLoadingWallet={isLoadingWallet}
           onCreateWallet={testWalletCreation}
+          onRecoverWallet={handleRecoverWallet}
           onReceive={handleReceive}
           onSend={handleSend}
         />
@@ -130,6 +136,12 @@ export function WalletScreen() {
           visible={showMnemonicModal}
           mnemonic={generatedMnemonic}
           onDone={handleMnemonicModalDone}
+        />
+
+        <RecoverWalletModal
+          visible={showRecoverModal}
+          onClose={() => setShowRecoverModal(false)}
+          onRecover={handleWalletRecovery}
         />
 
         <QRScanner
