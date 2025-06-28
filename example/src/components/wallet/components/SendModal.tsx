@@ -41,6 +41,9 @@ export function SendModal({
     onInvoiceChange(invoice);
     setShowScanner(false);
     
+    // Close the send modal since we're going directly to payment confirmation
+    onClose();
+    
     // Trigger payment confirmation directly with the scanned invoice
     // This avoids React state timing issues
     onSendPayment(invoice);
