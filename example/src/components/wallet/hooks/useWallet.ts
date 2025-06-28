@@ -538,21 +538,7 @@ export function useWallet() {
     Alert.alert('Copied!', 'Invoice copied to clipboard');
   };
 
-  const refreshBalance = async () => {
-    if (!wallet) {
-      setModuleStatus('Please create a wallet first');
-      return;
-    }
-    
-    try {
-      const walletBalance = wallet.balance();
-      setBalance(walletBalance.value);
-      setModuleStatus(`Balance updated: ${walletBalance.value} sats`);
-    } catch (error) {
-      console.error('Failed to refresh balance:', error);
-      setModuleStatus(`Failed to refresh balance: ${getErrorMessage(error)}`);
-    }
-  };
+
 
       // Silent background payment checking
   const checkPaymentStatus = async (currentQuoteId?: string) => {
@@ -788,7 +774,6 @@ export function useWallet() {
     handleSend,
     createInvoice,
     copyToClipboard,
-    refreshBalance,
     sendPayment,
     promptForMintUrl,
     handleMintUrlSubmit,

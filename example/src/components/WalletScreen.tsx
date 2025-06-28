@@ -41,7 +41,6 @@ export function WalletScreen() {
     handleSend,
     createInvoice,
     copyToClipboard,
-    refreshBalance,
     sendPayment,
     promptForMintUrl,
     handleMintUrlSubmit,
@@ -84,7 +83,6 @@ export function WalletScreen() {
         <WalletBalance 
           balance={balance} 
           wallet={wallet} 
-          onRefresh={refreshBalance} 
         />
         
         <WalletActions
