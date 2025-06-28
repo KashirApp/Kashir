@@ -35,6 +35,7 @@ export function useWallet() {
   const [showRecoverModal, setShowRecoverModal] = useState(false);
   const [shouldShowRecoverAfterMint, setShouldShowRecoverAfterMint] = useState(false);
   const [showRecoveryLoader, setShowRecoveryLoader] = useState(false);
+  const [showRecoveryConfetti, setShowRecoveryConfetti] = useState(false);
   
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
@@ -872,6 +873,12 @@ export function useWallet() {
       setIsLoadingWallet(false);
       setShowRecoveryLoader(false); // Hide recovery loading indicator
 
+      // Show recovery confetti animation
+      setShowRecoveryConfetti(true);
+      
+      // Hide confetti after 3 seconds
+      setTimeout(() => setShowRecoveryConfetti(false), 3000);
+
     } catch (error) {
       console.error('Wallet recovery error:', error);
       const errorMsg = getErrorMessage(error);
@@ -908,6 +915,7 @@ export function useWallet() {
     showRecoverModal,
     shouldShowRecoverAfterMint,
     showRecoveryLoader,
+    showRecoveryConfetti,
     
     // Actions
     testWalletCreation,

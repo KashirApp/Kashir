@@ -40,6 +40,7 @@ export function WalletScreen() {
     showMnemonicModal,
     showRecoverModal,
     showRecoveryLoader,
+    showRecoveryConfetti,
     
     // Actions
     testWalletCreation,
@@ -197,6 +198,29 @@ export function WalletScreen() {
                      </View>
          </View>
        )}
+
+      {/* Wallet Recovery Confetti Animation */}
+      {showRecoveryConfetti && (
+        <View style={styles.confettiContainer}>
+          <ConfettiCannon
+            count={200}
+            origin={{x: 0, y: 0}}
+            fadeOut={true}
+            autoStart={true}
+            explosionSpeed={350}
+            fallSpeed={2500}
+            colors={['#4CAF50', '#8BC34A', '#CDDC39', '#FFC107', '#00BCD4']}
+          />
+          <View style={styles.successOverlay}>
+            <Text style={styles.recoveryText}>
+              Wallet Recovered! 🎉
+            </Text>
+            <Text style={styles.recoverySubtext}>
+              Your wallet has been successfully restored
+            </Text>
+          </View>
+        </View>
+      )}
        
        {/* Payment Sending Loader */}
        {showSendingLoader && (
@@ -370,5 +394,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 250,
     lineHeight: 20,
+  },
+  recoveryText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
+    backgroundColor: 'rgba(76, 175, 80, 0.95)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  recoverySubtext: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.95)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
 }); 
