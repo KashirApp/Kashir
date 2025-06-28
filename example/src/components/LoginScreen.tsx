@@ -59,11 +59,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           onPress={handleLogin}
           disabled={loading}
         />
-
-        <Text style={styles.loginHint}>
-          Don't have an npub? You can test with:{'\n'}
-          npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m
-        </Text>
       </View>
     </SafeAreaView>
   );
