@@ -31,6 +31,8 @@ export function WalletScreen() {
     showMintUrlModal,
     showConfetti,
     paymentReceivedAmount,
+    showSentConfetti,
+    paymentSentAmount,
     
     // Actions
     testWalletCreation,
@@ -150,6 +152,29 @@ export function WalletScreen() {
           </View>
         </View>
       )}
+      
+      {/* Payment Sent Confetti Animation */}
+      {showSentConfetti && (
+        <View style={styles.confettiContainer}>
+          <ConfettiCannon
+            count={150}
+            origin={{x: 0, y: 0}}
+            fadeOut={true}
+            autoStart={true}
+            explosionSpeed={350}
+            fallSpeed={2500}
+            colors={['#FF6B6B', '#FF9800', '#FFD700', '#9C27B0', '#FF5722']}
+          />
+          <View style={styles.successOverlay}>
+            <Text style={styles.sentText}>
+              Payment Sent! ⚡
+            </Text>
+            <Text style={styles.sentAmount}>
+              -{paymentSentAmount.toString()} sats
+            </Text>
+          </View>
+        </View>
+      )}
     </>
   );
 }
@@ -203,6 +228,43 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     textAlign: 'center',
     backgroundColor: 'rgba(255, 215, 0, 0.95)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  sentText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
+    backgroundColor: 'rgba(255, 107, 107, 0.95)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  sentAmount: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 152, 0, 0.95)',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 12,
