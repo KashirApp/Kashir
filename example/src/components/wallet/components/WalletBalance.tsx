@@ -29,6 +29,7 @@ const styles = StyleSheet.create({
   balanceContainer: {
     backgroundColor: '#2a2a2a',
     marginHorizontal: 20,
+    marginTop: 20,
     padding: 30,
     borderRadius: 20,
     alignItems: 'center',
