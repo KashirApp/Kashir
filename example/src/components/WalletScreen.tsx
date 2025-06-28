@@ -39,7 +39,7 @@ export function WalletScreen() {
     handleMintUrlSubmit,
     
     // Modal controls
-    setShowReceiveModal,
+    closeReceiveModal,
     setReceiveAmount,
     setShowSendModal,
     setLightningInvoice,
@@ -71,11 +71,10 @@ export function WalletScreen() {
         receiveAmount={receiveAmount}
         invoice={invoice}
         isLoadingInvoice={isLoadingInvoice}
-        onClose={() => setShowReceiveModal(false)}
+        onClose={closeReceiveModal}
         onAmountChange={setReceiveAmount}
         onCreateInvoice={createInvoice}
         onCopyInvoice={copyToClipboard}
-        onCheckPayment={checkAndMintPendingTokens}
       />
       
       <SendModal

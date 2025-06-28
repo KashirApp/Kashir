@@ -21,7 +21,6 @@ interface ReceiveModalProps {
   onAmountChange: (amount: string) => void;
   onCreateInvoice: () => void;
   onCopyInvoice: () => void;
-  onCheckPayment: () => void;
 }
 
 export function ReceiveModal({
@@ -33,7 +32,6 @@ export function ReceiveModal({
   onAmountChange,
   onCreateInvoice,
   onCopyInvoice,
-  onCheckPayment,
 }: ReceiveModalProps) {
   return (
     <Modal
@@ -91,12 +89,9 @@ export function ReceiveModal({
                 <Text style={styles.buttonText}>Copy Invoice</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity
-                style={[styles.button, styles.checkPaymentButton]}
-                onPress={onCheckPayment}
-              >
-                <Text style={styles.buttonText}>Check Payment</Text>
-              </TouchableOpacity>
+              <Text style={styles.waitingText}>
+                Waiting for payment...
+              </Text>
             </ScrollView>
           )}
           
@@ -195,26 +190,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 20,
   },
-  invoiceTextContainer: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 20,
-    maxHeight: 120,
-  },
-  invoiceText: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontFamily: 'monospace',
-    lineHeight: 20,
-  },
+
   copyButton: {
     backgroundColor: '#2196F3',
     marginBottom: 15,
   },
-  checkPaymentButton: {
-    backgroundColor: '#FF9800',
+  waitingText: {
+    color: '#888888',
+    fontSize: 16,
+    textAlign: 'center',
     marginBottom: 15,
+    fontStyle: 'italic',
   },
   modalCloseButton: {
     backgroundColor: '#666666',

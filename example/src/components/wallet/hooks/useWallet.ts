@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Alert, Clipboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget } from '../../../../../src';
@@ -24,6 +24,9 @@ export function useWallet() {
   const [isSending, setIsSending] = useState(false);
   const [showMintUrlModal, setShowMintUrlModal] = useState(false);
   const [shouldCreateWalletAfterMint, setShouldCreateWalletAfterMint] = useState(false);
+  
+  // Ref for payment checking interval
+  const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Function to load mint URL from storage
   const loadMintUrlFromStorage = async () => {
@@ -255,6 +258,13 @@ export function useWallet() {
     return () => clearTimeout(safetyTimeout);
   }, [cdkModule]);
 
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      stopPaymentChecking();
+    };
+  }, []);
+
   // Auto-create wallet after mint URL is set (when triggered from Create Wallet button)
   useEffect(() => {
     if (shouldCreateWalletAfterMint && mintUrl && cdkModule) {
@@ -458,6 +468,16 @@ export function useWallet() {
     setReceiveAmount('');
     setInvoice('');
     setQuoteId('');
+    // Stop any existing payment checking
+    stopPaymentChecking();
+  };
+
+  // Custom function to close receive modal and stop payment checking
+  const closeReceiveModal = () => {
+    stopPaymentChecking();
+    setShowReceiveModal(false);
+    setInvoice('');
+    setQuoteId('');
   };
 
   const handleSend = () => {
@@ -486,6 +506,9 @@ export function useWallet() {
       
       setInvoice(mintQuote.request);
       setQuoteId(mintQuote.id);
+      
+      // Start automatic payment checking with the quote ID directly
+      startPaymentChecking(mintQuote.id);
       
     } catch (error) {
       console.error('Failed to create invoice:', error);
@@ -517,43 +540,80 @@ export function useWallet() {
     }
   };
 
-  const checkAndMintPendingTokens = async () => {
-    if (!wallet || !quoteId) {
-      return;
+      // Silent background payment checking
+  const checkPaymentStatus = async (currentQuoteId?: string) => {
+    const activeQuoteId = currentQuoteId || quoteId;
+    
+    if (!wallet || !activeQuoteId) {
+      return false;
     }
     
     try {
       if (typeof wallet.mintQuoteState !== 'function') {
-        return;
+        return false;
       }
       
-      const quoteState = await wallet.mintQuoteState(quoteId);
+      const quoteState = await wallet.mintQuoteState(activeQuoteId);
       
       if (quoteState.state === FfiMintQuoteState.Paid) {
         if (typeof wallet.mint === 'function') {
           try {
-            const mintedAmount = await wallet.mint(quoteId, FfiSplitTarget.Default);
+            const mintedAmount = await wallet.mint(activeQuoteId, FfiSplitTarget.Default);
             const newBalance = wallet.balance();
             setBalance(newBalance.value);
             
-            Alert.alert('Success!', `Successfully minted ${mintedAmount.value} sats! New balance: ${newBalance.value} sats`);
+            // Clear the interval
+            if (paymentCheckInterval.current) {
+              clearInterval(paymentCheckInterval.current);
+              paymentCheckInterval.current = null;
+            }
             
+            // Clear invoice data and close modal
             setInvoice('');
             setQuoteId('');
             setShowReceiveModal(false);
+            
+            // Show success message
+            Alert.alert('Payment Received!', `Successfully received ${mintedAmount.value} sats! New balance: ${newBalance.value} sats`);
+            
+            return true;
           } catch (mintError) {
             console.error('Failed to mint tokens:', mintError);
             Alert.alert('Error', `Failed to mint tokens: ${getErrorMessage(mintError)}`);
+            return false;
           }
         }
-      } else {
-        Alert.alert('Waiting', 'Invoice not yet paid. Please complete the payment.');
       }
+      return false;
     } catch (error) {
       console.error('Failed to check mint quote:', error);
-      Alert.alert('Error', `Failed to check payment status: ${getErrorMessage(error)}`);
+      return false;
     }
   };
+
+  // Start automatic payment checking
+  const startPaymentChecking = (targetQuoteId?: string) => {
+    // Clear any existing interval
+    if (paymentCheckInterval.current) {
+      clearInterval(paymentCheckInterval.current);
+    }
+    
+    // Check immediately first
+    checkPaymentStatus(targetQuoteId);
+    
+    // Start checking every second
+    paymentCheckInterval.current = setInterval(() => checkPaymentStatus(targetQuoteId), 1000);
+  };
+
+  // Stop automatic payment checking
+  const stopPaymentChecking = () => {
+    if (paymentCheckInterval.current) {
+      clearInterval(paymentCheckInterval.current);
+      paymentCheckInterval.current = null;
+    }
+  };
+
+
 
   const sendPayment = async () => {
     if (!wallet || !lightningInvoice.trim()) {
@@ -690,7 +750,6 @@ export function useWallet() {
     createInvoice,
     copyToClipboard,
     refreshBalance,
-    checkAndMintPendingTokens,
     sendPayment,
     promptForMintUrl,
     handleMintUrlSubmit,
@@ -699,7 +758,7 @@ export function useWallet() {
     restoreExistingWallet,
     
     // Modal controls
-    setShowReceiveModal,
+    closeReceiveModal,
     setReceiveAmount,
     setShowSendModal,
     setLightningInvoice,
