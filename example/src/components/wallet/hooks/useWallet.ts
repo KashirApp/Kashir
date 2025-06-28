@@ -31,7 +31,6 @@ export function useWallet() {
       const savedMintUrl = await AsyncStorage.getItem(MINT_URL_STORAGE_KEY);
       if (savedMintUrl) {
         setMintUrl(savedMintUrl);
-        setModuleStatus('Mint URL restored from storage. Ready to create wallet.');
         return true;
       }
       return false;
@@ -58,6 +57,79 @@ export function useWallet() {
       setModuleStatus('Ready - Set mint URL to begin');
     } catch (error) {
       console.error('Failed to clear mint URL from storage:', error);
+    }
+  };
+
+  // Function to check if wallet database exists
+  const checkWalletExists = async () => {
+    try {
+      const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+      const exists = await RNFS.exists(dbPath);
+      return exists;
+    } catch (error) {
+      console.error('Failed to check wallet existence:', error);
+      return false;
+    }
+  };
+
+  // Function to restore existing wallet
+  const restoreExistingWallet = async (mintUrlToUse?: string) => {
+    const urlToUse = mintUrlToUse || mintUrl;
+    if (!cdkModule || !urlToUse) {
+      return false;
+    }
+
+    try {
+      setModuleStatus('Restoring existing wallet...');
+      
+      const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+      
+      // Use a dummy seed since we're restoring from existing database
+      const seed = new ArrayBuffer(32);
+      const seedView = new Uint8Array(seed);
+      for (let i = 0; i < 32; i++) {
+        seedView[i] = Math.floor(Math.random() * 256);
+      }
+      
+      let localStore;
+      try {
+        localStore = FfiLocalStore.newWithPath(dbPath);
+      } catch (storeError) {
+        console.error('Failed to open existing wallet database:', storeError);
+        return false;
+      }
+      
+      if (!localStore) {
+        console.error('LocalStore is undefined, cannot restore wallet');
+        return false;
+      }
+      
+      const walletInstance = new FfiWallet(
+        urlToUse,
+        FfiCurrencyUnit.Sat,
+        localStore,
+        seed
+      );
+      
+      try {
+        // Try to get balance to verify wallet works
+        const walletBalance = walletInstance.balance();
+        setBalance(walletBalance.value);
+        setWallet(walletInstance);
+        setModuleStatus(`Wallet restored! Balance: ${walletBalance.value} sats`);
+        return true;
+      } catch (balanceError) {
+        // Wallet exists but might be empty, still consider it restored
+        setBalance(BigInt(0));
+        setWallet(walletInstance);
+        setModuleStatus('Wallet restored successfully!');
+        return true;
+      }
+      
+    } catch (error) {
+      console.error('Failed to restore wallet:', error);
+      setModuleStatus(`Failed to restore wallet: ${getErrorMessage(error)}`);
+      return false;
     }
   };
 
@@ -132,28 +204,56 @@ export function useWallet() {
   // Set ready state when CDK module is loaded
   useEffect(() => {
     if (cdkModule) {
-      // Add a small delay to ensure the screen is fully rendered
-      setTimeout(async () => {
-        setIsLoadingWallet(false);
-        
-        // Try to load saved mint URL
-        const hasLoadedMintUrl = await loadMintUrlFromStorage();
-        if (!hasLoadedMintUrl) {
-          setModuleStatus('Ready - Set mint URL to begin');
+      const initializeWallet = async () => {
+        try {
+          // Try to load saved mint URL
+          const savedMintUrl = await AsyncStorage.getItem(MINT_URL_STORAGE_KEY);
+          
+          if (!savedMintUrl) {
+            setModuleStatus('Ready - Set mint URL to begin');
+            setIsLoadingWallet(false);
+            return;
+          }
+          
+          // Set the mint URL in state
+          setMintUrl(savedMintUrl);
+          
+          // Mint URL exists, check if wallet database exists
+          const walletExists = await checkWalletExists();
+          
+          if (walletExists) {
+            // Try to restore existing wallet, passing the mint URL directly
+            const restored = await restoreExistingWallet(savedMintUrl);
+            
+            if (!restored) {
+              setModuleStatus('Wallet database found but restoration failed. Ready to create new wallet.');
+            }
+            // If restored successfully, the status is set in restoreExistingWallet
+          } else {
+            setModuleStatus('Mint URL restored from storage. Ready to create wallet.');
+          }
+          
+          // Set loading to false after wallet restoration is complete
+          setIsLoadingWallet(false);
+        } catch (error) {
+          console.error('Error during wallet initialization:', error);
+          setModuleStatus('Error during initialization. Ready to create wallet.');
+          setIsLoadingWallet(false);
         }
-      }, 500);
+      };
+
+      // Add a small delay to ensure the screen is fully rendered, then initialize
+      setTimeout(initializeWallet, 500);
     }
     
     // Safety timeout to ensure loading doesn't hang forever
     const safetyTimeout = setTimeout(() => {
-      if (isLoadingWallet) {
-        setIsLoadingWallet(false);
-        setModuleStatus('Loading timeout. Please try again.');
-      }
+      setIsLoadingWallet(false);
+      setModuleStatus('Loading timeout. Please try again.');
     }, 10000); // 10 seconds timeout
     
     return () => clearTimeout(safetyTimeout);
-  }, [cdkModule, isLoadingWallet]);
+  }, [cdkModule]);
 
   // Auto-create wallet after mint URL is set (when triggered from Create Wallet button)
   useEffect(() => {
@@ -161,7 +261,20 @@ export function useWallet() {
       
       // Call wallet creation directly here instead of through testWalletCreation
       const createWalletDirectly = async () => {
-        setModuleStatus('Creating wallet...');
+        // Check if wallet already exists first
+        const walletExists = await checkWalletExists();
+        if (walletExists) {
+          // Try to restore existing wallet instead of creating new one
+          const restored = await restoreExistingWallet(mintUrl);
+          if (restored) {
+            setShouldCreateWalletAfterMint(false);
+            return; // Successfully restored existing wallet
+          }
+          // If restoration failed, continue with creating new wallet
+          setModuleStatus('Existing wallet found but failed to restore. Creating new wallet...');
+        } else {
+          setModuleStatus('Creating wallet...');
+        }
         
         try {
           const seed = new ArrayBuffer(32);
@@ -252,6 +365,18 @@ export function useWallet() {
       setShouldCreateWalletAfterMint(true);
       promptForMintUrl();
       return;
+    }
+    
+    // Check if wallet already exists
+    const walletExists = await checkWalletExists();
+    if (walletExists) {
+      // Try to restore existing wallet instead of creating new one
+      const restored = await restoreExistingWallet(mintUrl);
+      if (restored) {
+        return; // Successfully restored existing wallet
+      }
+      // If restoration failed, continue with creating new wallet
+      setModuleStatus('Existing wallet found but failed to restore. Creating new wallet...');
     }
     
     // Reset flag since we're proceeding with wallet creation
@@ -572,6 +697,8 @@ export function useWallet() {
     promptForMintUrl,
     handleMintUrlSubmit,
     clearMintUrlFromStorage,
+    checkWalletExists,
+    restoreExistingWallet,
     
     // Modal controls
     setShowReceiveModal,
