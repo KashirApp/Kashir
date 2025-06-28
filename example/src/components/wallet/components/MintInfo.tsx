@@ -17,11 +17,6 @@ export function MintInfo({ mintUrl, onChangeMint }: MintInfoProps) {
     return (
       <View style={styles.mintContainer}>
         <Text style={styles.mintLabel}>No mint URL set</Text>
-        {onChangeMint && (
-          <TouchableOpacity onPress={handleChangeMint} style={styles.changeMintButton}>
-            <Text style={styles.changeMintText}>Set Mint URL</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   }
