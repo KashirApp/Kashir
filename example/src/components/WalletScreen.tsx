@@ -14,6 +14,33 @@ import {
 import { MnemonicModal } from './wallet/components/MnemonicModal';
 import { RecoverWalletModal } from './wallet/components/RecoverWalletModal';
 
+// Reusable Success Confetti Component
+interface SuccessConfettiProps {
+  visible: boolean;
+  children: React.ReactNode;
+}
+
+function SuccessConfetti({ visible, children }: SuccessConfettiProps) {
+  if (!visible) return null;
+  
+  return (
+    <View style={styles.confettiContainer}>
+      <ConfettiCannon
+        count={150}
+        origin={{x: 0, y: 0}}
+        fadeOut={false}
+        autoStart={true}
+        explosionSpeed={500}
+        fallSpeed={3000}
+        colors={['#FFD700', '#4CAF50', '#2196F3', '#FF9800', '#E91E63']}
+      />
+      <View style={styles.successOverlay}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
 export function WalletScreen() {
   const [showQRScanner, setShowQRScanner] = React.useState(false);
   
@@ -155,71 +182,38 @@ export function WalletScreen() {
       
       {/* Confetti Animation Overlay - Outside SafeAreaView for proper layering */}
       {showConfetti && (
-        <View style={styles.confettiContainer}>
-          <ConfettiCannon
-            count={150}
-            origin={{x: 0, y: 0}}
-            fadeOut={true}
-            autoStart={true}
-            explosionSpeed={350}
-            fallSpeed={2500}
-            colors={['#FFD700', '#4CAF50', '#2196F3', '#FF9800', '#E91E63']}
-          />
-          <View style={styles.successOverlay}>
-            <Text style={styles.successText}>
-              Payment Received! 🎉
-            </Text>
-            <Text style={styles.successAmount}>
-              +{paymentReceivedAmount.toString()} sats
-            </Text>
-          </View>
-        </View>
+        <SuccessConfetti visible={showConfetti}>
+          <Text style={styles.successText}>
+            Payment Received! 🎉
+          </Text>
+          <Text style={styles.successAmount}>
+            +{paymentReceivedAmount.toString()} sats
+          </Text>
+        </SuccessConfetti>
       )}
       
       {/* Payment Sent Confetti Animation */}
       {showSentConfetti && (
-        <View style={styles.confettiContainer}>
-          <ConfettiCannon
-            count={150}
-            origin={{x: 0, y: 0}}
-            fadeOut={true}
-            autoStart={true}
-            explosionSpeed={350}
-            fallSpeed={2500}
-            colors={['#FF6B6B', '#FF9800', '#FFD700', '#9C27B0', '#FF5722']}
-          />
-          <View style={styles.successOverlay}>
-            <Text style={styles.sentText}>
-              Payment Sent! ⚡
-            </Text>
-            <Text style={styles.sentAmount}>
-              -{paymentSentAmount.toString()} sats
-            </Text>
-                     </View>
-         </View>
-       )}
+        <SuccessConfetti visible={showSentConfetti}>
+          <Text style={styles.sentText}>
+            Payment Sent! ⚡
+          </Text>
+          <Text style={styles.sentAmount}>
+            -{paymentSentAmount.toString()} sats
+          </Text>
+        </SuccessConfetti>
+      )}
 
       {/* Wallet Recovery Confetti Animation */}
       {showRecoveryConfetti && (
-        <View style={styles.confettiContainer}>
-          <ConfettiCannon
-            count={200}
-            origin={{x: 0, y: 0}}
-            fadeOut={true}
-            autoStart={true}
-            explosionSpeed={350}
-            fallSpeed={2500}
-            colors={['#4CAF50', '#8BC34A', '#CDDC39', '#FFC107', '#00BCD4']}
-          />
-          <View style={styles.successOverlay}>
-            <Text style={styles.recoveryText}>
-              Wallet Recovered! 🎉
-            </Text>
-            <Text style={styles.recoverySubtext}>
-              Your wallet has been successfully restored
-            </Text>
-          </View>
-        </View>
+        <SuccessConfetti visible={showRecoveryConfetti}>
+          <Text style={styles.recoveryText}>
+            Wallet Recovered! 🎉
+          </Text>
+          <Text style={styles.recoverySubtext}>
+            Your wallet has been successfully restored
+          </Text>
+        </SuccessConfetti>
       )}
        
        {/* Payment Sending Loader */}
