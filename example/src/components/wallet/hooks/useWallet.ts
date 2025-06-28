@@ -152,9 +152,9 @@ export function useWallet() {
     // Save to storage
     await saveMintUrlToStorage(url);
     
-    // If we should create wallet after setting mint, just set the status
-    // The useEffect below will handle the automatic wallet creation
+    // If we should create wallet after setting mint, set loading state
     if (shouldCreateWalletAfterMint) {
+      setIsLoadingWallet(true);
       setModuleStatus('Mint URL set. Creating wallet...');
     } else {
       setModuleStatus('Mint URL set. Ready to create wallet.');
@@ -353,11 +353,13 @@ export function useWallet() {
           
           // Reset flag after successful wallet creation
           setShouldCreateWalletAfterMint(false);
+          setIsLoadingWallet(false);
           
         } catch (error) {
           console.error('Wallet creation error:', error);
           setModuleStatus(`Wallet creation failed: ${getErrorMessage(error)}`);
           setShouldCreateWalletAfterMint(false); // Reset flag on error
+          setIsLoadingWallet(false);
         }
       };
       
@@ -379,12 +381,16 @@ export function useWallet() {
       return;
     }
     
+    // Set loading state for wallet creation
+    setIsLoadingWallet(true);
+    
     // Check if wallet already exists
     const walletExists = await checkWalletExists();
     if (walletExists) {
       // Try to restore existing wallet instead of creating new one
       const restored = await restoreExistingWallet(mintUrl);
       if (restored) {
+        setIsLoadingWallet(false);
         return; // Successfully restored existing wallet
       }
       // If restoration failed, continue with creating new wallet
@@ -455,9 +461,12 @@ export function useWallet() {
         setModuleStatus('Wallet created successfully!');
       }
       
+      setIsLoadingWallet(false);
+      
     } catch (error) {
       console.error('Wallet creation error:', error);
       setModuleStatus(`Wallet creation failed: ${getErrorMessage(error)}`);
+      setIsLoadingWallet(false);
     }
   };
 

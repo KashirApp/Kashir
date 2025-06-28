@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   successOverlay: {
     position: 'absolute',
-    top: '35%',
+    top: '60%',
     left: 0,
     right: 0,
     alignItems: 'center',
