@@ -10,7 +10,6 @@ interface HeaderProps {
   currentLoading: boolean;
   onLogout: () => Promise<void>;
   onRefresh: () => void;
-  onShowWallet: () => void;
 }
 
 export function Header({
@@ -21,7 +20,6 @@ export function Header({
   currentLoading,
   onLogout,
   onRefresh,
-  onShowWallet,
 }: HeaderProps) {
   const handleUserNamePress = () => {
     Alert.alert('User Profile', `Full npub: ${userNpub}\n\nName: ${userName}`, [
@@ -36,10 +34,6 @@ export function Header({
     ]);
   };
 
-  const handleWalletPress = () => {
-    onShowWallet();
-  };
-
   return (
     <View style={styles.headerContainer}>
       <View style={styles.headerTop}>
@@ -50,13 +44,6 @@ export function Header({
         />
         <Text style={styles.title}>Nostr Feed</Text>
         <Button title="Logout" onPress={() => onLogout()} />
-      </View>
-      <View style={styles.userActions}>
-        <Button
-          title="💰 Wallet"
-          onPress={handleWalletPress}
-          disabled={profileLoading}
-        />
       </View>
       <Text style={styles.subtitle}>
         {isClientReady

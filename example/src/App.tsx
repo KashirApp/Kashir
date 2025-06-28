@@ -3,12 +3,14 @@ import { View } from 'react-native';
 import { LoginScreen } from './components/LoginScreen';
 import { PostsScreen } from './components/PostsScreen';
 import { WalletScreen } from './components/WalletScreen';
+import { BottomTabNavigation } from './components/BottomTabNavigation';
 import { StorageService } from './services/StorageService';
+import type { MainTabType } from './types';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userNpub, setUserNpub] = useState('');
-  const [showWallet, setShowWallet] = useState(false);
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('nostr');
   const [isLoadingStoredNpub, setIsLoadingStoredNpub] = useState(true);
 
   // Check for stored npub on app startup
@@ -54,15 +56,11 @@ export default function App() {
     
     setIsLoggedIn(false);
     setUserNpub('');
-    setShowWallet(false);
+    // Keep current tab - don't reset to nostr automatically
   };
 
-  const handleShowWallet = () => {
-    setShowWallet(true);
-  };
-
-  const handleCloseWallet = () => {
-    setShowWallet(false);
+  const handleMainTabChange = (tab: MainTabType) => {
+    setActiveMainTab(tab);
   };
 
   // Show loading state while checking for stored npub
@@ -70,30 +68,29 @@ export default function App() {
     return <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />;
   }
 
-  if (!isLoggedIn) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
+  const renderActiveTab = () => {
+    if (activeMainTab === 'wallet') {
+      return <WalletScreen />;
+    }
+    
+    // Nostr tab
+    if (isLoggedIn) {
+      return <PostsScreen userNpub={userNpub} onLogout={handleLogout} />;
+    } else {
+      return <LoginScreen onLogin={handleLogin} />;
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
-      {/* Keep PostsScreen always mounted to preserve state */}
-      <PostsScreen userNpub={userNpub} onLogout={handleLogout} onShowWallet={handleShowWallet} />
+      <View style={{ flex: 1 }}>
+        {renderActiveTab()}
+      </View>
       
-      {/* WalletScreen overlays on top when needed - using Modal-like approach for Android compatibility */}
-      {showWallet && (
-        <View style={{ 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0,
-          backgroundColor: '#1a1a1a',
-          elevation: 1000, // Android-specific elevation
-          zIndex: 1000,    // iOS-specific z-index
-        }}>
-          <WalletScreen onClose={handleCloseWallet} />
-        </View>
-      )}
+      <BottomTabNavigation
+        activeTab={activeMainTab}
+        onTabChange={handleMainTabChange}
+      />
     </View>
   );
 } 

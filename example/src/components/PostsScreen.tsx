@@ -13,10 +13,9 @@ import { styles } from '../App.styles';
 interface PostsScreenProps {
   userNpub: string;
   onLogout: () => Promise<void>;
-  onShowWallet: () => void;
 }
 
-export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenProps) {
+export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
   const [isClientReady, setIsClientReady] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
@@ -124,7 +123,6 @@ export function PostsScreen({ userNpub, onLogout, onShowWallet }: PostsScreenPro
         currentLoading={currentLoading}
         onLogout={handleLogout}
         onRefresh={handleRefresh}
-        onShowWallet={onShowWallet}
       />
 
       <TabNavigation

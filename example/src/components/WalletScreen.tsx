@@ -1,8 +1,6 @@
 import React from 'react';
 import { SafeAreaView, StatusBar, StyleSheet } from 'react-native';
 import {
-  WalletHeader,
-  WalletStatus,
   WalletBalance,
   WalletActions,
   MintInfo,
@@ -12,15 +10,10 @@ import {
   useWallet,
 } from './wallet';
 
-interface WalletScreenProps {
-  onClose: () => void;
-}
-
-export function WalletScreen({ onClose }: WalletScreenProps) {
+export function WalletScreen() {
   const {
     // State
     balance,
-    moduleStatus,
     wallet,
     mintUrl,
     isLoadingWallet,
@@ -56,10 +49,6 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
-      <WalletHeader onClose={onClose} />
-      
-      <WalletStatus status={moduleStatus} />
       
       <WalletBalance 
         balance={balance} 

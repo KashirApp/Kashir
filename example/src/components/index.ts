@@ -1,7 +1,8 @@
-export { LoginScreen } from './LoginScreen';
-export { PostsScreen } from './PostsScreen';
 export { Header } from './Header';
-export { TabNavigation } from './TabNavigation';
+export { LoginScreen } from './LoginScreen';
 export { Post } from './Post';
 export { PostList } from './PostList';
-export { WalletScreen } from './WalletScreen'; 
+export { PostsScreen } from './PostsScreen';
+export { TabNavigation } from './TabNavigation';
+export { WalletScreen } from './WalletScreen';
+export { BottomTabNavigation } from './BottomTabNavigation'; 
