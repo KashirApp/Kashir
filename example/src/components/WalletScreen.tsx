@@ -39,6 +39,7 @@ export function WalletScreen() {
     generatedMnemonic,
     showMnemonicModal,
     showRecoverModal,
+    showRecoveryLoader,
     
     // Actions
     testWalletCreation,
@@ -207,6 +208,21 @@ export function WalletScreen() {
              </Text>
              <Text style={styles.loadingSubtext}>
                Please wait while we process your transaction
+             </Text>
+           </View>
+         </View>
+       )}
+
+       {/* Wallet Recovery Loader */}
+       {showRecoveryLoader && (
+         <View style={styles.loadingContainer}>
+           <View style={styles.loadingOverlay}>
+             <ActivityIndicator size="large" color="#ffffff" />
+             <Text style={styles.loadingText}>
+               Recovering Wallet...
+             </Text>
+             <Text style={styles.loadingSubtext}>
+               Please wait while we restore your wallet from the recovery phrase
              </Text>
            </View>
          </View>

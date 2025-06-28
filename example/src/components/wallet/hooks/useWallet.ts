@@ -34,6 +34,7 @@ export function useWallet() {
   const [pendingWalletCreation, setPendingWalletCreation] = useState<any>(null);
   const [showRecoverModal, setShowRecoverModal] = useState(false);
   const [shouldShowRecoverAfterMint, setShouldShowRecoverAfterMint] = useState(false);
+  const [showRecoveryLoader, setShowRecoveryLoader] = useState(false);
   
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
@@ -818,6 +819,10 @@ export function useWallet() {
 
     setIsLoadingWallet(true);
     setShowRecoverModal(false);
+    setShowRecoveryLoader(true); // Show recovery loading indicator
+
+    // Small delay to ensure the loading indicator renders
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       let localStore;
@@ -832,6 +837,7 @@ export function useWallet() {
           const fallbackErrorMsg = getErrorMessage(fallbackError);
           setModuleStatus(`CDK storage failed: ${getErrorMessage(storeError)}. Fallback failed: ${fallbackErrorMsg}`);
           setIsLoadingWallet(false);
+          setShowRecoveryLoader(false);
           return;
         }
       }
@@ -840,6 +846,7 @@ export function useWallet() {
         console.error('LocalStore is undefined, cannot recover wallet');
         Alert.alert('Error', 'Failed to initialize wallet storage');
         setIsLoadingWallet(false);
+        setShowRecoveryLoader(false);
         return;
       }
 
@@ -863,6 +870,7 @@ export function useWallet() {
       }
 
       setIsLoadingWallet(false);
+      setShowRecoveryLoader(false); // Hide recovery loading indicator
 
     } catch (error) {
       console.error('Wallet recovery error:', error);
@@ -870,6 +878,7 @@ export function useWallet() {
       setModuleStatus(`Wallet recovery failed: ${errorMsg}`);
       Alert.alert('Recovery Failed', `Failed to recover wallet: ${errorMsg}`);
       setIsLoadingWallet(false);
+      setShowRecoveryLoader(false); // Hide recovery loading indicator on error
     }
   };
 
@@ -898,6 +907,7 @@ export function useWallet() {
     pendingWalletCreation,
     showRecoverModal,
     shouldShowRecoverAfterMint,
+    showRecoveryLoader,
     
     // Actions
     testWalletCreation,
