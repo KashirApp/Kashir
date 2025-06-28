@@ -28,6 +28,7 @@ export function useWallet() {
   const [paymentReceivedAmount, setPaymentReceivedAmount] = useState<bigint>(BigInt(0));
   const [showSentConfetti, setShowSentConfetti] = useState(false);
   const [paymentSentAmount, setPaymentSentAmount] = useState<bigint>(BigInt(0));
+  const [showSendingLoader, setShowSendingLoader] = useState(false);
   
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
@@ -706,6 +707,12 @@ export function useWallet() {
               text: 'Send',
               onPress: async () => {
                 try {
+                  // Show loading indicator
+                  setShowSendingLoader(true);
+                  
+                  // Small delay to ensure the loading indicator renders
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  
                   const sendResult = await wallet.melt(meltQuote.id);
                   
                   const newBalance = wallet.balance();
@@ -714,6 +721,9 @@ export function useWallet() {
                   // Clear invoice and close modal
                   setLightningInvoice('');
                   setShowSendModal(false);
+                  
+                  // Hide loading indicator
+                  setShowSendingLoader(false);
                   
                   // Show sent confetti animation
                   setPaymentSentAmount(prepareResult.amount.value);
@@ -724,6 +734,9 @@ export function useWallet() {
                   
                 } catch (sendError) {
                   console.error('Payment failed:', sendError);
+                  
+                  // Hide loading indicator on error
+                  setShowSendingLoader(false);
                   
                   const errorMsg = getErrorMessage(sendError);
                   
@@ -767,6 +780,7 @@ export function useWallet() {
     paymentReceivedAmount,
     showSentConfetti,
     paymentSentAmount,
+    showSendingLoader,
     
     // Actions
     testWalletCreation,

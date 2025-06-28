@@ -1,5 +1,5 @@
 import React from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, View, Text } from 'react-native';
+import { SafeAreaView, StatusBar, StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import {
   WalletBalance,
@@ -33,6 +33,7 @@ export function WalletScreen() {
     paymentReceivedAmount,
     showSentConfetti,
     paymentSentAmount,
+    showSendingLoader,
     
     // Actions
     testWalletCreation,
@@ -172,9 +173,25 @@ export function WalletScreen() {
             <Text style={styles.sentAmount}>
               -{paymentSentAmount.toString()} sats
             </Text>
-          </View>
-        </View>
-      )}
+                     </View>
+         </View>
+       )}
+       
+       {/* Payment Sending Loader */}
+       {showSendingLoader && (
+         <View style={styles.loadingContainer}>
+           <View style={styles.loadingOverlay}>
+             <ActivityIndicator size="large" color="#ffffff" />
+             <Text style={styles.loadingText}>
+               Sending Payment...
+             </Text>
+             <Text style={styles.loadingSubtext}>
+               Please wait while we process your transaction
+             </Text>
+           </View>
+         </View>
+       )}
+
     </>
   );
 }
@@ -276,5 +293,46 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9998,
+    elevation: 9998,
+  },
+  loadingOverlay: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loadingText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginTop: 15,
+    marginBottom: 8,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: '#cccccc',
+    textAlign: 'center',
+    maxWidth: 250,
+    lineHeight: 20,
   },
 }); 
