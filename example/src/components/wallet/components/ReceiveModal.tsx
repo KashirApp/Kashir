@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 interface ReceiveModalProps {
   visible: boolean;
@@ -72,19 +73,24 @@ export function ReceiveModal({
           ) : (
             <ScrollView style={styles.invoiceContainer}>
               <Text style={styles.invoiceLabel}>Lightning Invoice</Text>
-              <View style={styles.invoiceTextContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <Text style={styles.invoiceText} selectable>
-                    {invoice}
-                  </Text>
-                </ScrollView>
+              
+              {/* QR Code Container */}
+              <View style={styles.qrCodeContainer}>
+                <QRCode
+                  value={invoice}
+                  size={200}
+                  color="#000000"
+                  backgroundColor="#ffffff"
+                />
               </View>
+              
               <TouchableOpacity
                 style={[styles.button, styles.copyButton]}
                 onPress={onCopyInvoice}
               >
                 <Text style={styles.buttonText}>Copy Invoice</Text>
               </TouchableOpacity>
+              
               <TouchableOpacity
                 style={[styles.button, styles.checkPaymentButton]}
                 onPress={onCheckPayment}
@@ -180,6 +186,14 @@ const styles = StyleSheet.create({
     color: '#888888',
     marginBottom: 15,
     textAlign: 'center',
+  },
+  qrCodeContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginHorizontal: 20,
   },
   invoiceTextContainer: {
     backgroundColor: '#1a1a1a',

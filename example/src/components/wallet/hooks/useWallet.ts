@@ -487,8 +487,6 @@ export function useWallet() {
       setInvoice(mintQuote.request);
       setQuoteId(mintQuote.id);
       
-      Alert.alert('Invoice Created!', 'Lightning invoice created successfully. Copy and share it to receive payment.');
-      
     } catch (error) {
       console.error('Failed to create invoice:', error);
       const errorMsg = getErrorMessage(error);
