@@ -11,6 +11,7 @@ import {
   QRScanner,
   useWallet,
 } from './wallet';
+import { MnemonicModal } from './wallet/components/MnemonicModal';
 
 export function WalletScreen() {
   const [showQRScanner, setShowQRScanner] = React.useState(false);
@@ -34,6 +35,8 @@ export function WalletScreen() {
     showSentConfetti,
     paymentSentAmount,
     showSendingLoader,
+    generatedMnemonic,
+    showMnemonicModal,
     
     // Actions
     testWalletCreation,
@@ -51,6 +54,7 @@ export function WalletScreen() {
     setShowSendModal,
     setLightningInvoice,
     handleMintUrlModalClose,
+    handleMnemonicModalDone,
   } = useWallet();
 
   const handleShowScanner = () => {
@@ -120,6 +124,12 @@ export function WalletScreen() {
           visible={showMintUrlModal}
           onClose={handleMintUrlModalClose}
           onSubmit={handleMintUrlSubmit}
+        />
+
+        <MnemonicModal
+          visible={showMnemonicModal}
+          mnemonic={generatedMnemonic}
+          onDone={handleMnemonicModalDone}
         />
 
         <QRScanner

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Alert, Clipboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget } from '../../../../../src';
+import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget, generateMnemonic } from '../../../../../src';
 import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
 
@@ -29,6 +29,9 @@ export function useWallet() {
   const [showSentConfetti, setShowSentConfetti] = useState(false);
   const [paymentSentAmount, setPaymentSentAmount] = useState<bigint>(BigInt(0));
   const [showSendingLoader, setShowSendingLoader] = useState(false);
+  const [generatedMnemonic, setGeneratedMnemonic] = useState<string>('');
+  const [showMnemonicModal, setShowMnemonicModal] = useState(false);
+  const [pendingWalletCreation, setPendingWalletCreation] = useState<any>(null);
   
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
@@ -112,11 +115,14 @@ export function useWallet() {
         return false;
       }
       
-      const walletInstance = new FfiWallet(
+      // For restoration, we'll need to generate a temporary mnemonic since we don't have the original
+      // This is a temporary workaround - ideally we'd store the mnemonic securely
+      const tempMnemonic = generateMnemonic();
+      const walletInstance = FfiWallet.fromMnemonic(
         urlToUse,
         FfiCurrencyUnit.Sat,
         localStore,
-        seed
+        tempMnemonic
       );
       
       try {
@@ -174,8 +180,6 @@ export function useWallet() {
       setModuleStatus('Mint URL required to continue');
     }
   };
-
-
 
   // Initialize CDK module
   useEffect(() => {
@@ -322,41 +326,54 @@ export function useWallet() {
             return;
           }
           
-          const walletInstance = new FfiWallet(
-            mintUrl,
-            FfiCurrencyUnit.Sat,
-            localStore,
-            seed
-          );
+          // Generate mnemonic and create wallet
+          const mnemonic = generateMnemonic();
           
-          try {
-            if (typeof walletInstance.getMintInfo === 'function') {
-              await walletInstance.getMintInfo();
-            }
+          // Store wallet creation callback for when modal is closed
+          setPendingWalletCreation(() => () => {
+            // Create wallet with the mnemonic after user confirms
+            const walletInstance = FfiWallet.fromMnemonic(
+              mintUrl,
+              FfiCurrencyUnit.Sat,
+              localStore,
+              mnemonic
+            );
             
             try {
-              walletInstance.balance();
-            } catch (balanceError) {
-              // Expected for new wallets
+              if (typeof walletInstance.getMintInfo === 'function') {
+                walletInstance.getMintInfo();
+              }
+              
+              try {
+                walletInstance.balance();
+              } catch (balanceError) {
+                // Expected for new wallets
+              }
+            } catch (initError) {
+              // Continue anyway, initialization might not be required
             }
-          } catch (initError) {
-            // Continue anyway, initialization might not be required
-          }
+            
+            setWallet(walletInstance);
+            
+            try {
+              const walletBalance = walletInstance.balance();
+              setBalance(walletBalance.value);
+              setModuleStatus('Wallet created successfully!');
+            } catch (balanceError) {
+              setBalance(BigInt(0));
+              setModuleStatus('Wallet created successfully!');
+            }
+            
+            // Reset flag after successful wallet creation
+            setShouldCreateWalletAfterMint(false);
+            setIsLoadingWallet(false);
+          });
           
-          setWallet(walletInstance);
+          // Set the generated mnemonic and show modal
+          setGeneratedMnemonic(mnemonic);
+          setShowMnemonicModal(true);
           
-          try {
-            const walletBalance = walletInstance.balance();
-            setBalance(walletBalance.value);
-            setModuleStatus('Wallet created successfully!');
-          } catch (balanceError) {
-            setBalance(BigInt(0));
-            setModuleStatus('Wallet created successfully!');
-          }
-          
-          // Reset flag after successful wallet creation
-          setShouldCreateWalletAfterMint(false);
-          setIsLoadingWallet(false);
+          return; // Return early since wallet creation happens in modal callback
           
         } catch (error) {
           console.error('Wallet creation error:', error);
@@ -432,39 +449,52 @@ export function useWallet() {
         return;
       }
       
-      const walletInstance = new FfiWallet(
-        mintUrl,
-        FfiCurrencyUnit.Sat,
-        localStore,
-        seed
-      );
+      // Generate mnemonic and create wallet
+      const mnemonic = generateMnemonic();
       
-      try {
-        if (typeof walletInstance.getMintInfo === 'function') {
-          await walletInstance.getMintInfo();
-        }
+      // Store wallet creation callback for when modal is closed
+      setPendingWalletCreation(() => () => {
+        // Create wallet with the mnemonic after user confirms
+        const walletInstance = FfiWallet.fromMnemonic(
+          mintUrl,
+          FfiCurrencyUnit.Sat,
+          localStore,
+          mnemonic
+        );
         
         try {
-          walletInstance.balance();
-        } catch (balanceError) {
-          // Expected for new wallets
+          if (typeof walletInstance.getMintInfo === 'function') {
+            walletInstance.getMintInfo();
+          }
+          
+          try {
+            walletInstance.balance();
+          } catch (balanceError) {
+            // Expected for new wallets
+          }
+        } catch (initError) {
+          // Continue anyway, initialization might not be required
         }
-      } catch (initError) {
-        // Continue anyway, initialization might not be required
-      }
+        
+        setWallet(walletInstance);
+        
+        try {
+          const walletBalance = walletInstance.balance();
+          setBalance(walletBalance.value);
+          setModuleStatus('Wallet created successfully!');
+        } catch (balanceError) {
+          setBalance(BigInt(0));
+          setModuleStatus('Wallet created successfully!');
+        }
+        
+        setIsLoadingWallet(false);
+      });
       
-      setWallet(walletInstance);
+      // Set the generated mnemonic and show modal
+      setGeneratedMnemonic(mnemonic);
+      setShowMnemonicModal(true);
       
-      try {
-        const walletBalance = walletInstance.balance();
-        setBalance(walletBalance.value);
-        setModuleStatus('Wallet created successfully!');
-      } catch (balanceError) {
-        setBalance(BigInt(0));
-        setModuleStatus('Wallet created successfully!');
-      }
-      
-      setIsLoadingWallet(false);
+      return; // Return early since wallet creation happens in modal callback
       
     } catch (error) {
       console.error('Wallet creation error:', error);
@@ -538,9 +568,7 @@ export function useWallet() {
     Alert.alert('Copied!', 'Invoice copied to clipboard');
   };
 
-
-
-      // Silent background payment checking
+  // Silent background payment checking
   const checkPaymentStatus = async (currentQuoteId?: string) => {
     const activeQuoteId = currentQuoteId || quoteId;
     
@@ -616,8 +644,6 @@ export function useWallet() {
       paymentCheckInterval.current = null;
     }
   };
-
-
 
   const sendPayment = async (scannedInvoice?: string) => {
     const invoiceToUse = scannedInvoice || lightningInvoice;
@@ -747,6 +773,15 @@ export function useWallet() {
     }
   };
 
+  // Handle mnemonic modal done
+  const handleMnemonicModalDone = () => {
+    setShowMnemonicModal(false);
+    if (pendingWalletCreation) {
+      pendingWalletCreation();
+      setPendingWalletCreation(null);
+    }
+  };
+
   return {
     // State
     balance,
@@ -767,6 +802,9 @@ export function useWallet() {
     showSentConfetti,
     paymentSentAmount,
     showSendingLoader,
+    generatedMnemonic,
+    showMnemonicModal,
+    pendingWalletCreation,
     
     // Actions
     testWalletCreation,
@@ -787,5 +825,6 @@ export function useWallet() {
     setShowSendModal,
     setLightningInvoice,
     handleMintUrlModalClose,
+    handleMnemonicModalDone,
   };
 } 
