@@ -40,9 +40,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     <SafeAreaView style={styles.loginSafeArea}>
       <View style={styles.loginContainer}>
         <Text style={styles.loginTitle}>Welcome to Nostr</Text>
-        <Text style={styles.loginSubtitle}>
-          Enter your npub to view your posts
-        </Text>
 
         <TextInput
           style={styles.input}
