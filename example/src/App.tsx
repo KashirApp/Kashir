@@ -68,23 +68,28 @@ export default function App() {
     return <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />;
   }
 
-  const renderActiveTab = () => {
-    if (activeMainTab === 'wallet') {
-      return <WalletScreen />;
-    }
-    
-    // Nostr tab
-    if (isLoggedIn) {
-      return <PostsScreen userNpub={userNpub} onLogout={handleLogout} />;
-    } else {
-      return <LoginScreen onLogin={handleLogin} />;
-    }
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
       <View style={{ flex: 1 }}>
-        {renderActiveTab()}
+        {/* Keep WalletScreen always mounted to preserve state */}
+        <View style={{ 
+          flex: 1, 
+          display: activeMainTab === 'wallet' ? 'flex' : 'none' 
+        }}>
+          <WalletScreen />
+        </View>
+        
+        {/* Nostr content - show based on login state */}
+        <View style={{ 
+          flex: 1, 
+          display: activeMainTab === 'nostr' ? 'flex' : 'none' 
+        }}>
+          {isLoggedIn ? (
+            <PostsScreen userNpub={userNpub} onLogout={handleLogout} />
+          ) : (
+            <LoginScreen onLogin={handleLogin} />
+          )}
+        </View>
       </View>
       
       <BottomTabNavigation
