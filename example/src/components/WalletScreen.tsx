@@ -8,6 +8,7 @@ import {
   MintInfo,
   ReceiveModal,
   SendModal,
+  MintUrlModal,
   useWallet,
 } from './wallet';
 
@@ -30,6 +31,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
     showSendModal,
     lightningInvoice,
     isSending,
+    showMintUrlModal,
     
     // Actions
     testWalletCreation,
@@ -40,12 +42,15 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
     refreshBalance,
     checkAndMintPendingTokens,
     sendPayment,
+    promptForMintUrl,
+    handleMintUrlSubmit,
     
     // Modal controls
     setShowReceiveModal,
     setReceiveAmount,
     setShowSendModal,
     setLightningInvoice,
+    handleMintUrlModalClose,
   } = useWallet();
 
   return (
@@ -70,7 +75,7 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
         onSend={handleSend}
       />
       
-      <MintInfo mintUrl={mintUrl} />
+      <MintInfo mintUrl={mintUrl} onChangeMint={promptForMintUrl} />
       
       <ReceiveModal
         visible={showReceiveModal}
@@ -91,6 +96,12 @@ export function WalletScreen({ onClose }: WalletScreenProps) {
         onClose={() => setShowSendModal(false)}
         onInvoiceChange={setLightningInvoice}
         onSendPayment={sendPayment}
+      />
+
+      <MintUrlModal
+        visible={showMintUrlModal}
+        onClose={handleMintUrlModalClose}
+        onSubmit={handleMintUrlSubmit}
       />
     </SafeAreaView>
   );
