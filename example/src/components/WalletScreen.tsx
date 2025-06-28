@@ -8,10 +8,13 @@ import {
   ReceiveModal,
   SendModal,
   MintUrlModal,
+  QRScanner,
   useWallet,
 } from './wallet';
 
 export function WalletScreen() {
+  const [showQRScanner, setShowQRScanner] = React.useState(false);
+  
   const {
     // State
     balance,
@@ -47,6 +50,28 @@ export function WalletScreen() {
     setLightningInvoice,
     handleMintUrlModalClose,
   } = useWallet();
+
+  const handleShowScanner = () => {
+    // Close the send modal first
+    setShowSendModal(false);
+    // Then show the scanner
+    setShowQRScanner(true);
+  };
+
+  const handleScanResult = (data: string) => {
+    // Extract Lightning invoice from QR code data - same logic as before
+    let invoice = data;
+    if (data.toLowerCase().startsWith('lightning:')) {
+      invoice = data.substring(10);
+    }
+    
+    // Set the invoice and close scanner - same as before
+    setLightningInvoice(invoice);
+    setShowQRScanner(false);
+    
+    // Trigger payment confirmation directly with the scanned invoice - same as before
+    sendPayment(invoice);
+  };
 
   return (
     <>
@@ -87,12 +112,19 @@ export function WalletScreen() {
           onClose={() => setShowSendModal(false)}
           onInvoiceChange={setLightningInvoice}
           onSendPayment={sendPayment}
+          onShowScanner={handleShowScanner}
         />
 
         <MintUrlModal
           visible={showMintUrlModal}
           onClose={handleMintUrlModalClose}
           onSubmit={handleMintUrlSubmit}
+        />
+
+        <QRScanner
+          visible={showQRScanner}
+          onClose={() => setShowQRScanner(false)}
+          onScan={handleScanResult}
         />
       </SafeAreaView>
       

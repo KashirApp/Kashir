@@ -9,7 +9,6 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import { QRScanner } from './QRScanner';
 
 interface SendModalProps {
   visible: boolean;
@@ -18,6 +17,7 @@ interface SendModalProps {
   onClose: () => void;
   onInvoiceChange: (invoice: string) => void;
   onSendPayment: (invoice?: string) => void;
+  onShowScanner: () => void;
 }
 
 export function SendModal({
@@ -27,27 +27,8 @@ export function SendModal({
   onClose,
   onInvoiceChange,
   onSendPayment,
+  onShowScanner,
 }: SendModalProps) {
-  const [showScanner, setShowScanner] = React.useState(false);
-
-  const handleScanResult = (data: string) => {
-    // Extract Lightning invoice from QR code data
-    let invoice = data;
-    if (data.toLowerCase().startsWith('lightning:')) {
-      invoice = data.substring(10);
-    }
-    
-    // Set the invoice and close scanner
-    onInvoiceChange(invoice);
-    setShowScanner(false);
-    
-    // Close the send modal since we're going directly to payment confirmation
-    onClose();
-    
-    // Trigger payment confirmation directly with the scanned invoice
-    // This avoids React state timing issues
-    onSendPayment(invoice);
-  };
   return (
     <Modal
       visible={visible}
@@ -78,7 +59,7 @@ export function SendModal({
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity
                 style={[styles.button, styles.scanButton]}
-                onPress={() => setShowScanner(true)}
+                onPress={onShowScanner}
                 disabled={isSending}
               >
                 <Text style={styles.buttonText}>📷 Scan QR Code</Text>
@@ -86,7 +67,7 @@ export function SendModal({
               
               <TouchableOpacity
                 style={[styles.button, styles.sendPaymentButton]}
-                onPress={onSendPayment}
+                onPress={() => onSendPayment()}
                 disabled={isSending || !lightningInvoice.trim()}
               >
                 <Text style={styles.buttonText}>
@@ -104,12 +85,6 @@ export function SendModal({
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-      
-      <QRScanner
-        visible={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScan={handleScanResult}
-      />
     </Modal>
   );
 }
