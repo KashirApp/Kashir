@@ -62,6 +62,9 @@
     "type": "git",
     "url": "git+https://github.com/KashirApp/Kashir.git"
   },
+  "author": "Darrell (https://github.com/aki-mizu)",
+  "license": "MIT",
+  "homepage": "https://github.com/KashirApp/Kashir",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
