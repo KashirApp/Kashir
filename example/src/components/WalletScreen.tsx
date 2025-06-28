@@ -36,7 +36,6 @@ export function WalletScreen() {
     createInvoice,
     copyToClipboard,
     refreshBalance,
-    checkAndMintPendingTokens,
     sendPayment,
     promptForMintUrl,
     handleMintUrlSubmit,

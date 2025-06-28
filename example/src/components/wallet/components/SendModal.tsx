@@ -9,6 +9,7 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { QRScanner } from './QRScanner';
 
 interface SendModalProps {
   visible: boolean;
@@ -16,7 +17,7 @@ interface SendModalProps {
   isSending: boolean;
   onClose: () => void;
   onInvoiceChange: (invoice: string) => void;
-  onSendPayment: () => void;
+  onSendPayment: (invoice?: string) => void;
 }
 
 export function SendModal({
@@ -27,6 +28,23 @@ export function SendModal({
   onInvoiceChange,
   onSendPayment,
 }: SendModalProps) {
+  const [showScanner, setShowScanner] = React.useState(false);
+
+  const handleScanResult = (data: string) => {
+    // Extract Lightning invoice from QR code data
+    let invoice = data;
+    if (data.toLowerCase().startsWith('lightning:')) {
+      invoice = data.substring(10);
+    }
+    
+    // Set the invoice and close scanner
+    onInvoiceChange(invoice);
+    setShowScanner(false);
+    
+    // Trigger payment confirmation directly with the scanned invoice
+    // This avoids React state timing issues
+    onSendPayment(invoice);
+  };
   return (
     <Modal
       visible={visible}
@@ -53,15 +71,26 @@ export function SendModal({
               numberOfLines={4}
               textAlignVertical="top"
             />
-            <TouchableOpacity
-              style={[styles.button, styles.sendPaymentButton]}
-              onPress={onSendPayment}
-              disabled={isSending || !lightningInvoice.trim()}
-            >
-              <Text style={styles.buttonText}>
-                {isSending ? 'Processing...' : 'Send Payment'}
-              </Text>
-            </TouchableOpacity>
+            
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.scanButton]}
+                onPress={() => setShowScanner(true)}
+                disabled={isSending}
+              >
+                <Text style={styles.buttonText}>📷 Scan QR Code</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.button, styles.sendPaymentButton]}
+                onPress={onSendPayment}
+                disabled={isSending || !lightningInvoice.trim()}
+              >
+                <Text style={styles.buttonText}>
+                  {isSending ? 'Processing...' : 'Send Payment'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
           
           <TouchableOpacity
@@ -72,6 +101,12 @@ export function SendModal({
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      
+      <QRScanner
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleScanResult}
+      />
     </Modal>
   );
 }
@@ -141,6 +176,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  actionButtonsContainer: {
+    gap: 15,
+  },
+  scanButton: {
+    backgroundColor: '#2196F3',
   },
   sendPaymentButton: {
     backgroundColor: '#4CAF50',

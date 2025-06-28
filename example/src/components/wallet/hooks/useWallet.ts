@@ -630,8 +630,10 @@ export function useWallet() {
 
 
 
-  const sendPayment = async () => {
-    if (!wallet || !lightningInvoice.trim()) {
+  const sendPayment = async (scannedInvoice?: string) => {
+    const invoiceToUse = scannedInvoice || lightningInvoice;
+    
+    if (!wallet || !invoiceToUse.trim()) {
       Alert.alert('Error', 'Please enter a Lightning invoice');
       return;
     }
@@ -641,7 +643,7 @@ export function useWallet() {
       return;
     }
 
-    if (!lightningInvoice.toLowerCase().startsWith('lnbc')) {
+    if (!invoiceToUse.toLowerCase().startsWith('lnbc')) {
       Alert.alert('Error', 'Please enter a valid Lightning invoice (should start with lnbc)');
       return;
     }
@@ -673,7 +675,7 @@ export function useWallet() {
       }
       
       try {
-        const meltQuote = await wallet.meltQuote(lightningInvoice);
+        const meltQuote = await wallet.meltQuote(invoiceToUse);
         
         const prepareResult = {
           amount: meltQuote.amount,

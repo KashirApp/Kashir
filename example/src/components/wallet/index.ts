@@ -6,6 +6,7 @@ export { WalletActions } from './components/WalletActions';
 export { MintInfo } from './components/MintInfo';
 export { ReceiveModal } from './components/ReceiveModal';
 export { SendModal } from './components/SendModal';
+export { QRScanner } from './components/QRScanner';
 export { MintUrlModal } from './components/MintUrlModal';
 
 // Hooks
