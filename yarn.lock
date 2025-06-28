@@ -7742,6 +7742,33 @@ __metadata:
   languageName: node
   linkType: hard
 
+"kashir-example@workspace:example":
+  version: 0.0.0-use.local
+  resolution: "kashir-example@workspace:example"
+  dependencies:
+    "@babel/core": ^7.25.2
+    "@babel/preset-env": ^7.25.3
+    "@babel/runtime": ^7.25.0
+    "@react-native-async-storage/async-storage": ^2.2.0
+    "@react-native-community/cli": 15.0.1
+    "@react-native-community/cli-platform-android": 15.0.1
+    "@react-native-community/cli-platform-ios": 15.0.1
+    "@react-native/babel-preset": 0.78.1
+    "@react-native/metro-config": 0.78.1
+    "@react-native/typescript-config": 0.78.1
+    "@types/react": ^19.0.0
+    react: 19.0.0
+    react-native: 0.78.1
+    react-native-builder-bob: ^0.38.3
+    react-native-camera-kit: ^15.1.0
+    react-native-confetti-cannon: ^1.5.2
+    react-native-fs: ^2.20.0
+    react-native-permissions: ^5.4.1
+    react-native-qrcode-svg: ^6.3.2
+    react-native-svg: ^15.8.1
+  languageName: unknown
+  linkType: soft
+
 "kashir@workspace:.":
   version: 0.0.0-use.local
   resolution: "kashir@workspace:."
@@ -9011,33 +9038,6 @@ __metadata:
   checksum: 88eeb4da891e10b1318c4b2476b6e2ecbeb5ff97d946815ffea7794c31a89017c70d7f34b3c2ebf23ef4e9fc9fb99f7dffe36da22011b5b5c6ffa34f4873ec20
   languageName: node
   linkType: hard
-
-"nostr-sdk-react-native-example@workspace:example":
-  version: 0.0.0-use.local
-  resolution: "nostr-sdk-react-native-example@workspace:example"
-  dependencies:
-    "@babel/core": ^7.25.2
-    "@babel/preset-env": ^7.25.3
-    "@babel/runtime": ^7.25.0
-    "@react-native-async-storage/async-storage": ^2.2.0
-    "@react-native-community/cli": 15.0.1
-    "@react-native-community/cli-platform-android": 15.0.1
-    "@react-native-community/cli-platform-ios": 15.0.1
-    "@react-native/babel-preset": 0.78.1
-    "@react-native/metro-config": 0.78.1
-    "@react-native/typescript-config": 0.78.1
-    "@types/react": ^19.0.0
-    react: 19.0.0
-    react-native: 0.78.1
-    react-native-builder-bob: ^0.38.3
-    react-native-camera-kit: ^15.1.0
-    react-native-confetti-cannon: ^1.5.2
-    react-native-fs: ^2.20.0
-    react-native-permissions: ^5.4.1
-    react-native-qrcode-svg: ^6.3.2
-    react-native-svg: ^15.8.1
-  languageName: unknown
-  linkType: soft
 
 "npm-run-path@npm:^4.0.0, npm-run-path@npm:^4.0.1":
   version: 4.0.1

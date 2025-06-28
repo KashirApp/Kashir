@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "nostr-sdk-react-native": ["./src/index"]
+      "kashir": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,

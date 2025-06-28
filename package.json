@@ -43,7 +43,7 @@
     "ubrn:ios": "yarn ubrn:ios:nostr && yarn ubrn:ios:cdk && ./scripts/fix-cpp-bindings.sh && (cd example/ios && pod install)",
     "ubrn:android": "./scripts/build-android.sh",
     "ubrn:clean": "rm -Rf cpp/ android/src/main/java ios/ src/Native* src/generated/ src/index.ts* NostrSdkFramework.xcframework CdkFramework.xcframework",
-    "example": "yarn workspace nostr-sdk-react-native-example",
+    "example": "yarn workspace kashir-example",
     "test": "jest",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
@@ -60,14 +60,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rust-nostr/nostr-sdk-react-native.git"
+    "url": "git+https://github.com/KashirApp/Kashir.git"
   },
-  "author": "Reyamir <reya@lume.nu> (https://github.com/reyamir), Yuki Kishimoto <yukikishimoto@protonmail.com> (https://github.com/yukibtc)",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/rust-nostr/nostr-sdk-react-native/issues"
-  },
-  "homepage": "https://github.com/rust-nostr/nostr-sdk-react-native#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
