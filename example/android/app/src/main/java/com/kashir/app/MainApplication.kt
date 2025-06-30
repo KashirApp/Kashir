@@ -1,4 +1,4 @@
-package com.kashir.example
+package com.kashir.app
 
 import android.app.Application
 import com.facebook.react.PackageList

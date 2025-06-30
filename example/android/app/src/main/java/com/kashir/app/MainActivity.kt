@@ -1,4 +1,4 @@
-package com.kashir.example
+package com.kashir.app
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
