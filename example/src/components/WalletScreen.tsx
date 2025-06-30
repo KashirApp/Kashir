@@ -4,10 +4,8 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import {
   WalletBalance,
   WalletActions,
-  MintInfo,
   ReceiveModal,
   SendModal,
-  MintUrlModal,
   QRScanner,
   useWallet,
 } from './wallet';
@@ -48,7 +46,6 @@ export function WalletScreen() {
     // State
     balance,
     wallet,
-    mintUrl,
     isLoadingWallet,
     showReceiveModal,
     receiveAmount,
@@ -57,7 +54,6 @@ export function WalletScreen() {
     showSendModal,
     lightningInvoice,
     isSending,
-    showMintUrlModal,
     showConfetti,
     paymentReceivedAmount,
     showSentConfetti,
@@ -76,8 +72,6 @@ export function WalletScreen() {
     createInvoice,
     copyToClipboard,
     sendPayment,
-    promptForMintUrl,
-    handleMintUrlSubmit,
     handleRecoverWallet,
     handleWalletRecovery,
     
@@ -86,7 +80,6 @@ export function WalletScreen() {
     setReceiveAmount,
     setShowSendModal,
     setLightningInvoice,
-    handleMintUrlModalClose,
     handleMnemonicModalDone,
     setShowRecoverModal,
   } = useWallet();
@@ -132,8 +125,6 @@ export function WalletScreen() {
           onSend={handleSend}
         />
         
-        <MintInfo mintUrl={mintUrl} onChangeMint={promptForMintUrl} />
-        
         <ReceiveModal
           visible={showReceiveModal}
           receiveAmount={receiveAmount}
@@ -153,12 +144,6 @@ export function WalletScreen() {
           onInvoiceChange={setLightningInvoice}
           onSendPayment={sendPayment}
           onShowScanner={handleShowScanner}
-        />
-
-        <MintUrlModal
-          visible={showMintUrlModal}
-          onClose={handleMintUrlModalClose}
-          onSubmit={handleMintUrlSubmit}
         />
 
         <MnemonicModal

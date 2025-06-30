@@ -17,6 +17,11 @@ export function MintInfo({ mintUrl, onChangeMint }: MintInfoProps) {
     return (
       <View style={styles.mintContainer}>
         <Text style={styles.mintLabel}>No mint URL set</Text>
+        {onChangeMint && (
+          <TouchableOpacity onPress={handleChangeMint} style={styles.changeMintButton}>
+            <Text style={styles.changeMintText}>Set Mint URL</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -36,33 +41,39 @@ export function MintInfo({ mintUrl, onChangeMint }: MintInfoProps) {
 
 const styles = StyleSheet.create({
   mintContainer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
   },
   mintLabel: {
-    fontSize: 12,
-    color: '#666666',
-    marginBottom: 5,
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 8,
   },
   mintUrl: {
     fontSize: 14,
-    color: '#888888',
+    color: '#fff',
     fontFamily: 'monospace',
-    marginBottom: 10,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#333',
   },
   changeMintButton: {
-    backgroundColor: '#333333',
+    backgroundColor: '#444',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 6,
-    marginTop: 8,
+    alignSelf: 'flex-start',
   },
   changeMintText: {
-    color: '#ffffff',
-    fontSize: 12,
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '500',
   },
 }); 
