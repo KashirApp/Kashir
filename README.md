@@ -1,1 +1,1 @@
-Kashir is a mobile cashu wallet built with react native, rust-nostr SDK and Cashu Development Kit
+Kashir is a mobile ecash(Cashu) wallet built with react native, rust-nostr SDK and Cashu Development Kit
