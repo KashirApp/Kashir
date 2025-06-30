@@ -36,6 +36,19 @@ export function BottomTabNavigation({ activeTab, onTabChange }: BottomTabNavigat
           Nostr
         </Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === 'settings' && styles.activeTab]}
+        onPress={() => onTabChange('settings')}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === 'settings' && styles.activeTabText,
+          ]}
+        >
+          Settings
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }

@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { LoginScreen } from './components/LoginScreen';
 import { PostsScreen } from './components/PostsScreen';
 import { WalletScreen } from './components/WalletScreen';
+import { SettingsScreen } from './components/SettingsScreen';
 import { BottomTabNavigation } from './components/BottomTabNavigation';
 import { StorageService } from './services/StorageService';
 import type { MainTabType } from './types';
@@ -89,6 +90,14 @@ export default function App() {
           ) : (
             <LoginScreen onLogin={handleLogin} />
           )}
+        </View>
+        
+        {/* Settings Screen */}
+        <View style={{ 
+          flex: 1, 
+          display: activeMainTab === 'settings' ? 'flex' : 'none' 
+        }}>
+          <SettingsScreen />
         </View>
       </View>
       

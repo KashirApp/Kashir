@@ -1,8 +1,9 @@
+export { BottomTabNavigation } from './BottomTabNavigation';
 export { Header } from './Header';
 export { LoginScreen } from './LoginScreen';
 export { Post } from './Post';
 export { PostList } from './PostList';
 export { PostsScreen } from './PostsScreen';
+export { SettingsScreen } from './SettingsScreen';
 export { TabNavigation } from './TabNavigation';
-export { WalletScreen } from './WalletScreen';
-export { BottomTabNavigation } from './BottomTabNavigation'; 
+export { WalletScreen } from './WalletScreen'; 
