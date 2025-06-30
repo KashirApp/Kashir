@@ -108,7 +108,8 @@ export class SecureStorageService {
     }
 
     try {
-      await Keychain.resetInternetCredentials(SERVICE_NAME);
+      // Updated API for react-native-keychain v10.0.0 - service is now part of options object
+      await Keychain.resetInternetCredentials({ server: SERVICE_NAME });
       return true;
     } catch (error) {
       console.error('Failed to remove seed phrase:', error);
