@@ -1,0 +1,118 @@
+name: Publish to Zapstore
+
+on:
+  workflow_dispatch:
+  release:
+    types: [released]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download zapstore-cli
+        run: |
+          # Get the latest release info
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/zapstore/zapstore-cli/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+          echo "Latest zapstore-cli version: $LATEST_VERSION"
+          
+          # Download the Linux amd64 binary
+          DOWNLOAD_URL="https://github.com/zapstore/zapstore-cli/releases/download/${LATEST_VERSION}/zapstore-cli-${LATEST_VERSION}-linux-amd64"
+          echo "Downloading from: $DOWNLOAD_URL"
+          
+          curl -L -o zapstore-cli "$DOWNLOAD_URL"
+          
+          # Make it executable
+          chmod +x zapstore-cli
+          
+          # Create zapstore directory to avoid interactive prompts
+          mkdir -p /home/runner/.zapstore
+          
+          # Verify download
+          ./zapstore-cli --version
+
+      - name: Create .env file from secrets
+        run: |
+          echo "Creating .env file from GitHub secrets..."
+          
+          # Add your secrets here - adjust the secret names as needed
+          echo "SIGN_WITH=${{ secrets.SIGN_WITH }}" >> .env
+          
+          # Add other secrets if needed, for example:
+          # echo "NOSTR_PRIVATE_KEY=${{ secrets.NOSTR_PRIVATE_KEY }}" >> .env
+          # echo "BLOSSOM_SERVER=${{ secrets.BLOSSOM_SERVER }}" >> .env
+          
+          echo ".env file created successfully"
+
+      - name: Verify required files
+        run: |
+          echo "Checking for required files..."
+          
+          if [ ! -f "zapstore.yaml" ]; then
+            echo "❌ zapstore.yaml not found!"
+            exit 1
+          fi
+          echo "✅ zapstore.yaml found"
+          
+          if [ ! -f "logo.png" ]; then
+            echo "⚠️  logo.png not found, checking for other logo files..."
+            if [ -f "logo.jpg" ] || [ -f "logo.jpeg" ] || [ -f "logo.svg" ]; then
+              echo "✅ Logo file found"
+            else
+              echo "❌ No logo file found!"
+              exit 1
+            fi
+          else
+            echo "✅ logo.png found"
+          fi
+          
+          if [ ! -f ".env" ]; then
+            echo "❌ .env file not created!"
+            exit 1
+          fi
+          echo "✅ .env file ready"
+
+      - name: Publish to Zapstore
+        run: |
+          echo "Publishing to Zapstore..."
+          
+          # Step 1: Initial zapstore-cli run (shows welcome message)
+          ./zapstore-cli
+          
+          # Step 2: Set PATH as zapstore requested
+          export PATH="/home/runner/.zapstore:$PATH"
+          echo 'export PATH="/home/runner/.zapstore:$PATH"' >> ~/.bashrc
+          
+          # Step 3: Run zapstore-cli to complete installation
+          ./zapstore-cli
+          
+          # Run zapstore publish
+          echo "Running zapstore publish:"
+          cd $GITHUB_WORKSPACE
+          
+          # Capture zapstore output and check for warnings
+          PUBLISH_OUTPUT=$(zapstore publish --daemon-mode 2>&1)
+          echo "$PUBLISH_OUTPUT"
+          
+          # Check if output contains version conflict warning
+          if echo "$PUBLISH_OUTPUT" | grep -q "Use --overwrite-release to skip this check"; then
+            echo "❌ Failed to publish to Zapstore!"
+            echo "Version conflict detected. Release already exists on relays."
+            echo "To republish the same version, use --overwrite-release flag."
+            exit 1
+          else
+            echo "✅ Successfully published to Zapstore!"
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Clean up sensitive files
+          rm -f .env
+          rm -f zapstore-cli 

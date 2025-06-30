@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -137,12 +142,29 @@ jobs:
           cd example/android/app
           VERSION_NAME=$(grep 'versionName' build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
           VERSION_CODE=${{ github.run_number }}
-          TAG_NAME="${VERSION_NAME}(${VERSION_CODE})"
+          
+          # Create release title with version and build number
+          RELEASE_TITLE="${VERSION_NAME}(${VERSION_CODE})"
+          
+          # Create clean APK name using version and build number
           APK_NAME="${VERSION_NAME}-${VERSION_CODE}"
           
+          # Use different tag format for pre-releases (automatic) vs formal releases (manual)
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            # Pre-release: use "latest" tag but version number as title and APK name
+            TAG_NAME="latest"
+            echo "Creating pre-release with tag: latest, title: $RELEASE_TITLE"
+          else
+            # Formal release: use version and build number for tag, title, and APK name
+            TAG_NAME="$RELEASE_TITLE"
+            echo "Creating formal release with tag: $TAG_NAME"
+          fi
+          
           echo "Generated tag name: $TAG_NAME"
+          echo "Generated release title: $RELEASE_TITLE"
           echo "Generated APK name: $APK_NAME"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "RELEASE_TITLE=$RELEASE_TITLE" >> $GITHUB_ENV
           echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV
           echo "APK will be named: $APK_NAME.apk"
 
@@ -183,30 +205,30 @@ jobs:
             exit 1
           fi
 
-      - name: Delete all existing releases and tags
+      - name: Delete existing releases and tags
         run: |
-          echo "Deleting all existing releases and tags to keep only the latest..."
-          
-          # Delete all existing releases
-          echo "Deleting all releases..."
-          gh release list --json tagName --jq '.[].tagName' | while read tag; do
-            if [ -n "$tag" ]; then
-              echo "Deleting release: $tag"
-              gh release delete "$tag" --yes || echo "Failed to delete release $tag"
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            # For pre-releases, only delete the existing "latest" release/tag
+            echo "Deleting existing 'latest' release and tag for pre-release update..."
+            
+            # Delete latest release if it exists
+            if gh release view latest >/dev/null 2>&1; then
+              echo "Deleting 'latest' release"
+              gh release delete latest --yes || echo "Failed to delete 'latest' release"
             fi
-          done
-          
-          # Delete all existing tags (both remote and local)
-          echo "Deleting all tags..."
-          git tag -l | while read tag; do
-            if [ -n "$tag" ]; then
-              echo "Deleting tag: $tag"
-              git push --delete origin "$tag" || echo "Failed to delete remote tag $tag"
-              git tag -d "$tag" || echo "Failed to delete local tag $tag"
+            
+            # Delete latest tag if it exists
+            if git tag -l | grep -q "^latest$"; then
+              echo "Deleting 'latest' tag"
+              git push --delete origin latest || echo "Failed to delete remote 'latest' tag"
+              git tag -d latest || echo "Failed to delete local 'latest' tag"
             fi
-          done
-          
-          echo "Cleanup completed. New release will be the only one."
+            
+            echo "Pre-release cleanup completed."
+          else
+            # For formal releases, keep existing tags and releases
+            echo "Creating formal release (keeping existing tags and releases)..."
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -214,9 +236,11 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.TAG_NAME }}
-          name: ${{ env.TAG_NAME }}
+          name: ${{ env.RELEASE_TITLE }}
           artifacts: "${{ env.APK_FILE }}"
           makeLatest: true
+          prerelease: ${{ github.event_name != 'workflow_dispatch' }}
+          draft: ${{ github.event_name == 'workflow_dispatch' }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
  
