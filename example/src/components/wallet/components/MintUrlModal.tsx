@@ -35,14 +35,19 @@ export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) 
         ? `${mintUrl}v1/info` 
         : `${mintUrl}/v1/info`;
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(infoUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        timeout: 10000, // 10 second timeout
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
