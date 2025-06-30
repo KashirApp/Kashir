@@ -5,9 +5,9 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Clipboard,
   Alert,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 interface MnemonicModalProps {
   visible: boolean;

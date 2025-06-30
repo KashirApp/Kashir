@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Alert, Clipboard } from 'react-native';
+import { Alert } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget, generateMnemonic } from '../../../../../src';
 import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
+import { SecureStorageService } from '../../../services/SecureStorageService';
 
 const MINT_URL_STORAGE_KEY = '@cashu_mint_url';
 
@@ -99,13 +101,6 @@ export function useWallet() {
       
       const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
       
-      // Use a dummy seed since we're restoring from existing database
-      const seed = new ArrayBuffer(32);
-      const seedView = new Uint8Array(seed);
-      for (let i = 0; i < 32; i++) {
-        seedView[i] = Math.floor(Math.random() * 256);
-      }
-      
       let localStore;
       try {
         localStore = FfiLocalStore.newWithPath(dbPath);
@@ -119,15 +114,29 @@ export function useWallet() {
         return false;
       }
       
-      // For restoration, we'll need to generate a temporary mnemonic since we don't have the original
-      // This is a temporary workaround - ideally we'd store the mnemonic securely
-      const tempMnemonic = generateMnemonic();
-      const walletInstance = FfiWallet.fromMnemonic(
-        urlToUse,
-        FfiCurrencyUnit.Sat,
-        localStore,
-        tempMnemonic
-      );
+      // Try to get the stored seed phrase first
+      const storedSeedPhrase = await SecureStorageService.getSeedPhrase();
+      let walletInstance;
+      
+      if (storedSeedPhrase) {
+        // Use the stored seed phrase
+        walletInstance = FfiWallet.fromMnemonic(
+          urlToUse,
+          FfiCurrencyUnit.Sat,
+          localStore,
+          storedSeedPhrase
+        );
+      } else {
+        // If no stored seed phrase, try to restore with a temporary one
+        // This is for backwards compatibility with wallets created before secure storage
+        const tempMnemonic = generateMnemonic();
+        walletInstance = FfiWallet.fromMnemonic(
+          urlToUse,
+          FfiCurrencyUnit.Sat,
+          localStore,
+          tempMnemonic
+        );
+      }
       
       try {
         // Try to get balance to verify wallet works
@@ -342,43 +351,74 @@ export function useWallet() {
           const mnemonic = generateMnemonic();
           
           // Store wallet creation callback for when modal is closed
-          setPendingWalletCreation(() => () => {
-            // Create wallet with the mnemonic after user confirms
-            const walletInstance = FfiWallet.fromMnemonic(
-              mintUrl,
-              FfiCurrencyUnit.Sat,
-              localStore,
-              mnemonic
-            );
-            
+          setPendingWalletCreation(() => async () => {
             try {
-              if (typeof walletInstance.getMintInfo === 'function') {
-                walletInstance.getMintInfo();
+              // Store the seed phrase securely before creating the wallet
+              const stored = await SecureStorageService.storeSeedPhrase(mnemonic);
+              if (!stored) {
+                console.warn('Failed to store seed phrase securely, but continuing with wallet creation');
+              }
+
+              // Create wallet with the mnemonic after user confirms
+              let walletInstance;
+              try {
+                walletInstance = FfiWallet.fromMnemonic(
+                  mintUrl,
+                  FfiCurrencyUnit.Sat,
+                  localStore,
+                  mnemonic
+                );
+              } catch (walletCreationError) {
+                console.error('Wallet creation failed:', walletCreationError);
+                Alert.alert(
+                  'Wallet Creation Failed', 
+                  'There was an error creating your wallet. Please check your mint URL and try again.',
+                  [{ text: 'OK' }]
+                );
+                setIsLoadingWallet(false);
+                return;
+              }
+              
+              // Try to initialize wallet methods
+              try {
+                if (typeof walletInstance.getMintInfo === 'function') {
+                  walletInstance.getMintInfo();
+                }
+              } catch (initError) {
+                console.warn('getMintInfo failed, but continuing:', initError);
+                // Continue anyway, this might not be critical
               }
               
               try {
                 walletInstance.balance();
               } catch (balanceError) {
-                // Expected for new wallets
+                console.warn('Initial balance check failed, but continuing:', balanceError);
+                // Expected for new wallets, continue
               }
-            } catch (initError) {
-              // Continue anyway, initialization might not be required
+              
+              setWallet(walletInstance);
+              
+              // Try to get balance
+              try {
+                const walletBalance = walletInstance.balance();
+                setBalance(walletBalance.value);
+                setModuleStatus('Wallet created successfully!');
+              } catch (balanceError) {
+                console.warn('Balance retrieval failed, setting to 0:', balanceError);
+                setBalance(BigInt(0));
+                setModuleStatus('Wallet created successfully!');
+              }
+              
+              setIsLoadingWallet(false);
+            } catch (error) {
+              console.error('Error in wallet creation callback:', error);
+              Alert.alert(
+                'Wallet Creation Error', 
+                'An unexpected error occurred during wallet creation. Please try again.',
+                [{ text: 'OK' }]
+              );
+              setIsLoadingWallet(false);
             }
-            
-            setWallet(walletInstance);
-            
-            try {
-              const walletBalance = walletInstance.balance();
-              setBalance(walletBalance.value);
-              setModuleStatus('Wallet created successfully!');
-            } catch (balanceError) {
-              setBalance(BigInt(0));
-              setModuleStatus('Wallet created successfully!');
-            }
-            
-            // Reset flag after successful wallet creation
-            setShouldCreateWalletAfterMint(false);
-            setIsLoadingWallet(false);
           });
           
           // Set the generated mnemonic and show modal
@@ -465,41 +505,74 @@ export function useWallet() {
       const mnemonic = generateMnemonic();
       
       // Store wallet creation callback for when modal is closed
-      setPendingWalletCreation(() => () => {
-        // Create wallet with the mnemonic after user confirms
-        const walletInstance = FfiWallet.fromMnemonic(
-          mintUrl,
-          FfiCurrencyUnit.Sat,
-          localStore,
-          mnemonic
-        );
-        
+      setPendingWalletCreation(() => async () => {
         try {
-          if (typeof walletInstance.getMintInfo === 'function') {
-            walletInstance.getMintInfo();
+          // Store the seed phrase securely before creating the wallet
+          const stored = await SecureStorageService.storeSeedPhrase(mnemonic);
+          if (!stored) {
+            console.warn('Failed to store seed phrase securely, but continuing with wallet creation');
+          }
+
+          // Create wallet with the mnemonic after user confirms
+          let walletInstance;
+          try {
+            walletInstance = FfiWallet.fromMnemonic(
+              mintUrl,
+              FfiCurrencyUnit.Sat,
+              localStore,
+              mnemonic
+            );
+          } catch (walletCreationError) {
+            console.error('Wallet creation failed:', walletCreationError);
+            Alert.alert(
+              'Wallet Creation Failed', 
+              'There was an error creating your wallet. Please check your mint URL and try again.',
+              [{ text: 'OK' }]
+            );
+            setIsLoadingWallet(false);
+            return;
+          }
+          
+          // Try to initialize wallet methods
+          try {
+            if (typeof walletInstance.getMintInfo === 'function') {
+              walletInstance.getMintInfo();
+            }
+          } catch (initError) {
+            console.warn('getMintInfo failed, but continuing:', initError);
+            // Continue anyway, this might not be critical
           }
           
           try {
             walletInstance.balance();
           } catch (balanceError) {
-            // Expected for new wallets
+            console.warn('Initial balance check failed, but continuing:', balanceError);
+            // Expected for new wallets, continue
           }
-        } catch (initError) {
-          // Continue anyway, initialization might not be required
+          
+          setWallet(walletInstance);
+          
+          // Try to get balance
+          try {
+            const walletBalance = walletInstance.balance();
+            setBalance(walletBalance.value);
+            setModuleStatus('Wallet created successfully!');
+          } catch (balanceError) {
+            console.warn('Balance retrieval failed, setting to 0:', balanceError);
+            setBalance(BigInt(0));
+            setModuleStatus('Wallet created successfully!');
+          }
+          
+          setIsLoadingWallet(false);
+        } catch (error) {
+          console.error('Error in wallet creation callback:', error);
+          Alert.alert(
+            'Wallet Creation Error', 
+            'An unexpected error occurred during wallet creation. Please try again.',
+            [{ text: 'OK' }]
+          );
+          setIsLoadingWallet(false);
         }
-        
-        setWallet(walletInstance);
-        
-        try {
-          const walletBalance = walletInstance.balance();
-          setBalance(walletBalance.value);
-          setModuleStatus('Wallet created successfully!');
-        } catch (balanceError) {
-          setBalance(BigInt(0));
-          setModuleStatus('Wallet created successfully!');
-        }
-        
-        setIsLoadingWallet(false);
       });
       
       // Set the generated mnemonic and show modal
@@ -786,10 +859,10 @@ export function useWallet() {
   };
 
   // Handle mnemonic modal done
-  const handleMnemonicModalDone = () => {
+  const handleMnemonicModalDone = async () => {
     setShowMnemonicModal(false);
     if (pendingWalletCreation) {
-      pendingWalletCreation();
+      await pendingWalletCreation();
       setPendingWalletCreation(null);
     }
   };
@@ -826,6 +899,16 @@ export function useWallet() {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
+      // Store the seed phrase securely first
+      const stored = await SecureStorageService.storeSeedPhrase(mnemonic);
+      if (!stored) {
+        Alert.alert(
+          'Warning', 
+          'Failed to securely store seed phrase. The wallet will still be recovered, but you should backup your seed phrase manually.',
+          [{ text: 'Continue' }]
+        );
+      }
+
       let localStore;
       try {
         const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Button, Alert, Clipboard } from 'react-native';
+import { View, Text, Button, Alert } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { styles } from '../App.styles';
 
 interface HeaderProps {

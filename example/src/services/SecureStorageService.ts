@@ -1,0 +1,135 @@
+import * as Keychain from 'react-native-keychain';
+
+const SEED_PHRASE_KEY = 'wallet_seed_phrase';
+const SERVICE_NAME = 'KashirWallet';
+
+export class SecureStorageService {
+  /**
+   * Check if keychain is available
+   */
+  private static async isKeychainAvailable(): Promise<boolean> {
+    try {
+      // Test if keychain module is properly linked
+      if (!Keychain || typeof Keychain.getSupportedBiometryType !== 'function') {
+        return false;
+      }
+      await Keychain.getSupportedBiometryType();
+      return true;
+    } catch (error) {
+      console.warn('Keychain not available:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Store the seed phrase securely using react-native-keychain
+   */
+  static async storeSeedPhrase(seedPhrase: string): Promise<boolean> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      console.warn('Keychain not available, cannot store seed phrase securely');
+      return false;
+    }
+
+    try {
+      await Keychain.setInternetCredentials(
+        SERVICE_NAME,
+        SEED_PHRASE_KEY,
+        seedPhrase,
+        {
+          accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE,
+          accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+          authenticationPrompt: {
+            title: 'Authenticate',
+            subtitle: 'Access your wallet seed phrase',
+          },
+        }
+      );
+      return true;
+    } catch (error) {
+      console.error('Failed to store seed phrase:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Retrieve the seed phrase securely using react-native-keychain
+   */
+  static async getSeedPhrase(): Promise<string | null> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      console.warn('Keychain not available, cannot retrieve seed phrase');
+      return null;
+    }
+
+    try {
+      const credentials = await Keychain.getInternetCredentials(SERVICE_NAME, {
+        authenticationPrompt: {
+          title: 'Authenticate',
+          subtitle: 'Access your wallet seed phrase',
+        },
+      });
+      
+      if (credentials && credentials.password) {
+        return credentials.password;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to retrieve seed phrase:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if a seed phrase exists in secure storage
+   */
+  static async hasSeedPhrase(): Promise<boolean> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      return false;
+    }
+
+    try {
+      const credentials = await Keychain.hasInternetCredentials(SERVICE_NAME);
+      return credentials;
+    } catch (error) {
+      // If we can't check (e.g., user cancelled biometric), assume it doesn't exist
+      return false;
+    }
+  }
+
+  /**
+   * Remove the seed phrase from secure storage
+   */
+  static async removeSeedPhrase(): Promise<boolean> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      return false;
+    }
+
+    try {
+      await Keychain.resetInternetCredentials(SERVICE_NAME);
+      return true;
+    } catch (error) {
+      console.error('Failed to remove seed phrase:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if biometric authentication is available
+   */
+  static async isBiometricAvailable(): Promise<boolean> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      return false;
+    }
+
+    try {
+      const biometryType = await Keychain.getSupportedBiometryType();
+      return biometryType !== null;
+    } catch (error) {
+      return false;
+    }
+  }
+} 

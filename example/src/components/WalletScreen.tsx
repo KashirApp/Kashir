@@ -7,10 +7,11 @@ import {
   ReceiveModal,
   SendModal,
   QRScanner,
-  useWallet,
 } from './wallet';
+import { useWallet } from './wallet/hooks/useWallet';
 import { MnemonicModal } from './wallet/components/MnemonicModal';
 import { RecoverWalletModal } from './wallet/components/RecoverWalletModal';
+import { MintUrlModal } from './wallet/components/MintUrlModal';
 
 // Reusable Success Confetti Component
 interface SuccessConfettiProps {
@@ -64,6 +65,7 @@ export function WalletScreen() {
     showRecoverModal,
     showRecoveryLoader,
     showRecoveryConfetti,
+    showMintUrlModal,
     
     // Actions
     testWalletCreation,
@@ -82,6 +84,8 @@ export function WalletScreen() {
     setLightningInvoice,
     handleMnemonicModalDone,
     setShowRecoverModal,
+    handleMintUrlSubmit,
+    handleMintUrlModalClose,
   } = useWallet();
 
   const handleShowScanner = () => {
@@ -162,6 +166,12 @@ export function WalletScreen() {
           visible={showQRScanner}
           onClose={() => setShowQRScanner(false)}
           onScan={handleScanResult}
+        />
+
+        <MintUrlModal
+          visible={showMintUrlModal}
+          onClose={handleMintUrlModalClose}
+          onSubmit={handleMintUrlSubmit}
         />
       </SafeAreaView>
       
