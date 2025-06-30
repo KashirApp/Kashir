@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 
 interface MintUrlModalProps {
@@ -17,8 +18,56 @@ interface MintUrlModalProps {
 
 export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) {
   const [url, setUrl] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
 
-  const handleSubmit = () => {
+  // Reset validation state when modal becomes visible
+  useEffect(() => {
+    if (visible) {
+      setIsValidating(false);
+    }
+  }, [visible]);
+
+  // Validate mint by checking /v1/info endpoint
+  const validateMint = async (mintUrl: string): Promise<boolean> => {
+    try {
+      // Ensure URL ends with /v1/info
+      const infoUrl = mintUrl.endsWith('/') 
+        ? `${mintUrl}v1/info` 
+        : `${mintUrl}/v1/info`;
+
+      const response = await fetch(infoUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000, // 10 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const mintInfo = await response.json();
+
+      // Validate that response has expected mint info structure
+      if (!mintInfo.name || !mintInfo.version || !mintInfo.nuts) {
+        throw new Error('Invalid mint response format');
+      }
+
+      // Check if it supports basic operations we need (NUT-4 for minting, NUT-5 for melting)
+      if (!mintInfo.nuts['4'] || !mintInfo.nuts['5']) {
+        throw new Error('Mint does not support required operations (minting/melting)');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Mint validation failed:', error);
+      return false;
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!url.trim()) {
       Alert.alert('Error', 'Please enter a valid mint URL');
       return;
@@ -29,13 +78,35 @@ export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) 
       return;
     }
 
-    onSubmit(url.trim());
-    // Don't call onClose() here - let the parent handle closing the modal
-    // This prevents the close handler from being called with stale state
+    setIsValidating(true);
+
+    try {
+      const isValid = await validateMint(url.trim());
+      
+      if (isValid) {
+        onSubmit(url.trim());
+        setUrl(''); // Clear the input on successful submission
+      } else {
+        Alert.alert(
+          'Invalid Mint',
+          'Could not connect to the mint. Please check the URL and try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Validation Error',
+        'Failed to validate mint. Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const handleCancel = () => {
     setUrl(''); // Clear the input
+    setIsValidating(false); // Reset validation state
     onClose();
   };
 
@@ -70,11 +141,22 @@ export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) 
           />
           
           <Text style={styles.hint}>
-            Enter the URL of the Cashu mint you want to connect to.
+            Enter the URL of the Cashu mint you want to connect to. The mint will be validated before connecting.
           </Text>
 
-          <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
-            <Text style={styles.submitText}>Connect to Mint</Text>
+          <TouchableOpacity 
+            onPress={handleSubmit} 
+            style={[styles.submitButton, isValidating && styles.submitButtonDisabled]}
+            disabled={isValidating}
+          >
+            {isValidating ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#ffffff" />
+                <Text style={[styles.submitText, { marginLeft: 8 }]}>Validating Mint...</Text>
+              </View>
+            ) : (
+              <Text style={styles.submitText}>Connect to Mint</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -141,9 +223,16 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
+  submitButtonDisabled: {
+    backgroundColor: '#555555',
+  },
   submitText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 }); 
