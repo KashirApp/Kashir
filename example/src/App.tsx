@@ -97,7 +97,7 @@ export default function App() {
           flex: 1, 
           display: activeMainTab === 'settings' ? 'flex' : 'none' 
         }}>
-          <SettingsScreen />
+          <SettingsScreen isVisible={activeMainTab === 'settings'} />
         </View>
       </View>
       

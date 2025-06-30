@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,13 @@ import {
 import { MintInfo, MintUrlModal, useWallet } from './wallet';
 import { SecureStorageService } from '../services';
 
-export function SettingsScreen() {
+interface SettingsScreenProps {
+  isVisible: boolean;
+}
+
+export function SettingsScreen({ isVisible }: SettingsScreenProps) {
+  const [hasSeedPhrase, setHasSeedPhrase] = useState<boolean>(false);
+  
   const {
     mintUrl,
     showMintUrlModal,
@@ -18,6 +24,24 @@ export function SettingsScreen() {
     handleMintUrlSubmit,
     handleMintUrlModalClose,
   } = useWallet();
+
+  // Check if seed phrase exists when component mounts or becomes visible
+  useEffect(() => {
+    const checkSeedPhrase = async () => {
+      try {
+        const exists = await SecureStorageService.hasSeedPhrase();
+        setHasSeedPhrase(exists);
+      } catch (error) {
+        console.warn('Failed to check seed phrase existence:', error);
+        setHasSeedPhrase(false);
+      }
+    };
+    
+    // Only check when the screen is visible
+    if (isVisible) {
+      checkSeedPhrase();
+    }
+  }, [isVisible]);
 
   const handleViewSeedPhrase = async () => {
     try {
@@ -58,6 +82,7 @@ export function SettingsScreen() {
             try {
               const removed = await SecureStorageService.removeSeedPhrase();
               if (removed) {
+                setHasSeedPhrase(false); // Update state to hide the button
                 Alert.alert('Success', 'Seed phrase removed from secure storage');
               } else {
                 Alert.alert('Error', 'Failed to remove seed phrase');
@@ -89,13 +114,21 @@ export function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Security</Text>
           
-          <TouchableOpacity style={styles.settingButton} onPress={handleViewSeedPhrase}>
-            <Text style={styles.settingButtonText}>View Seed Phrase</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.settingButton} onPress={handleRemoveSeedPhrase}>
-            <Text style={[styles.settingButtonText, styles.dangerText]}>Remove Stored Seed Phrase</Text>
-          </TouchableOpacity>
+          {hasSeedPhrase ? (
+            <>
+              <TouchableOpacity style={styles.settingButton} onPress={handleViewSeedPhrase}>
+                <Text style={styles.settingButtonText}>View Seed Phrase</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.settingButton} onPress={handleRemoveSeedPhrase}>
+                <Text style={[styles.settingButtonText, styles.dangerText]}>Remove Stored Seed Phrase</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.noSeedPhraseText}>
+              No seed phrase stored. Create a wallet to securely store your seed phrase.
+            </Text>
+          )}
         </View>
       </View>
 
@@ -152,5 +185,12 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     color: '#ff6b6b',
+  },
+  noSeedPhraseText: {
+    fontSize: 14,
+    color: '#888',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 20,
   },
 }); 
