@@ -41,6 +41,9 @@ export function useWallet() {
   
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  
+  // Ref to prevent duplicate payment calls
+  const isProcessingPayment = useRef(false);
 
   // Function to load mint URL from storage
   const loadMintUrlFromStorage = async () => {
@@ -733,6 +736,12 @@ export function useWallet() {
   const sendPayment = async (scannedInvoice?: string) => {
     const invoiceToUse = scannedInvoice || lightningInvoice;
     
+    // Prevent duplicate calls
+    if (isProcessingPayment.current) {
+      console.log('Payment already in progress, ignoring duplicate call');
+      return;
+    }
+    
     if (!wallet || !invoiceToUse.trim()) {
       Alert.alert('Error', 'Please enter a Lightning invoice');
       return;
@@ -748,6 +757,7 @@ export function useWallet() {
       return;
     }
 
+    isProcessingPayment.current = true;
     setIsSending(true);
     try {
       const currentBalance = wallet.balance();
@@ -755,6 +765,7 @@ export function useWallet() {
       if (currentBalance.value <= 0) {
         Alert.alert('Error', 'Insufficient balance to send payment');
         setIsSending(false);
+        isProcessingPayment.current = false;
         return;
       }
       
@@ -767,7 +778,10 @@ export function useWallet() {
           [
             {
               text: 'OK',
-              onPress: () => setIsSending(false)
+              onPress: () => {
+                setIsSending(false);
+                isProcessingPayment.current = false;
+              }
             }
           ]
         );
@@ -788,6 +802,7 @@ export function useWallet() {
         if (currentBalance.value < totalAmount) {
           Alert.alert('Insufficient Balance', `You need ${totalAmount} sats but only have ${currentBalance.value} sats`);
           setIsSending(false);
+          isProcessingPayment.current = false;
           return;
         }
         
@@ -798,7 +813,10 @@ export function useWallet() {
             {
               text: 'Cancel',
               style: 'cancel',
-              onPress: () => setIsSending(false)
+              onPress: () => {
+                setIsSending(false);
+                isProcessingPayment.current = false;
+              }
             },
             {
               text: 'Send',
@@ -840,6 +858,7 @@ export function useWallet() {
                   Alert.alert('Payment Failed', errorMsg);
                 } finally {
                   setIsSending(false);
+                  isProcessingPayment.current = false;
                 }
               }
             }
@@ -855,6 +874,7 @@ export function useWallet() {
       const errorMsg = getErrorMessage(error);
       Alert.alert('Error', `Failed to prepare payment: ${errorMsg}`);
       setIsSending(false);
+      isProcessingPayment.current = false;
     }
   };
 
