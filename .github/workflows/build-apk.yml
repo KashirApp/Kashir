@@ -152,8 +152,8 @@ jobs:
             echo "Creating pre-release with tag: latest, title: $RELEASE_TITLE"
           else
             # Formal release (manual): exclude build number
-            RELEASE_TITLE="${VERSION_NAME}"
-            APK_NAME="${VERSION_NAME}"
+            RELEASE_TITLE="v${VERSION_NAME}"
+            APK_NAME="v${VERSION_NAME}"
             TAG_NAME="v${VERSION_NAME}"
             echo "Creating formal release with tag: $TAG_NAME"
           fi
