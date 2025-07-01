@@ -125,7 +125,7 @@ jobs:
       - name: Build APK
         working-directory: ./example
         env:
-          VERSION_CODE: ${{ github.run_number }}
+          VERSION_CODE: ${{ github.event_name != 'workflow_dispatch' && github.run_number || '1' }}
         run: |
           echo "Building APK with build number: $VERSION_CODE"
           
@@ -138,25 +138,23 @@ jobs:
 
       - name: Generate tag name from version
         run: |
-          # Generate tag name using version from build.gradle and run number
+          # Generate tag name using version from build.gradle
           cd example/android/app
           VERSION_NAME=$(grep 'versionName' build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
           VERSION_CODE=${{ github.run_number }}
           
-          # Create release title with version and build number
-          RELEASE_TITLE="${VERSION_NAME}(${VERSION_CODE})"
-          
-          # Create clean APK name using version and build number
-          APK_NAME="${VERSION_NAME}-${VERSION_CODE}"
-          
-          # Use different tag format for pre-releases (automatic) vs formal releases (manual)
+          # Use different format for pre-releases (automatic) vs formal releases (manual)
           if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            # Pre-release: use "latest" tag but version number as title and APK name
+            # Pre-release (automatic): include build number
+            RELEASE_TITLE="${VERSION_NAME}(${VERSION_CODE})"
+            APK_NAME="${VERSION_NAME}-${VERSION_CODE}"
             TAG_NAME="latest"
             echo "Creating pre-release with tag: latest, title: $RELEASE_TITLE"
           else
-            # Formal release: use version and build number for tag, title, and APK name
-            TAG_NAME="$RELEASE_TITLE"
+            # Formal release (manual): exclude build number
+            RELEASE_TITLE="${VERSION_NAME}"
+            APK_NAME="${VERSION_NAME}"
+            TAG_NAME="v${VERSION_NAME}"
             echo "Creating formal release with tag: $TAG_NAME"
           fi
           
