@@ -1032,6 +1032,7 @@ export function useWallet() {
     clearMintUrlFromStorage,
     checkWalletExists,
     restoreExistingWallet,
+    loadMintUrlFromStorage,
     
     // Modal controls
     closeReceiveModal,

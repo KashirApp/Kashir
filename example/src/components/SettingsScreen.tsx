@@ -23,9 +23,10 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     promptForMintUrl,
     handleMintUrlSubmit,
     handleMintUrlModalClose,
+    loadMintUrlFromStorage,
   } = useWallet();
 
-  // Check if seed phrase exists when component mounts or becomes visible
+  // Check if seed phrase exists and wallet database exists when component becomes visible
   useEffect(() => {
     const checkSeedPhrase = async () => {
       try {
@@ -36,12 +37,30 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
         setHasSeedPhrase(false);
       }
     };
+
+
+
+    const loadMintUrl = async () => {
+      try {
+        await loadMintUrlFromStorage();
+      } catch (error) {
+        console.warn('Failed to load mint URL from storage:', error);
+      }
+    };
     
     // Only check when the screen is visible
     if (isVisible) {
       checkSeedPhrase();
+      loadMintUrl();
     }
   }, [isVisible]);
+
+  // Refresh mint URL when the modal closes (in case it was changed)
+  useEffect(() => {
+    if (!showMintUrlModal && isVisible) {
+      loadMintUrlFromStorage();
+    }
+  }, [showMintUrlModal, isVisible, loadMintUrlFromStorage]);
 
   const handleViewSeedPhrase = async () => {
     try {
@@ -106,9 +125,18 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Wallet Settings</Text>
           
-          <View style={styles.mintInfoContainer}>
-            <MintInfo mintUrl={mintUrl} onChangeMint={promptForMintUrl} />
-          </View>
+          {mintUrl ? (
+            <View style={styles.mintInfoContainer}>
+              <MintInfo 
+                mintUrl={mintUrl} 
+                onChangeMint={promptForMintUrl} 
+              />
+            </View>
+          ) : (
+            <Text style={styles.noSeedPhraseText}>
+              No wallet created
+            </Text>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -126,7 +154,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
             </>
           ) : (
             <Text style={styles.noSeedPhraseText}>
-              No seed phrase stored. Create a wallet to securely store your seed phrase.
+              No seed phrase stored
             </Text>
           )}
         </View>
