@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { Client, PublicKey, Filter, Kind } from '../../../src';
 import type { EventInterface } from '../../../src';
 import { ProfileService } from '../services/ProfileService';
+import { tagsToArray } from '../services/NostrUtils';
 
 export function useFollowing(client: Client | null, profileService: ProfileService) {
   const [followingPosts, setFollowingPosts] = useState<EventInterface[]>([]);
@@ -34,50 +35,24 @@ export function useFollowing(client: Client | null, profileService: ProfileServi
           const followingPubkeys: PublicKey[] = [];
 
           // Extract public keys from p tags
-          let tagArray: any[] = [];
-          try {
-            if (tags && typeof tags.toVec === 'function') {
-              tagArray = tags.toVec();
-            } else if (Array.isArray(tags)) {
-              tagArray = tags;
-            }
-          } catch (e) {
-            console.error('Error converting tags to array:', e);
-          }
+          const tagArrays = tagsToArray(tags);
 
-          console.log(`Processing ${tagArray.length} tags`);
+          console.log(`Processing ${tagArrays.length} tags`);
 
-          for (const tag of tagArray) {
+          for (const tagData of tagArrays) {
             try {
-              let tagData: any[] = [];
-              if (Array.isArray(tag)) {
-                tagData = tag;
-              } else if (tag && typeof tag.as_vec === 'function') {
-                tagData = tag.as_vec();
-              } else if (tag && typeof tag.asVec === 'function') {
-                tagData = tag.asVec();
-              } else if (tag && typeof tag.toVec === 'function') {
-                tagData = tag.toVec();
-              }
-
               if (tagData.length > 1 && tagData[0] === 'p') {
                 try {
                   const hexPubkey = tagData[1] as string;
                   let pubkey = null;
 
-                  if (tag && typeof tag.publicKey === 'function') {
-                    pubkey = tag.publicKey();
-                  } else if (tag && typeof tag.public_key === 'function') {
-                    pubkey = tag.public_key();
-                  } else {
+                  try {
+                    pubkey = PublicKey.parse(hexPubkey);
+                  } catch (e1) {
                     try {
-                      pubkey = PublicKey.parse(hexPubkey);
-                    } catch (e1) {
-                      try {
-                        pubkey = PublicKey.parse('hex:' + hexPubkey);
-                      } catch (e2) {
-                        // Could not parse hex pubkey directly
-                      }
+                      pubkey = PublicKey.parse('hex:' + hexPubkey);
+                    } catch (e2) {
+                      // Could not parse hex pubkey directly
                     }
                   }
 

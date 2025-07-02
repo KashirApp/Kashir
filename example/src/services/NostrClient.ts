@@ -1,6 +1,6 @@
 import { Client } from '../../../src';
 
-export class NostrClientService {
+class NostrClientService {
   private static instance: NostrClientService | null = null;
   private client: Client | null = null;
 
@@ -55,4 +55,7 @@ export class NostrClientService {
       this.client = null;
     }
   }
-} 
+}
+
+// Export with the expected name
+export { NostrClientService as NostrClient };
