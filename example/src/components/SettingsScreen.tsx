@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   Clipboard,
+  SafeAreaView,
 } from 'react-native';
 import { MintInfo, MintUrlModal, useWallet } from './wallet';
 import { SecureStorageService } from '../services';
@@ -116,7 +117,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
@@ -165,7 +166,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
         onClose={handleMintUrlModalClose}
         onSubmit={handleMintUrlSubmit}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
