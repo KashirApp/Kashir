@@ -67,8 +67,8 @@ jobs:
         run: |
           echo "🔄 Updating version to ${{ github.event.inputs.version }} across all platforms..."
           
-          # Update main package.json
-          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/g' package.json
+          # Update main package.json (only the main version at line 3, not create-react-native-library version)
+          sed -i '3s/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/' package.json
           
           # Update example package.json
           sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/g' example/package.json
