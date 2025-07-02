@@ -5,6 +5,11 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'New version for formal release (e.g., 0.0.4)'
+        required: true
+        type: string
 
 concurrency:
   group: build-apk-${{ github.event_name }}-${{ github.ref }}
@@ -41,6 +46,61 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
           submodules: recursive
+
+      - name: Configure Git (for version bump)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Validate version format
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if ! echo "${{ github.event.inputs.version }}" | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$"; then
+            echo "Error: Version must be in format X.Y.Z (e.g., 0.0.4)"
+            exit 1
+          fi
+          echo "✅ Version format is valid: ${{ github.event.inputs.version }}"
+
+      - name: Bump version across all platforms
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "🔄 Updating version to ${{ github.event.inputs.version }} across all platforms..."
+          
+          # Update main package.json
+          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/g' package.json
+          
+          # Update example package.json
+          sed -i 's/"version": "[^"]*"/"version": "${{ github.event.inputs.version }}"/g' example/package.json
+          
+          # Update Android version
+          sed -i 's/versionName "[^"]*"/versionName "${{ github.event.inputs.version }}"/g' example/android/app/build.gradle
+          
+          # Update iOS version
+          sed -i 's/MARKETING_VERSION = [^;]*/MARKETING_VERSION = ${{ github.event.inputs.version }}/g' example/ios/Kashir.xcodeproj/project.pbxproj
+          
+          echo "✅ Version bump completed!"
+
+      - name: Verify version changes
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "📋 Verifying version changes:"
+          echo "=== Main package.json ===" 
+          grep '"version":' package.json
+          echo "=== Example package.json ==="
+          grep '"version":' example/package.json  
+          echo "=== Android build.gradle ==="
+          grep 'versionName' example/android/app/build.gradle
+          echo "=== iOS project.pbxproj ==="
+          grep 'MARKETING_VERSION' example/ios/Kashir.xcodeproj/project.pbxproj
+
+      - name: Commit version changes
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git add package.json example/package.json example/android/app/build.gradle example/ios/Kashir.xcodeproj/project.pbxproj
+          git commit -m "bump version to ${{ github.event.inputs.version }}"
+          git push origin ${{ github.ref_name }}
+          echo "✅ Version changes committed and pushed!"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
