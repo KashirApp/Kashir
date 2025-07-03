@@ -1,4 +1,4 @@
-package com.kashir.app
+package com.kashir.android
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
