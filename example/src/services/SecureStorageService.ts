@@ -37,12 +37,7 @@ export class SecureStorageService {
         SEED_PHRASE_KEY,
         seedPhrase,
         {
-          accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE,
           accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-          authenticationPrompt: {
-            title: 'Authenticate',
-            subtitle: 'Access your wallet seed phrase',
-          },
         }
       );
       return true;
@@ -63,12 +58,7 @@ export class SecureStorageService {
     }
 
     try {
-      const credentials = await Keychain.getInternetCredentials(SERVICE_NAME, {
-        authenticationPrompt: {
-          title: 'Authenticate',
-          subtitle: 'Access your wallet seed phrase',
-        },
-      });
+      const credentials = await Keychain.getInternetCredentials(SERVICE_NAME);
       
       if (credentials && credentials.password) {
         return credentials.password;
