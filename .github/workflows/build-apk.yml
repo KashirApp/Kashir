@@ -98,9 +98,17 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           git add package.json example/package.json example/android/app/build.gradle example/ios/Kashir.xcodeproj/project.pbxproj
-          git commit -m "bump version to ${{ github.event.inputs.version }}"
-          git push origin ${{ github.ref_name }}
-          echo "✅ Version changes committed and pushed!"
+          
+          # Check if there are any staged changes
+          if git diff --staged --quiet; then
+            echo "ℹ️ No version changes detected - version ${{ github.event.inputs.version }} is already current"
+            echo "✅ Skipping commit step and continuing with build..."
+          else
+            echo "📝 Version changes detected, committing..."
+            git commit -m "bump version to ${{ github.event.inputs.version }}"
+            git push origin ${{ github.ref_name }}
+            echo "✅ Version changes committed and pushed!"
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
