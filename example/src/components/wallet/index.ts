@@ -14,4 +14,5 @@ export { MintRecommendationsModal } from './components/MintRecommendationsModal'
 export { useWallet } from './hooks/useWallet';
 
 // Utils
-export { getErrorMessage } from './utils/errorUtils'; 
+export { getErrorMessage } from './utils/errorUtils';
+export { formatSats, getSatUnit } from './utils/formatUtils'; 

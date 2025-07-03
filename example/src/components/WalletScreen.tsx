@@ -12,6 +12,7 @@ import { useWallet } from './wallet/hooks/useWallet';
 import { MnemonicModal } from './wallet/components/MnemonicModal';
 import { RecoverWalletModal } from './wallet/components/RecoverWalletModal';
 import { MintUrlModal } from './wallet/components/MintUrlModal';
+import { formatSats } from './wallet/utils';
 
 // Reusable Success Confetti Component
 interface SuccessConfettiProps {
@@ -182,7 +183,7 @@ export function WalletScreen() {
             Payment Received! 🎉
           </Text>
           <Text style={styles.successAmount}>
-            +{paymentReceivedAmount.toString()} sats
+            +{formatSats(paymentReceivedAmount)}
           </Text>
         </SuccessConfetti>
       )}
@@ -194,7 +195,7 @@ export function WalletScreen() {
             Payment Sent! ⚡
           </Text>
           <Text style={styles.sentAmount}>
-            -{paymentSentAmount.toString()} sats
+            -{formatSats(paymentSentAmount)}
           </Text>
         </SuccessConfetti>
       )}

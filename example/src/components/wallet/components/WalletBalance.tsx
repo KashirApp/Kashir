@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { formatSats } from '../utils';
 
 interface WalletBalanceProps {
   balance: bigint;
@@ -10,7 +11,7 @@ export function WalletBalance({ balance, wallet }: WalletBalanceProps) {
   return (
     <View style={styles.balanceContainer}>
       <Text style={styles.balanceLabel}>Total Balance</Text>
-      <Text style={styles.balanceAmount}>{balance.toString()} sats</Text>
+      <Text style={styles.balanceAmount}>{formatSats(balance)}</Text>
     </View>
   );
 }

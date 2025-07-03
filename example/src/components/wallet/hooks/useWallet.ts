@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget, generateMnemonic } from '../../../../../src';
 import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
+import { formatSats, getSatUnit } from '../utils/formatUtils';
 import { SecureStorageService } from '../../../services/SecureStorageService';
 
 const MINT_URL_STORAGE_KEY = '@cashu_mint_url';
@@ -146,7 +147,7 @@ export function useWallet() {
         const walletBalance = walletInstance.balance();
         setBalance(walletBalance.value);
         setWallet(walletInstance);
-        setModuleStatus(`Wallet restored! Balance: ${walletBalance.value} sats`);
+        setModuleStatus(`Wallet restored! Balance: ${formatSats(walletBalance.value)}`);
         return true;
       } catch (balanceError) {
         // Wallet exists but might be empty, still consider it restored
@@ -800,7 +801,7 @@ export function useWallet() {
         
         const currentBalance = wallet.balance();
         if (currentBalance.value < totalAmount) {
-          Alert.alert('Insufficient Balance', `You need ${totalAmount} sats but only have ${currentBalance.value} sats`);
+          Alert.alert('Insufficient Balance', `You need ${formatSats(totalAmount)} but only have ${formatSats(currentBalance.value)}`);
           setIsSending(false);
           isProcessingPayment.current = false;
           return;
@@ -808,7 +809,7 @@ export function useWallet() {
         
         Alert.alert(
           'Confirm Payment',
-          `Amount: ${prepareResult.amount.value} sats\nFee: ${prepareResult.totalFee.value} sats\nTotal: ${totalAmount} sats\n\nDo you want to proceed?`,
+          `Amount: ${formatSats(prepareResult.amount.value)}\nFee: ${formatSats(prepareResult.totalFee.value)}\nTotal: ${formatSats(totalAmount)}\n\nDo you want to proceed?`,
           [
             {
               text: 'Cancel',
