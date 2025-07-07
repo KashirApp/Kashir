@@ -5,11 +5,8 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  Platform,
 } from 'react-native';
 import { Camera, CameraType } from 'react-native-camera-kit';
-import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 
 interface QRScannerProps {
   visible: boolean;
@@ -29,20 +26,8 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
 
   const checkCameraPermission = async () => {
     try {
-      const permission = Platform.OS === 'ios' 
-        ? PERMISSIONS.IOS.CAMERA 
-        : PERMISSIONS.ANDROID.CAMERA;
-
-      const result = await check(permission);
-      
-      if (result === RESULTS.GRANTED) {
-        setHasPermission(true);
-      } else if (result === RESULTS.DENIED || result === RESULTS.LIMITED) {
-        const requestResult = await request(permission);
-        setHasPermission(requestResult === RESULTS.GRANTED);
-      } else {
-        setHasPermission(false);
-      }
+      // Let the camera component handle permissions
+      setHasPermission(true);
     } catch (error) {
       console.error('Permission check error:', error);
       setHasPermission(false);
@@ -92,7 +77,9 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
       return (
         <View style={styles.centerContainer}>
           <Text style={styles.message}>Camera permission is required to scan QR codes</Text>
-          <TouchableOpacity style={styles.permissionButton} onPress={checkCameraPermission}>
+          <TouchableOpacity style={styles.permissionButton} onPress={() => {
+            checkCameraPermission();
+          }}>
             <Text style={styles.permissionButtonText}>Request Permission</Text>
           </TouchableOpacity>
         </View>
