@@ -3,23 +3,23 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 interface MintInfoProps {
   mintUrl: string;
-  onChangeMint?: () => void;
+  onAddMint?: () => void;
 }
 
-export function MintInfo({ mintUrl, onChangeMint }: MintInfoProps) {
-  const handleChangeMint = () => {
-    if (onChangeMint) {
-      onChangeMint();
+export function MintInfo({ mintUrl, onAddMint }: MintInfoProps) {
+  const handleAddMint = () => {
+    if (onAddMint) {
+      onAddMint();
     }
   };
 
   return (
     <View style={styles.mintContainer}>
-      <Text style={styles.mintLabel}>Connected Mint</Text>
+      <Text style={styles.mintLabel}>Connected Mints</Text>
       <Text style={styles.mintUrl}>{mintUrl}</Text>
-      {onChangeMint && (
-        <TouchableOpacity onPress={handleChangeMint} style={styles.changeMintButton}>
-          <Text style={styles.changeMintText}>Change Mint</Text>
+      {onAddMint && (
+        <TouchableOpacity onPress={handleAddMint} style={styles.addMintButton}>
+          <Text style={styles.addMintText}>Add Mint</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -51,14 +51,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  changeMintButton: {
+  addMintButton: {
     backgroundColor: '#444',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 6,
     alignSelf: 'flex-start',
   },
-  changeMintText: {
+  addMintText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',

@@ -4,6 +4,8 @@ export { WalletStatus } from './components/WalletStatus';
 export { WalletBalance } from './components/WalletBalance';
 export { WalletActions } from './components/WalletActions';
 export { MintInfo } from './components/MintInfo';
+export { MintItem } from './components/MintItem';
+export { MintsList } from './components/MintsList';
 export { ReceiveModal } from './components/ReceiveModal';
 export { SendModal } from './components/SendModal';
 export { QRScanner } from './components/QRScanner';

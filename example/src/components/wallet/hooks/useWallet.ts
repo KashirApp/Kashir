@@ -8,14 +8,15 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { formatSats, getSatUnit } from '../utils/formatUtils';
 import { SecureStorageService } from '../../../services/SecureStorageService';
 
-const MINT_URL_STORAGE_KEY = '@cashu_mint_url';
+const MINT_URLS_STORAGE_KEY = '@cashu_mint_urls';
 
 export function useWallet() {
   const [balance, setBalance] = useState<bigint>(BigInt(0));
   const [moduleStatus, setModuleStatus] = useState<string>('Loading...');
   const [cdkModule, setCdkModule] = useState<any>(null);
   const [wallet, setWallet] = useState<any>(null);
-  const [mintUrl, setMintUrl] = useState<string>('');
+  const [mintUrls, setMintUrls] = useState<string[]>([]);
+  const [activeMintUrl, setActiveMintUrl] = useState<string>('');
   const [isLoadingWallet, setIsLoadingWallet] = useState(true);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveAmount, setReceiveAmount] = useState('');
@@ -46,38 +47,92 @@ export function useWallet() {
   // Ref to prevent duplicate payment calls
   const isProcessingPayment = useRef(false);
 
-  // Function to load mint URL from storage
-  const loadMintUrlFromStorage = async () => {
+  // Function to load mint URLs from storage
+  const loadMintUrlsFromStorage = async () => {
     try {
-      const savedMintUrl = await AsyncStorage.getItem(MINT_URL_STORAGE_KEY);
-      if (savedMintUrl) {
-        setMintUrl(savedMintUrl);
+      const savedMintUrls = await AsyncStorage.getItem(MINT_URLS_STORAGE_KEY);
+      if (savedMintUrls) {
+        const parsedUrls = JSON.parse(savedMintUrls);
+        setMintUrls(parsedUrls);
+        // Set the first URL as active if no active URL is set
+        if (parsedUrls.length > 0 && !activeMintUrl) {
+          setActiveMintUrl(parsedUrls[0]);
+        }
         return true;
       }
       return false;
     } catch (error) {
-      console.error('Failed to load mint URL from storage:', error);
+      console.error('Failed to load mint URLs from storage:', error);
       return false;
     }
   };
 
-  // Function to save mint URL to storage
-  const saveMintUrlToStorage = async (url: string) => {
+  // Function to save mint URLs to storage
+  const saveMintUrlsToStorage = async (urls: string[]) => {
     try {
-      await AsyncStorage.setItem(MINT_URL_STORAGE_KEY, url);
+      await AsyncStorage.setItem(MINT_URLS_STORAGE_KEY, JSON.stringify(urls));
     } catch (error) {
-      console.error('Failed to save mint URL to storage:', error);
+      console.error('Failed to save mint URLs to storage:', error);
     }
   };
 
-  // Function to clear mint URL from storage
-  const clearMintUrlFromStorage = async () => {
+  // Function to add a new mint URL
+  const addMintUrl = async (url: string) => {
     try {
-      await AsyncStorage.removeItem(MINT_URL_STORAGE_KEY);
-      setMintUrl('');
+      const newUrls = [...mintUrls];
+      if (!newUrls.includes(url)) {
+        newUrls.push(url);
+        setMintUrls(newUrls);
+        await saveMintUrlsToStorage(newUrls);
+        // Set as active if it's the first one
+        if (newUrls.length === 1) {
+          setActiveMintUrl(url);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to add mint URL:', error);
+    }
+  };
+
+  // Function to set active mint URL
+  const setActiveMint = async (url: string) => {
+    try {
+      if (mintUrls.includes(url)) {
+        setActiveMintUrl(url);
+      }
+    } catch (error) {
+      console.error('Failed to set active mint:', error);
+    }
+  };
+
+  // Function to remove a mint URL
+  const removeMintUrl = async (url: string) => {
+    try {
+      // Don't allow removing the active mint
+      if (url === activeMintUrl) {
+        Alert.alert('Error', 'Cannot remove the currently active mint. Please set another mint as active first.');
+        return false;
+      }
+      
+      const newUrls = mintUrls.filter(mintUrl => mintUrl !== url);
+      setMintUrls(newUrls);
+      await saveMintUrlsToStorage(newUrls);
+      return true;
+    } catch (error) {
+      console.error('Failed to remove mint URL:', error);
+      return false;
+    }
+  };
+
+  // Function to clear mint URLs from storage
+  const clearMintUrlsFromStorage = async () => {
+    try {
+      await AsyncStorage.removeItem(MINT_URLS_STORAGE_KEY);
+      setMintUrls([]);
+      setActiveMintUrl('');
       setModuleStatus('Ready - Set mint URL to begin');
     } catch (error) {
-      console.error('Failed to clear mint URL from storage:', error);
+      console.error('Failed to clear mint URLs from storage:', error);
     }
   };
 
@@ -95,7 +150,7 @@ export function useWallet() {
 
   // Function to restore existing wallet
   const restoreExistingWallet = async (mintUrlToUse?: string) => {
-    const urlToUse = mintUrlToUse || mintUrl;
+    const urlToUse = mintUrlToUse || activeMintUrl;
     if (!cdkModule || !urlToUse) {
       return false;
     }
@@ -172,11 +227,9 @@ export function useWallet() {
 
   // Function to handle mint URL submission
   const handleMintUrlSubmit = async (url: string) => {
-    setMintUrl(url);
+    await addMintUrl(url);
+    setActiveMintUrl(url);
     setShowMintUrlModal(false);
-    
-    // Save to storage
-    await saveMintUrlToStorage(url);
     
     // If we should create wallet after setting mint, set loading state
     if (shouldCreateWalletAfterMint) {
@@ -199,7 +252,7 @@ export function useWallet() {
     setShowMintUrlModal(false);
     // Only reset the flag if the modal was cancelled (no mint URL was set)
     // If mint URL was set, let the useEffect handle the flag
-    if (!mintUrl) {
+    if (!activeMintUrl) {
       setShouldCreateWalletAfterMint(false);
       setShouldShowRecoverAfterMint(false);
       setModuleStatus('Mint URL required to continue');
@@ -243,24 +296,28 @@ export function useWallet() {
     if (cdkModule) {
       const initializeWallet = async () => {
         try {
-          // Try to load saved mint URL
-          const savedMintUrl = await AsyncStorage.getItem(MINT_URL_STORAGE_KEY);
+          // Try to load saved mint URLs
+          const savedMintUrls = await AsyncStorage.getItem(MINT_URLS_STORAGE_KEY);
           
-          if (!savedMintUrl) {
+          if (!savedMintUrls) {
             setModuleStatus('Ready - Set mint URL to begin');
             setIsLoadingWallet(false);
             return;
           }
           
-          // Set the mint URL in state
-          setMintUrl(savedMintUrl);
+          // Set the mint URLs in state
+          const parsedUrls = JSON.parse(savedMintUrls);
+          setMintUrls(parsedUrls);
+          if (parsedUrls.length > 0) {
+            setActiveMintUrl(parsedUrls[0]);
+          }
           
           // Mint URL exists, check if wallet database exists
           const walletExists = await checkWalletExists();
           
           if (walletExists) {
             // Try to restore existing wallet, passing the mint URL directly
-            const restored = await restoreExistingWallet(savedMintUrl);
+            const restored = await restoreExistingWallet(parsedUrls[0]);
             
             if (!restored) {
               setModuleStatus('Wallet database found but restoration failed. Ready to create new wallet.');
@@ -301,7 +358,7 @@ export function useWallet() {
 
   // Auto-create wallet after mint URL is set (when triggered from Create Wallet button)
   useEffect(() => {
-    if (shouldCreateWalletAfterMint && mintUrl && cdkModule) {
+    if (shouldCreateWalletAfterMint && activeMintUrl && cdkModule) {
       
       // Call wallet creation directly here instead of through testWalletCreation
       const createWalletDirectly = async () => {
@@ -309,7 +366,7 @@ export function useWallet() {
         const walletExists = await checkWalletExists();
         if (walletExists) {
           // Try to restore existing wallet instead of creating new one
-          const restored = await restoreExistingWallet(mintUrl);
+          const restored = await restoreExistingWallet(activeMintUrl);
           if (restored) {
             setShouldCreateWalletAfterMint(false);
             return; // Successfully restored existing wallet
@@ -367,7 +424,7 @@ export function useWallet() {
               let walletInstance;
               try {
                 walletInstance = FfiWallet.fromMnemonic(
-                  mintUrl,
+                  activeMintUrl,
                   FfiCurrencyUnit.Sat,
                   localStore,
                   mnemonic
@@ -442,7 +499,7 @@ export function useWallet() {
       // Small delay to ensure everything is ready
       setTimeout(createWalletDirectly, 100);
     }
-  }, [shouldCreateWalletAfterMint, mintUrl, cdkModule]);
+  }, [shouldCreateWalletAfterMint, activeMintUrl, cdkModule]);
 
   const testWalletCreation = async () => {
     if (!cdkModule) {
@@ -450,7 +507,7 @@ export function useWallet() {
       return;
     }
     
-    if (!mintUrl) {
+    if (!activeMintUrl) {
       setModuleStatus('Please set a mint URL first');
       setShouldCreateWalletAfterMint(true);
       promptForMintUrl();
@@ -464,7 +521,7 @@ export function useWallet() {
     const walletExists = await checkWalletExists();
     if (walletExists) {
       // Try to restore existing wallet instead of creating new one
-      const restored = await restoreExistingWallet(mintUrl);
+      const restored = await restoreExistingWallet(activeMintUrl);
       if (restored) {
         setIsLoadingWallet(false);
         return; // Successfully restored existing wallet
@@ -521,7 +578,7 @@ export function useWallet() {
           let walletInstance;
           try {
             walletInstance = FfiWallet.fromMnemonic(
-              mintUrl,
+              activeMintUrl,
               FfiCurrencyUnit.Sat,
               localStore,
               mnemonic
@@ -895,7 +952,7 @@ export function useWallet() {
       return;
     }
     
-    if (!mintUrl) {
+    if (!activeMintUrl) {
       setModuleStatus('Please set a mint URL first');
       setShouldShowRecoverAfterMint(true);
       promptForMintUrl();
@@ -907,7 +964,7 @@ export function useWallet() {
 
   // Handle wallet recovery from mnemonic
   const handleWalletRecovery = async (mnemonic: string) => {
-    if (!cdkModule || !mintUrl) {
+    if (!cdkModule || !activeMintUrl) {
       Alert.alert('Error', 'CDK module or mint URL not available');
       return;
     }
@@ -957,7 +1014,7 @@ export function useWallet() {
 
       // Use restoreFromMnemonic which calls restore() internally
       const walletInstance = FfiWallet.restoreFromMnemonic(
-        mintUrl,
+        activeMintUrl,
         FfiCurrencyUnit.Sat,
         localStore,
         mnemonic
@@ -998,7 +1055,8 @@ export function useWallet() {
     balance,
     moduleStatus,
     wallet,
-    mintUrl,
+    mintUrls,
+    activeMintUrl,
     isLoadingWallet,
     showReceiveModal,
     receiveAmount,
@@ -1030,10 +1088,13 @@ export function useWallet() {
     sendPayment,
     promptForMintUrl,
     handleMintUrlSubmit,
-    clearMintUrlFromStorage,
+    addMintUrl,
+    setActiveMint,
+    removeMintUrl,
+    clearMintUrlsFromStorage,
     checkWalletExists,
     restoreExistingWallet,
-    loadMintUrlFromStorage,
+    loadMintUrlsFromStorage,
     
     // Modal controls
     closeReceiveModal,

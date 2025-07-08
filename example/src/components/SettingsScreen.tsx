@@ -7,8 +7,9 @@ import {
   Alert,
   Clipboard,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
-import { MintInfo, MintUrlModal, useWallet } from './wallet';
+import { MintsList, MintUrlModal, useWallet } from './wallet';
 import { SecureStorageService } from '../services';
 
 interface SettingsScreenProps {
@@ -19,12 +20,15 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
   const [hasSeedPhrase, setHasSeedPhrase] = useState<boolean>(false);
   
   const {
-    mintUrl,
+    mintUrls,
+    activeMintUrl,
     showMintUrlModal,
     promptForMintUrl,
     handleMintUrlSubmit,
     handleMintUrlModalClose,
-    loadMintUrlFromStorage,
+    loadMintUrlsFromStorage,
+    setActiveMint,
+    removeMintUrl,
   } = useWallet();
 
   // Check if seed phrase exists and wallet database exists when component becomes visible
@@ -41,27 +45,27 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
 
 
 
-    const loadMintUrl = async () => {
+    const loadMintUrls = async () => {
       try {
-        await loadMintUrlFromStorage();
+        await loadMintUrlsFromStorage();
       } catch (error) {
-        console.warn('Failed to load mint URL from storage:', error);
+        console.warn('Failed to load mint URLs from storage:', error);
       }
     };
     
     // Only check when the screen is visible
     if (isVisible) {
       checkSeedPhrase();
-      loadMintUrl();
+      loadMintUrls();
     }
   }, [isVisible]);
 
-  // Refresh mint URL when the modal closes (in case it was changed)
+  // Refresh mint URLs when the modal closes (in case they were changed)
   useEffect(() => {
     if (!showMintUrlModal && isVisible) {
-      loadMintUrlFromStorage();
+      loadMintUrlsFromStorage();
     }
-  }, [showMintUrlModal, isVisible, loadMintUrlFromStorage]);
+  }, [showMintUrlModal, isVisible, loadMintUrlsFromStorage]);
 
   const handleViewSeedPhrase = async () => {
     try {
@@ -122,22 +126,19 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
       
-      <View style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Wallet Settings</Text>
           
-          {mintUrl ? (
-            <View style={styles.mintInfoContainer}>
-              <MintInfo 
-                mintUrl={mintUrl} 
-                onChangeMint={promptForMintUrl} 
-              />
-            </View>
-          ) : (
-            <Text style={styles.noSeedPhraseText}>
-              No wallet created
-            </Text>
-          )}
+          <View style={styles.mintInfoContainer}>
+            <MintsList 
+              mintUrls={mintUrls}
+              activeMintUrl={activeMintUrl}
+              onSetActive={setActiveMint}
+              onRemove={removeMintUrl}
+              onAddMint={promptForMintUrl}
+            />
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -159,7 +160,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
             </Text>
           )}
         </View>
-      </View>
+      </ScrollView>
 
       <MintUrlModal
         visible={showMintUrlModal}
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
   },
   mintInfoContainer: {
     position: 'relative',
-    minHeight: 100,
+    // Removed fixed minHeight to allow flexible content sizing
   },
   settingButton: {
     paddingVertical: 15,
