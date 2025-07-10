@@ -10,7 +10,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { MintsList, MintUrlModal, useWallet } from './wallet';
-import { SecureStorageService } from '../services';
+import { RelaysList, RelayUrlModal } from './nostr';
+import { SecureStorageService, StorageService } from '../services';
+import { NostrClientService } from '../services/NostrClient';
 
 interface SettingsScreenProps {
   isVisible: boolean;
@@ -18,6 +20,8 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ isVisible }: SettingsScreenProps) {
   const [hasSeedPhrase, setHasSeedPhrase] = useState<boolean>(false);
+  const [relays, setRelays] = useState<string[]>([]);
+  const [showRelayModal, setShowRelayModal] = useState(false);
 
   const {
     mintUrls,
@@ -51,10 +55,20 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       }
     };
 
+    const loadRelays = async () => {
+      try {
+        const storedRelays = await StorageService.loadRelays();
+        setRelays(storedRelays);
+      } catch (error) {
+        console.warn('Failed to load relays from storage:', error);
+      }
+    };
+
     // Only check when the screen is visible
     if (isVisible) {
       checkSeedPhrase();
       loadMintUrls();
+      loadRelays();
     }
   }, [isVisible]);
 
@@ -120,6 +134,39 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     );
   };
 
+  const handleAddRelay = async (relayUrl: string) => {
+    try {
+      await StorageService.addRelay(relayUrl);
+      const updatedRelays = await StorageService.loadRelays();
+      setRelays(updatedRelays);
+      setShowRelayModal(false);
+      
+      // Reconnect Nostr client with new relays
+      const clientService = NostrClientService.getInstance();
+      await clientService.reconnectWithNewRelays();
+      
+      Alert.alert('Success', 'Relay added successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add relay');
+    }
+  };
+
+  const handleRemoveRelay = async (relayUrl: string) => {
+    const success = await StorageService.removeRelay(relayUrl);
+    if (success) {
+      const updatedRelays = await StorageService.loadRelays();
+      setRelays(updatedRelays);
+      
+      // Reconnect Nostr client with updated relays
+      const clientService = NostrClientService.getInstance();
+      await clientService.reconnectWithNewRelays();
+      
+      Alert.alert('Success', 'Relay removed successfully');
+    } else {
+      Alert.alert('Error', 'Cannot remove the last relay');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -137,6 +184,18 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
               onSetActive={setActiveMint}
               onRemove={removeMintUrl}
               onAddMint={promptForMintUrl}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Nostr Settings</Text>
+
+          <View style={styles.relayInfoContainer}>
+            <RelaysList
+              relays={relays}
+              onRemove={handleRemoveRelay}
+              onAddRelay={() => setShowRelayModal(true)}
             />
           </View>
         </View>
@@ -173,6 +232,12 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
         onClose={handleMintUrlModalClose}
         onSubmit={handleMintUrlSubmit}
       />
+
+      <RelayUrlModal
+        visible={showRelayModal}
+        onClose={() => setShowRelayModal(false)}
+        onSubmit={handleAddRelay}
+      />
     </SafeAreaView>
   );
 }
@@ -206,6 +271,10 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   mintInfoContainer: {
+    position: 'relative',
+    // Removed fixed minHeight to allow flexible content sizing
+  },
+  relayInfoContainer: {
     position: 'relative',
     // Removed fixed minHeight to allow flexible content sizing
   },

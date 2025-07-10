@@ -1,4 +1,5 @@
 import { Client } from '../../../src';
+import { StorageService } from './StorageService';
 
 class NostrClientService {
   private static instance: NostrClientService | null = null;
@@ -22,13 +23,19 @@ class NostrClientService {
       // Create a new client without signer (we're just reading)
       const newClient = new Client();
 
-      // Add some popular Nostr relays
-      await newClient.addRelay('wss://relay.damus.io');
-      await newClient.addRelay('wss://nos.lol');
-      await newClient.addRelay('wss://relay.nostr.band');
-      await newClient.addRelay('wss://relay.nostr.info');
-      await newClient.addRelay('wss://nostr.wine');
-      await newClient.addRelay('wss://relay.snort.social');
+      // Load relays from storage
+      const relays = await StorageService.loadRelays();
+      console.log(`Loading ${relays.length} relays from storage`);
+
+      // Add all relays
+      for (const relay of relays) {
+        try {
+          await newClient.addRelay(relay);
+          console.log(`Added relay: ${relay}`);
+        } catch (error) {
+          console.error(`Failed to add relay ${relay}:`, error);
+        }
+      }
 
       // Connect to relays
       await newClient.connect();
@@ -54,6 +61,14 @@ class NostrClientService {
       this.client.disconnect();
       this.client = null;
     }
+  }
+
+  async reconnectWithNewRelays(): Promise<Client> {
+    // Disconnect existing client
+    this.disconnect();
+    
+    // Re-initialize with new relays
+    return this.initialize();
   }
 }
 
