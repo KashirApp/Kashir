@@ -10,12 +10,19 @@ interface WalletActionsProps {
   onSend: () => void;
 }
 
-export function WalletActions({ wallet, isLoadingWallet, onCreateWallet, onRecoverWallet, onReceive, onSend }: WalletActionsProps) {
+export function WalletActions({
+  wallet,
+  isLoadingWallet,
+  onCreateWallet,
+  onRecoverWallet,
+  onReceive,
+  onSend,
+}: WalletActionsProps) {
   return (
     <View style={styles.buttonsContainer}>
       {isLoadingWallet ? (
-        <TouchableOpacity 
-          style={[styles.button, styles.loadingButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.loadingButton]}
           disabled={true}
           activeOpacity={0.8}
         >
@@ -23,16 +30,16 @@ export function WalletActions({ wallet, isLoadingWallet, onCreateWallet, onRecov
         </TouchableOpacity>
       ) : !wallet ? (
         <View style={styles.noWalletActions}>
-          <TouchableOpacity 
-            style={[styles.button, styles.testButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.testButton]}
             onPress={onCreateWallet}
             activeOpacity={0.8}
           >
             <Text style={styles.buttonText}>Create Wallet</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.button, styles.recoverButton]} 
+
+          <TouchableOpacity
+            style={[styles.button, styles.recoverButton]}
             onPress={onRecoverWallet}
             activeOpacity={0.8}
           >
@@ -41,16 +48,16 @@ export function WalletActions({ wallet, isLoadingWallet, onCreateWallet, onRecov
         </View>
       ) : (
         <View style={styles.walletActions}>
-          <TouchableOpacity 
-            style={[styles.button, styles.receiveButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.receiveButton]}
             onPress={onReceive}
             activeOpacity={0.8}
           >
             <Text style={styles.buttonText}>Receive</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.button, styles.sendButton]} 
+
+          <TouchableOpacity
+            style={[styles.button, styles.sendButton]}
             onPress={onSend}
             activeOpacity={0.8}
           >
@@ -110,4 +117,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-}); 
+});

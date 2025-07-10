@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Camera, CameraType } from 'react-native-camera-kit';
 
 interface QRScannerProps {
@@ -15,7 +9,9 @@ interface QRScannerProps {
 }
 
 export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
-  const [hasPermission, setHasPermission] = React.useState<boolean | null>(null);
+  const [hasPermission, setHasPermission] = React.useState<boolean | null>(
+    null
+  );
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -39,7 +35,7 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
   const handleScan = (event: any) => {
     // Try different possible event structures for react-native-camera-kit
     let data = null;
-    
+
     if (event?.nativeEvent?.codeStringValue) {
       data = event.nativeEvent.codeStringValue;
     } else if (event?.codeStringValue) {
@@ -51,14 +47,14 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
     } else if (event?.value) {
       data = event.value;
     }
-    
+
     if (data && typeof data === 'string' && data.trim()) {
       // Extract Lightning invoice from QR code data
       let invoice = data.trim();
       if (invoice.toLowerCase().startsWith('lightning:')) {
         invoice = invoice.substring(10);
       }
-      
+
       onScan(invoice);
       onClose();
     }
@@ -76,10 +72,15 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
     if (hasPermission === false) {
       return (
         <View style={styles.centerContainer}>
-          <Text style={styles.message}>Camera permission is required to scan QR codes</Text>
-          <TouchableOpacity style={styles.permissionButton} onPress={() => {
-            checkCameraPermission();
-          }}>
+          <Text style={styles.message}>
+            Camera permission is required to scan QR codes
+          </Text>
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={() => {
+              checkCameraPermission();
+            }}
+          >
             <Text style={styles.permissionButtonText}>Request Permission</Text>
           </TouchableOpacity>
         </View>
@@ -92,7 +93,7 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
           <Text style={styles.instructionText}>
             Point your camera at a Lightning invoice QR code
           </Text>
-          
+
           <View style={styles.cameraWrapper}>
             <Camera
               style={styles.camera}
@@ -102,7 +103,7 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
               showFrame={true}
             />
           </View>
-          
+
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -120,9 +121,7 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
       transparent={false}
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        {renderContent()}
-      </View>
+      <View style={styles.container}>{renderContent()}</View>
     </Modal>
   );
 }
@@ -188,4 +187,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-}); 
+});

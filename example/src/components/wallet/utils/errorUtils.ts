@@ -3,7 +3,7 @@ export const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
     return error.message;
   }
-  
+
   if (typeof error === 'object' && error !== null) {
     const anyError = error as any;
     // Try CDK-specific error format first
@@ -15,6 +15,6 @@ export const getErrorMessage = (error: unknown): string => {
       return anyError.message;
     }
   }
-  
+
   return String(error);
-}; 
+};

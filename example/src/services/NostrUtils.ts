@@ -10,19 +10,19 @@ export function tagToArray(tag: any): any[] {
   if (Array.isArray(tag)) {
     return tag;
   }
-  
+
   if (tag && typeof tag.as_vec === 'function') {
     return tag.as_vec();
   }
-  
+
   if (tag && typeof tag.asVec === 'function') {
     return tag.asVec();
   }
-  
+
   if (tag && typeof tag.toVec === 'function') {
     return tag.toVec();
   }
-  
+
   return [];
 }
 
@@ -32,7 +32,7 @@ export function tagToArray(tag: any): any[] {
  */
 export function tagsToArray(tags: any): any[][] {
   let tagArray: any[] = [];
-  
+
   try {
     if (tags && typeof tags.toVec === 'function') {
       tagArray = tags.toVec();
@@ -44,5 +44,5 @@ export function tagsToArray(tags: any): any[][] {
     return [];
   }
 
-  return tagArray.map(tag => tagToArray(tag));
-} 
+  return tagArray.map((tag) => tagToArray(tag));
+}

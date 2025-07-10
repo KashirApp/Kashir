@@ -32,7 +32,7 @@ export class MintRecommendationService {
       // Get the existing Nostr client
       const clientService = NostrClient.getInstance();
       let client = clientService.getClient();
-      
+
       // Initialize if not already done
       if (!client) {
         client = await clientService.initialize();
@@ -43,9 +43,7 @@ export class MintRecommendationService {
         return [];
       }
 
-      const filter = new Filter()
-        .kinds([new Kind(38000)])
-        .limit(2000n);
+      const filter = new Filter().kinds([new Kind(38000)]).limit(2000n);
 
       console.log('Fetching mint recommendations...');
 
@@ -56,34 +54,34 @@ export class MintRecommendationService {
 
       const mintUrls: string[] = [];
 
-              // Process events to extract mint URLs
-        for (const event of eventArray) {
-          try {
-            const tags = event.tags();
-            const tagArrays = tagsToArray(tags);
+      // Process events to extract mint URLs
+      for (const event of eventArray) {
+        try {
+          const tags = event.tags();
+          const tagArrays = tagsToArray(tags);
 
-            // Look for tags with k=38172 and u=mintUrl
-            let hasCorrectKind = false;
-            let mintUrl = '';
+          // Look for tags with k=38172 and u=mintUrl
+          let hasCorrectKind = false;
+          let mintUrl = '';
 
-            for (const tagData of tagArrays) {
-              if (tagData.length >= 2) {
-                if (tagData[0] === 'k' && tagData[1] === '38172') {
-                  hasCorrectKind = true;
-                } else if (tagData[0] === 'u' && typeof tagData[1] === 'string') {
-                  mintUrl = tagData[1];
-                }
+          for (const tagData of tagArrays) {
+            if (tagData.length >= 2) {
+              if (tagData[0] === 'k' && tagData[1] === '38172') {
+                hasCorrectKind = true;
+              } else if (tagData[0] === 'u' && typeof tagData[1] === 'string') {
+                mintUrl = tagData[1];
               }
             }
-
-            // If both conditions are met, add the mint URL
-            if (hasCorrectKind && mintUrl && mintUrl.startsWith('https://')) {
-              mintUrls.push(mintUrl);
-            }
-          } catch (error) {
-            console.error('Error processing event:', error);
           }
+
+          // If both conditions are met, add the mint URL
+          if (hasCorrectKind && mintUrl && mintUrl.startsWith('https://')) {
+            mintUrls.push(mintUrl);
+          }
+        } catch (error) {
+          console.error('Error processing event:', error);
         }
+      }
 
       // Count occurrences of each mint URL
       const mintUrlCounts = new Map<string, number>();
@@ -92,7 +90,9 @@ export class MintRecommendationService {
       }
 
       // Convert to array and sort by count (show all with at least 1 recommendation)
-      const recommendations: MintRecommendation[] = Array.from(mintUrlCounts.entries())
+      const recommendations: MintRecommendation[] = Array.from(
+        mintUrlCounts.entries()
+      )
         .map(([url, count]) => ({ url, count }))
         .filter(({ count }) => count >= 1) // Only include mints with at least 1 recommendation
         .sort((a, b) => b.count - a.count); // Sort by recommendation count (highest first)
@@ -112,4 +112,4 @@ export class MintRecommendationService {
   getRecommendations(): MintRecommendation[] {
     return this.recommendations;
   }
-} 
+}

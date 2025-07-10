@@ -17,10 +17,15 @@ interface MintUrlModalProps {
   onSubmit: (url: string) => void;
 }
 
-export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) {
+export function MintUrlModal({
+  visible,
+  onClose,
+  onSubmit,
+}: MintUrlModalProps) {
   const [url, setUrl] = useState('');
   const [isValidating, setIsValidating] = useState(false);
-  const [showRecommendationsModal, setShowRecommendationsModal] = useState(false);
+  const [showRecommendationsModal, setShowRecommendationsModal] =
+    useState(false);
 
   // Reset validation state when modal becomes visible
   useEffect(() => {
@@ -33,8 +38,8 @@ export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) 
   const validateMint = async (mintUrl: string): Promise<boolean> => {
     try {
       // Ensure URL ends with /v1/info
-      const infoUrl = mintUrl.endsWith('/') 
-        ? `${mintUrl}v1/info` 
+      const infoUrl = mintUrl.endsWith('/')
+        ? `${mintUrl}v1/info`
         : `${mintUrl}/v1/info`;
 
       const controller = new AbortController();
@@ -64,7 +69,9 @@ export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) 
 
       // Check if it supports basic operations we need (NUT-4 for minting, NUT-5 for melting)
       if (!mintInfo.nuts['4'] || !mintInfo.nuts['5']) {
-        throw new Error('Mint does not support required operations (minting/melting)');
+        throw new Error(
+          'Mint does not support required operations (minting/melting)'
+        );
       }
 
       return true;
@@ -89,7 +96,7 @@ export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) 
 
     try {
       const isValid = await validateMint(url.trim());
-      
+
       if (isValid) {
         onSubmit(url.trim());
         setUrl(''); // Clear the input on successful submission
@@ -155,20 +162,26 @@ export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) 
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
           />
-          
+
           <Text style={styles.hint}>
-            Enter the URL of the Cashu mint you want to connect to. The mint will be validated before connecting.
+            Enter the URL of the Cashu mint you want to connect to. The mint
+            will be validated before connecting.
           </Text>
 
-          <TouchableOpacity 
-            onPress={handleSubmit} 
-            style={[styles.submitButton, isValidating && styles.submitButtonDisabled]}
+          <TouchableOpacity
+            onPress={handleSubmit}
+            style={[
+              styles.submitButton,
+              isValidating && styles.submitButtonDisabled,
+            ]}
             disabled={isValidating}
           >
             {isValidating ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color="#ffffff" />
-                <Text style={[styles.submitText, { marginLeft: 8 }]}>Validating Mint...</Text>
+                <Text style={[styles.submitText, { marginLeft: 8 }]}>
+                  Validating Mint...
+                </Text>
               </View>
             ) : (
               <Text style={styles.submitText}>Connect to Mint</Text>
@@ -177,11 +190,13 @@ export function MintUrlModal({ visible, onClose, onSubmit }: MintUrlModalProps) 
 
           <View style={styles.divider} />
 
-          <TouchableOpacity 
-            onPress={handleShowRecommendations} 
+          <TouchableOpacity
+            onPress={handleShowRecommendations}
             style={styles.recommendationsButton}
           >
-            <Text style={styles.recommendationsButtonText}>Choose from Recommended Mints</Text>
+            <Text style={styles.recommendationsButtonText}>
+              Choose from Recommended Mints
+            </Text>
             <Text style={styles.recommendationsButtonArrow}>→</Text>
           </TouchableOpacity>
         </View>
@@ -291,4 +306,4 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#007AFF',
   },
-}); 
+});

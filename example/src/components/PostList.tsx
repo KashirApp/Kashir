@@ -14,19 +14,19 @@ interface PostListProps {
   onProfileFetch?: (pubkey: any) => void;
 }
 
-export function PostList({ 
-  posts, 
-  loading, 
+export function PostList({
+  posts,
+  loading,
   showAuthor,
   profileService,
-  title
+  title,
 }: PostListProps) {
   const getAuthorName = (post: EventInterface): string => {
     if (!showAuthor) return '';
-    
+
     const authorPubkey = post.author();
     const hexKey = authorPubkey.toHex();
-    
+
     // Get name from cache
     const cached = profileService.getProfileCache().get(hexKey);
     if (cached && cached.name) {
@@ -49,9 +49,7 @@ export function PostList({
   return (
     <ScrollView style={styles.postsContainer}>
       {posts.length > 0 && (
-        <Text style={styles.postCount}>
-          Found {posts.length} posts
-        </Text>
+        <Text style={styles.postCount}>Found {posts.length} posts</Text>
       )}
       {posts.map((post, index) => (
         <Post
@@ -65,4 +63,4 @@ export function PostList({
       ))}
     </ScrollView>
   );
-} 
+}

@@ -53,4 +53,4 @@ export function Header({
       </Text>
     </View>
   );
-} 
+}

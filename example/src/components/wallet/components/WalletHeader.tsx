@@ -8,8 +8,8 @@ interface WalletHeaderProps {
 export function WalletHeader({ onClose }: WalletHeaderProps) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity 
-        style={styles.closeButton} 
+      <TouchableOpacity
+        style={styles.closeButton}
         onPress={onClose}
         activeOpacity={0.8}
       >
@@ -47,4 +47,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-}); 
+});

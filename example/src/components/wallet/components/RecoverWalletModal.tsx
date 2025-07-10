@@ -16,20 +16,24 @@ interface RecoverWalletModalProps {
   onRecover: (mnemonic: string) => void;
 }
 
-export function RecoverWalletModal({ visible, onClose, onRecover }: RecoverWalletModalProps) {
+export function RecoverWalletModal({
+  visible,
+  onClose,
+  onRecover,
+}: RecoverWalletModalProps) {
   const [mnemonic, setMnemonic] = useState('');
   const [isRecovering, setIsRecovering] = useState(false);
 
   const handleRecover = () => {
     const trimmedMnemonic = mnemonic.trim();
-    
+
     if (!trimmedMnemonic) {
       Alert.alert('Error', 'Please enter your recovery phrase');
       return;
     }
 
-    const words = trimmedMnemonic.split(' ').filter(word => word.length > 0);
-    
+    const words = trimmedMnemonic.split(' ').filter((word) => word.length > 0);
+
     if (words.length !== 12) {
       Alert.alert('Error', 'Recovery phrase must be exactly 12 words');
       return;
@@ -66,9 +70,10 @@ export function RecoverWalletModal({ visible, onClose, onRecover }: RecoverWalle
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.instruction}>
-            Enter your 12-word recovery phrase to restore your wallet. Separate each word with a space.
+            Enter your 12-word recovery phrase to restore your wallet. Separate
+            each word with a space.
           </Text>
-          
+
           <TextInput
             style={styles.mnemonicInput}
             value={mnemonic}
@@ -86,9 +91,12 @@ export function RecoverWalletModal({ visible, onClose, onRecover }: RecoverWalle
             Make sure to enter the words in the exact order you wrote them down.
           </Text>
 
-          <TouchableOpacity 
-            onPress={handleRecover} 
-            style={[styles.recoverButton, isRecovering && styles.recoverButtonDisabled]}
+          <TouchableOpacity
+            onPress={handleRecover}
+            style={[
+              styles.recoverButton,
+              isRecovering && styles.recoverButtonDisabled,
+            ]}
             disabled={isRecovering}
           >
             <Text style={styles.recoverText}>
@@ -170,4 +178,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-}); 
+});

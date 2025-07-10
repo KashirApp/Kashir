@@ -10,12 +10,12 @@ interface MintsListProps {
   onAddMint: () => void;
 }
 
-export function MintsList({ 
-  mintUrls, 
-  activeMintUrl, 
-  onSetActive, 
-  onRemove, 
-  onAddMint 
+export function MintsList({
+  mintUrls,
+  activeMintUrl,
+  onSetActive,
+  onRemove,
+  onAddMint,
 }: MintsListProps) {
   if (mintUrls.length === 0) {
     return (
@@ -30,8 +30,10 @@ export function MintsList({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Connected Mints ({mintUrls.length})</Text>
-      
+      <Text style={styles.sectionTitle}>
+        Connected Mints ({mintUrls.length})
+      </Text>
+
       {mintUrls.map((mintUrl, index) => (
         <MintItem
           key={`${mintUrl}-${index}`}
@@ -41,7 +43,7 @@ export function MintsList({
           onRemove={onRemove}
         />
       ))}
-      
+
       <TouchableOpacity onPress={onAddMint} style={styles.addMintButton}>
         <Text style={styles.addMintButtonText}>+ Add Another Mint</Text>
       </TouchableOpacity>

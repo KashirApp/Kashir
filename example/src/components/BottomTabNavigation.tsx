@@ -7,7 +7,10 @@ interface BottomTabNavigationProps {
   onTabChange: (tab: MainTabType) => void;
 }
 
-export function BottomTabNavigation({ activeTab, onTabChange }: BottomTabNavigationProps) {
+export function BottomTabNavigation({
+  activeTab,
+  onTabChange,
+}: BottomTabNavigationProps) {
   return (
     <View style={styles.tabContainer}>
       <TouchableOpacity
@@ -78,4 +81,4 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#fff',
   },
-}); 
+});

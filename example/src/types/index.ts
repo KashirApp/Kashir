@@ -10,4 +10,4 @@ export interface ProfileData {
 
 export interface ProfileCache {
   [key: string]: ProfileData;
-} 
+}

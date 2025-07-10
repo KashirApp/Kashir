@@ -36,13 +36,13 @@ export function SendModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalContainer}
       >
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Send Payment</Text>
-          
+
           <View style={styles.amountInputContainer}>
             <Text style={styles.inputLabel}>Lightning Invoice</Text>
             <TextInput
@@ -55,7 +55,7 @@ export function SendModal({
               numberOfLines={4}
               textAlignVertical="top"
             />
-            
+
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity
                 style={[styles.button, styles.scanButton]}
@@ -64,7 +64,7 @@ export function SendModal({
               >
                 <Text style={styles.buttonText}>📷 Scan QR Code</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.button, styles.sendPaymentButton]}
                 onPress={() => onSendPayment()}
@@ -76,7 +76,7 @@ export function SendModal({
               </TouchableOpacity>
             </View>
           </View>
-          
+
           <TouchableOpacity
             style={[styles.button, styles.modalCloseButton]}
             onPress={onClose}
@@ -173,4 +173,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#666666',
     marginTop: 10,
   },
-}); 
+});

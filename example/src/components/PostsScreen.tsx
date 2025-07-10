@@ -20,7 +20,7 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('following');
-  
+
   // Use ref to track if initial fetch has been triggered
   const hasInitialFetchStarted = useRef(false);
 
@@ -31,13 +31,13 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
 
   // Custom hooks
   const { posts, loading, fetchPosts } = usePosts(client);
-  const { 
-    followingPosts, 
-    followingList, 
+  const {
+    followingPosts,
+    followingList,
     followingLoading,
     profilesLoading,
-    fetchFollowingList, 
-    fetchFollowingPosts 
+    fetchFollowingList,
+    fetchFollowingPosts,
   } = useFollowing(client, profileService);
 
   // Initialize client on mount
@@ -64,7 +64,7 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
   useEffect(() => {
     const fetchProfile = async () => {
       if (!client || !isClientReady || !userNpub) return;
-      
+
       setProfileLoading(true);
       try {
         const name = await profileService.fetchUserProfile(client, userNpub);
@@ -88,9 +88,13 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
-    
+
     // Only fetch if we're switching to a tab that has no data and isn't currently loading
-    if (tab === 'following' && followingPosts.length === 0 && !followingLoading) {
+    if (
+      tab === 'following' &&
+      followingPosts.length === 0 &&
+      !followingLoading
+    ) {
       fetchFollowingPosts(userNpub);
     } else if (tab === 'your-posts' && posts.length === 0 && !loading) {
       fetchPosts(userNpub);
@@ -111,7 +115,8 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
   };
 
   const currentPosts = activeTab === 'your-posts' ? posts : followingPosts;
-  const currentLoading = activeTab === 'your-posts' ? loading : followingLoading;
+  const currentLoading =
+    activeTab === 'your-posts' ? loading : followingLoading;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -152,4 +157,4 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
       />
     </SafeAreaView>
   );
-} 
+}

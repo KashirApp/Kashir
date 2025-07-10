@@ -6,4 +6,4 @@ export { PostList } from './PostList';
 export { PostsScreen } from './PostsScreen';
 export { SettingsScreen } from './SettingsScreen';
 export { TabNavigation } from './TabNavigation';
-export { WalletScreen } from './WalletScreen'; 
+export { WalletScreen } from './WalletScreen';

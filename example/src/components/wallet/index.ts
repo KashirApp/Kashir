@@ -17,4 +17,4 @@ export { useWallet } from './hooks/useWallet';
 
 // Utils
 export { getErrorMessage } from './utils/errorUtils';
-export { formatSats, getSatUnit } from './utils/formatUtils'; 
+export { formatSats, getSatUnit } from './utils/formatUtils';

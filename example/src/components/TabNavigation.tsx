@@ -9,7 +9,11 @@ interface TabNavigationProps {
   followingCount: number;
 }
 
-export function TabNavigation({ activeTab, onTabChange, followingCount }: TabNavigationProps) {
+export function TabNavigation({
+  activeTab,
+  onTabChange,
+  followingCount,
+}: TabNavigationProps) {
   return (
     <View style={styles.tabContainer}>
       <TouchableOpacity
@@ -40,4 +44,4 @@ export function TabNavigation({ activeTab, onTabChange, followingCount }: TabNav
       </TouchableOpacity>
     </View>
   );
-} 
+}

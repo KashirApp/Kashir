@@ -18,7 +18,7 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ isVisible }: SettingsScreenProps) {
   const [hasSeedPhrase, setHasSeedPhrase] = useState<boolean>(false);
-  
+
   const {
     mintUrls,
     activeMintUrl,
@@ -43,8 +43,6 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       }
     };
 
-
-
     const loadMintUrls = async () => {
       try {
         await loadMintUrlsFromStorage();
@@ -52,7 +50,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
         console.warn('Failed to load mint URLs from storage:', error);
       }
     };
-    
+
     // Only check when the screen is visible
     if (isVisible) {
       checkSeedPhrase();
@@ -71,25 +69,24 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     try {
       const seedPhrase = await SecureStorageService.getSeedPhrase();
       if (seedPhrase) {
-        Alert.alert(
-          'Seed Phrase',
-          seedPhrase,
-          [
-            {
-              text: 'Copy to Clipboard',
-              onPress: () => {
-                Clipboard.setString(seedPhrase);
-                Alert.alert('Copied!', 'Seed phrase copied to clipboard');
-              }
+        Alert.alert('Seed Phrase', seedPhrase, [
+          {
+            text: 'Copy to Clipboard',
+            onPress: () => {
+              Clipboard.setString(seedPhrase);
+              Alert.alert('Copied!', 'Seed phrase copied to clipboard');
             },
-            { text: 'Close', style: 'cancel' }
-          ]
-        );
+          },
+          { text: 'Close', style: 'cancel' },
+        ]);
       } else {
         Alert.alert('No Seed Phrase', 'No seed phrase found in secure storage');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to retrieve seed phrase. Authentication may have been cancelled.');
+      Alert.alert(
+        'Error',
+        'Failed to retrieve seed phrase. Authentication may have been cancelled.'
+      );
     }
   };
 
@@ -107,15 +104,18 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
               const removed = await SecureStorageService.removeSeedPhrase();
               if (removed) {
                 setHasSeedPhrase(false); // Update state to hide the button
-                Alert.alert('Success', 'Seed phrase removed from secure storage');
+                Alert.alert(
+                  'Success',
+                  'Seed phrase removed from secure storage'
+                );
               } else {
                 Alert.alert('Error', 'Failed to remove seed phrase');
               }
             } catch (error) {
               Alert.alert('Error', 'Failed to remove seed phrase');
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -125,13 +125,13 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
-      
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Wallet Settings</Text>
-          
+
           <View style={styles.mintInfoContainer}>
-            <MintsList 
+            <MintsList
               mintUrls={mintUrls}
               activeMintUrl={activeMintUrl}
               onSetActive={setActiveMint}
@@ -143,21 +143,27 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Security</Text>
-          
+
           {hasSeedPhrase ? (
             <>
-              <TouchableOpacity style={styles.settingButton} onPress={handleViewSeedPhrase}>
+              <TouchableOpacity
+                style={styles.settingButton}
+                onPress={handleViewSeedPhrase}
+              >
                 <Text style={styles.settingButtonText}>View Seed Phrase</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.settingButton} onPress={handleRemoveSeedPhrase}>
-                <Text style={[styles.settingButtonText, styles.dangerText]}>Remove Stored Seed Phrase</Text>
+
+              <TouchableOpacity
+                style={styles.settingButton}
+                onPress={handleRemoveSeedPhrase}
+              >
+                <Text style={[styles.settingButtonText, styles.dangerText]}>
+                  Remove Stored Seed Phrase
+                </Text>
               </TouchableOpacity>
             </>
           ) : (
-            <Text style={styles.noSeedPhraseText}>
-              No seed phrase stored
-            </Text>
+            <Text style={styles.noSeedPhraseText}>No seed phrase stored</Text>
           )}
         </View>
       </ScrollView>
@@ -223,4 +229,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 20,
   },
-}); 
+});

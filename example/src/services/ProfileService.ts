@@ -3,7 +3,8 @@ import type { PublicKeyInterface } from '../../../src';
 import type { ProfileCache } from '../types';
 
 export class ProfileService {
-  private profileCache: Map<string, { name: string; loaded: boolean }> = new Map();
+  private profileCache: Map<string, { name: string; loaded: boolean }> =
+    new Map();
 
   async fetchProfileForPubkey(
     client: Client,
@@ -77,7 +78,9 @@ export class ProfileService {
     const batchSize = 10;
     for (let i = 0; i < uncachedPubkeys.length; i += batchSize) {
       const batch = uncachedPubkeys.slice(i, i + batchSize);
-      await Promise.all(batch.map((pk) => this.fetchProfileForPubkey(client, pk)));
+      await Promise.all(
+        batch.map((pk) => this.fetchProfileForPubkey(client, pk))
+      );
     }
   }
 
@@ -134,4 +137,4 @@ export class ProfileService {
   getProfileCache(): Map<string, { name: string; loaded: boolean }> {
     return this.profileCache;
   }
-} 
+}

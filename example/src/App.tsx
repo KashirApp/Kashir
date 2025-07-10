@@ -54,7 +54,7 @@ export default function App() {
     } catch (error) {
       console.error('Error removing npub from storage:', error);
     }
-    
+
     setIsLoggedIn(false);
     setUserNpub('');
     // Keep current tab - don't reset to nostr automatically
@@ -73,38 +73,44 @@ export default function App() {
     <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
       <View style={{ flex: 1 }}>
         {/* Keep WalletScreen always mounted to preserve state */}
-        <View style={{ 
-          flex: 1, 
-          display: activeMainTab === 'wallet' ? 'flex' : 'none' 
-        }}>
+        <View
+          style={{
+            flex: 1,
+            display: activeMainTab === 'wallet' ? 'flex' : 'none',
+          }}
+        >
           <WalletScreen />
         </View>
-        
+
         {/* Nostr content - show based on login state */}
-        <View style={{ 
-          flex: 1, 
-          display: activeMainTab === 'nostr' ? 'flex' : 'none' 
-        }}>
+        <View
+          style={{
+            flex: 1,
+            display: activeMainTab === 'nostr' ? 'flex' : 'none',
+          }}
+        >
           {isLoggedIn ? (
             <PostsScreen userNpub={userNpub} onLogout={handleLogout} />
           ) : (
             <LoginScreen onLogin={handleLogin} />
           )}
         </View>
-        
+
         {/* Settings Screen */}
-        <View style={{ 
-          flex: 1, 
-          display: activeMainTab === 'settings' ? 'flex' : 'none' 
-        }}>
+        <View
+          style={{
+            flex: 1,
+            display: activeMainTab === 'settings' ? 'flex' : 'none',
+          }}
+        >
           <SettingsScreen isVisible={activeMainTab === 'settings'} />
         </View>
       </View>
-      
+
       <BottomTabNavigation
         activeTab={activeMainTab}
         onTabChange={handleMainTabChange}
       />
     </View>
   );
-} 
+}

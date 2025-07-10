@@ -2,7 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FfiLocalStore, FfiWallet, FfiCurrencyUnit, FfiMintQuoteState, FfiSplitTarget, generateMnemonic } from '../../../../../src';
+import {
+  FfiLocalStore,
+  FfiWallet,
+  FfiCurrencyUnit,
+  FfiMintQuoteState,
+  FfiSplitTarget,
+  generateMnemonic,
+} from '../../../../../src';
 import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
 import { formatSats, getSatUnit } from '../utils/formatUtils';
@@ -27,9 +34,12 @@ export function useWallet() {
   const [lightningInvoice, setLightningInvoice] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showMintUrlModal, setShowMintUrlModal] = useState(false);
-  const [shouldCreateWalletAfterMint, setShouldCreateWalletAfterMint] = useState(false);
+  const [shouldCreateWalletAfterMint, setShouldCreateWalletAfterMint] =
+    useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [paymentReceivedAmount, setPaymentReceivedAmount] = useState<bigint>(BigInt(0));
+  const [paymentReceivedAmount, setPaymentReceivedAmount] = useState<bigint>(
+    BigInt(0)
+  );
   const [showSentConfetti, setShowSentConfetti] = useState(false);
   const [paymentSentAmount, setPaymentSentAmount] = useState<bigint>(BigInt(0));
   const [showSendingLoader, setShowSendingLoader] = useState(false);
@@ -37,13 +47,14 @@ export function useWallet() {
   const [showMnemonicModal, setShowMnemonicModal] = useState(false);
   const [pendingWalletCreation, setPendingWalletCreation] = useState<any>(null);
   const [showRecoverModal, setShowRecoverModal] = useState(false);
-  const [shouldShowRecoverAfterMint, setShouldShowRecoverAfterMint] = useState(false);
+  const [shouldShowRecoverAfterMint, setShouldShowRecoverAfterMint] =
+    useState(false);
   const [showRecoveryLoader, setShowRecoveryLoader] = useState(false);
   const [showRecoveryConfetti, setShowRecoveryConfetti] = useState(false);
-  
+
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Ref to prevent duplicate payment calls
   const isProcessingPayment = useRef(false);
 
@@ -110,11 +121,14 @@ export function useWallet() {
     try {
       // Don't allow removing the active mint
       if (url === activeMintUrl) {
-        Alert.alert('Error', 'Cannot remove the currently active mint. Please set another mint as active first.');
+        Alert.alert(
+          'Error',
+          'Cannot remove the currently active mint. Please set another mint as active first.'
+        );
         return false;
       }
-      
-      const newUrls = mintUrls.filter(mintUrl => mintUrl !== url);
+
+      const newUrls = mintUrls.filter((mintUrl) => mintUrl !== url);
       setMintUrls(newUrls);
       await saveMintUrlsToStorage(newUrls);
       return true;
@@ -157,9 +171,9 @@ export function useWallet() {
 
     try {
       setModuleStatus('Restoring existing wallet...');
-      
+
       const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
-      
+
       let localStore;
       try {
         localStore = FfiLocalStore.newWithPath(dbPath);
@@ -167,16 +181,16 @@ export function useWallet() {
         console.error('Failed to open existing wallet database:', storeError);
         return false;
       }
-      
+
       if (!localStore) {
         console.error('LocalStore is undefined, cannot restore wallet');
         return false;
       }
-      
+
       // Try to get the stored seed phrase first
       const storedSeedPhrase = await SecureStorageService.getSeedPhrase();
       let walletInstance;
-      
+
       if (storedSeedPhrase) {
         // Use the stored seed phrase
         walletInstance = FfiWallet.fromMnemonic(
@@ -196,13 +210,15 @@ export function useWallet() {
           tempMnemonic
         );
       }
-      
+
       try {
         // Try to get balance to verify wallet works
         const walletBalance = walletInstance.balance();
         setBalance(walletBalance.value);
         setWallet(walletInstance);
-        setModuleStatus(`Wallet restored! Balance: ${formatSats(walletBalance.value)}`);
+        setModuleStatus(
+          `Wallet restored! Balance: ${formatSats(walletBalance.value)}`
+        );
         return true;
       } catch (balanceError) {
         // Wallet exists but might be empty, still consider it restored
@@ -211,7 +227,6 @@ export function useWallet() {
         setModuleStatus('Wallet restored successfully!');
         return true;
       }
-      
     } catch (error) {
       console.error('Failed to restore wallet:', error);
       setModuleStatus(`Failed to restore wallet: ${getErrorMessage(error)}`);
@@ -230,7 +245,7 @@ export function useWallet() {
     await addMintUrl(url);
     setActiveMintUrl(url);
     setShowMintUrlModal(false);
-    
+
     // If we should create wallet after setting mint, set loading state
     if (shouldCreateWalletAfterMint) {
       setIsLoadingWallet(true);
@@ -264,10 +279,10 @@ export function useWallet() {
     const testCdkLoading = () => {
       try {
         setModuleStatus('Testing CDK import...');
-        
+
         if (FfiLocalStore && FfiWallet && FfiCurrencyUnit) {
           setModuleStatus('All CDK components available!');
-          
+
           const cdkModuleImport = {
             FfiLocalStore,
             FfiWallet,
@@ -286,7 +301,7 @@ export function useWallet() {
         setIsLoadingWallet(false);
       }
     };
-    
+
     // Add a small delay to ensure everything is initialized
     setTimeout(testCdkLoading, 100);
   }, []);
@@ -297,41 +312,49 @@ export function useWallet() {
       const initializeWallet = async () => {
         try {
           // Try to load saved mint URLs
-          const savedMintUrls = await AsyncStorage.getItem(MINT_URLS_STORAGE_KEY);
-          
+          const savedMintUrls = await AsyncStorage.getItem(
+            MINT_URLS_STORAGE_KEY
+          );
+
           if (!savedMintUrls) {
             setModuleStatus('Ready - Set mint URL to begin');
             setIsLoadingWallet(false);
             return;
           }
-          
+
           // Set the mint URLs in state
           const parsedUrls = JSON.parse(savedMintUrls);
           setMintUrls(parsedUrls);
           if (parsedUrls.length > 0) {
             setActiveMintUrl(parsedUrls[0]);
           }
-          
+
           // Mint URL exists, check if wallet database exists
           const walletExists = await checkWalletExists();
-          
+
           if (walletExists) {
             // Try to restore existing wallet, passing the mint URL directly
             const restored = await restoreExistingWallet(parsedUrls[0]);
-            
+
             if (!restored) {
-              setModuleStatus('Wallet database found but restoration failed. Ready to create new wallet.');
+              setModuleStatus(
+                'Wallet database found but restoration failed. Ready to create new wallet.'
+              );
             }
             // If restored successfully, the status is set in restoreExistingWallet
           } else {
-            setModuleStatus('Mint URL restored from storage. Ready to create wallet.');
+            setModuleStatus(
+              'Mint URL restored from storage. Ready to create wallet.'
+            );
           }
-          
+
           // Set loading to false after wallet restoration is complete
           setIsLoadingWallet(false);
         } catch (error) {
           console.error('Error during wallet initialization:', error);
-          setModuleStatus('Error during initialization. Ready to create wallet.');
+          setModuleStatus(
+            'Error during initialization. Ready to create wallet.'
+          );
           setIsLoadingWallet(false);
         }
       };
@@ -339,13 +362,13 @@ export function useWallet() {
       // Add a small delay to ensure the screen is fully rendered, then initialize
       setTimeout(initializeWallet, 500);
     }
-    
+
     // Safety timeout to ensure loading doesn't hang forever
     const safetyTimeout = setTimeout(() => {
       setIsLoadingWallet(false);
       setModuleStatus('Loading timeout. Please try again.');
     }, 10000); // 10 seconds timeout
-    
+
     return () => clearTimeout(safetyTimeout);
   }, [cdkModule]);
 
@@ -359,7 +382,6 @@ export function useWallet() {
   // Auto-create wallet after mint URL is set (when triggered from Create Wallet button)
   useEffect(() => {
     if (shouldCreateWalletAfterMint && activeMintUrl && cdkModule) {
-      
       // Call wallet creation directly here instead of through testWalletCreation
       const createWalletDirectly = async () => {
         // Check if wallet already exists first
@@ -372,18 +394,20 @@ export function useWallet() {
             return; // Successfully restored existing wallet
           }
           // If restoration failed, continue with creating new wallet
-          setModuleStatus('Existing wallet found but failed to restore. Creating new wallet...');
+          setModuleStatus(
+            'Existing wallet found but failed to restore. Creating new wallet...'
+          );
         } else {
           setModuleStatus('Creating wallet...');
         }
-        
+
         try {
           const seed = new ArrayBuffer(32);
           const seedView = new Uint8Array(seed);
           for (let i = 0; i < 32; i++) {
             seedView[i] = Math.floor(Math.random() * 256);
           }
-          
+
           let localStore;
           try {
             const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
@@ -391,33 +415,38 @@ export function useWallet() {
           } catch (storeError) {
             console.error('FfiLocalStore creation failed:', storeError);
             const errorMsg = getErrorMessage(storeError);
-            
+
             try {
               localStore = new FfiLocalStore();
             } catch (fallbackError) {
               const fallbackErrorMsg = getErrorMessage(fallbackError);
-              setModuleStatus(`CDK storage failed: ${errorMsg}. Fallback failed: ${fallbackErrorMsg}`);
+              setModuleStatus(
+                `CDK storage failed: ${errorMsg}. Fallback failed: ${fallbackErrorMsg}`
+              );
               setShouldCreateWalletAfterMint(false); // Reset flag on error
               return;
             }
           }
-          
+
           if (!localStore) {
             console.error('LocalStore is undefined, cannot create wallet');
             setShouldCreateWalletAfterMint(false); // Reset flag on error
             return;
           }
-          
+
           // Generate mnemonic and create wallet
           const mnemonic = generateMnemonic();
-          
+
           // Store wallet creation callback for when modal is closed
           setPendingWalletCreation(() => async () => {
             try {
               // Store the seed phrase securely before creating the wallet
-              const stored = await SecureStorageService.storeSeedPhrase(mnemonic);
+              const stored =
+                await SecureStorageService.storeSeedPhrase(mnemonic);
               if (!stored) {
-                console.warn('Failed to store seed phrase securely, but continuing with wallet creation');
+                console.warn(
+                  'Failed to store seed phrase securely, but continuing with wallet creation'
+                );
               }
 
               // Create wallet with the mnemonic after user confirms
@@ -432,14 +461,14 @@ export function useWallet() {
               } catch (walletCreationError) {
                 console.error('Wallet creation failed:', walletCreationError);
                 Alert.alert(
-                  'Wallet Creation Failed', 
+                  'Wallet Creation Failed',
                   'There was an error creating your wallet. Please check your mint URL and try again.',
                   [{ text: 'OK' }]
                 );
                 setIsLoadingWallet(false);
                 return;
               }
-              
+
               // Try to initialize wallet methods
               try {
                 if (typeof walletInstance.getMintInfo === 'function') {
@@ -449,45 +478,50 @@ export function useWallet() {
                 console.warn('getMintInfo failed, but continuing:', initError);
                 // Continue anyway, this might not be critical
               }
-              
+
               try {
                 walletInstance.balance();
               } catch (balanceError) {
-                console.warn('Initial balance check failed, but continuing:', balanceError);
+                console.warn(
+                  'Initial balance check failed, but continuing:',
+                  balanceError
+                );
                 // Expected for new wallets, continue
               }
-              
+
               setWallet(walletInstance);
-              
+
               // Try to get balance
               try {
                 const walletBalance = walletInstance.balance();
                 setBalance(walletBalance.value);
                 setModuleStatus('Wallet created successfully!');
               } catch (balanceError) {
-                console.warn('Balance retrieval failed, setting to 0:', balanceError);
+                console.warn(
+                  'Balance retrieval failed, setting to 0:',
+                  balanceError
+                );
                 setBalance(BigInt(0));
                 setModuleStatus('Wallet created successfully!');
               }
-              
+
               setIsLoadingWallet(false);
             } catch (error) {
               console.error('Error in wallet creation callback:', error);
               Alert.alert(
-                'Wallet Creation Error', 
+                'Wallet Creation Error',
                 'An unexpected error occurred during wallet creation. Please try again.',
                 [{ text: 'OK' }]
               );
               setIsLoadingWallet(false);
             }
           });
-          
+
           // Set the generated mnemonic and show modal
           setGeneratedMnemonic(mnemonic);
           setShowMnemonicModal(true);
-          
+
           return; // Return early since wallet creation happens in modal callback
-          
         } catch (error) {
           console.error('Wallet creation error:', error);
           setModuleStatus(`Wallet creation failed: ${getErrorMessage(error)}`);
@@ -495,7 +529,7 @@ export function useWallet() {
           setIsLoadingWallet(false);
         }
       };
-      
+
       // Small delay to ensure everything is ready
       setTimeout(createWalletDirectly, 100);
     }
@@ -506,17 +540,17 @@ export function useWallet() {
       setModuleStatus('CDK module not loaded');
       return;
     }
-    
+
     if (!activeMintUrl) {
       setModuleStatus('Please set a mint URL first');
       setShouldCreateWalletAfterMint(true);
       promptForMintUrl();
       return;
     }
-    
+
     // Set loading state for wallet creation
     setIsLoadingWallet(true);
-    
+
     // Check if wallet already exists
     const walletExists = await checkWalletExists();
     if (walletExists) {
@@ -527,19 +561,21 @@ export function useWallet() {
         return; // Successfully restored existing wallet
       }
       // If restoration failed, continue with creating new wallet
-      setModuleStatus('Existing wallet found but failed to restore. Creating new wallet...');
+      setModuleStatus(
+        'Existing wallet found but failed to restore. Creating new wallet...'
+      );
     }
-    
+
     // Reset flag since we're proceeding with wallet creation
     setShouldCreateWalletAfterMint(false);
-    
+
     try {
       const seed = new ArrayBuffer(32);
       const seedView = new Uint8Array(seed);
       for (let i = 0; i < 32; i++) {
         seedView[i] = Math.floor(Math.random() * 256);
       }
-      
+
       let localStore;
       try {
         const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
@@ -547,31 +583,35 @@ export function useWallet() {
       } catch (storeError) {
         console.error('FfiLocalStore creation failed:', storeError);
         const errorMsg = getErrorMessage(storeError);
-        
+
         try {
           localStore = new FfiLocalStore();
         } catch (fallbackError) {
           const fallbackErrorMsg = getErrorMessage(fallbackError);
-          setModuleStatus(`CDK storage failed: ${errorMsg}. Fallback failed: ${fallbackErrorMsg}`);
+          setModuleStatus(
+            `CDK storage failed: ${errorMsg}. Fallback failed: ${fallbackErrorMsg}`
+          );
           return;
         }
       }
-      
+
       if (!localStore) {
         console.error('LocalStore is undefined, cannot create wallet');
         return;
       }
-      
+
       // Generate mnemonic and create wallet
       const mnemonic = generateMnemonic();
-      
+
       // Store wallet creation callback for when modal is closed
       setPendingWalletCreation(() => async () => {
         try {
           // Store the seed phrase securely before creating the wallet
           const stored = await SecureStorageService.storeSeedPhrase(mnemonic);
           if (!stored) {
-            console.warn('Failed to store seed phrase securely, but continuing with wallet creation');
+            console.warn(
+              'Failed to store seed phrase securely, but continuing with wallet creation'
+            );
           }
 
           // Create wallet with the mnemonic after user confirms
@@ -586,14 +626,14 @@ export function useWallet() {
           } catch (walletCreationError) {
             console.error('Wallet creation failed:', walletCreationError);
             Alert.alert(
-              'Wallet Creation Failed', 
+              'Wallet Creation Failed',
               'There was an error creating your wallet. Please check your mint URL and try again.',
               [{ text: 'OK' }]
             );
             setIsLoadingWallet(false);
             return;
           }
-          
+
           // Try to initialize wallet methods
           try {
             if (typeof walletInstance.getMintInfo === 'function') {
@@ -603,45 +643,50 @@ export function useWallet() {
             console.warn('getMintInfo failed, but continuing:', initError);
             // Continue anyway, this might not be critical
           }
-          
+
           try {
             walletInstance.balance();
           } catch (balanceError) {
-            console.warn('Initial balance check failed, but continuing:', balanceError);
+            console.warn(
+              'Initial balance check failed, but continuing:',
+              balanceError
+            );
             // Expected for new wallets, continue
           }
-          
+
           setWallet(walletInstance);
-          
+
           // Try to get balance
           try {
             const walletBalance = walletInstance.balance();
             setBalance(walletBalance.value);
             setModuleStatus('Wallet created successfully!');
           } catch (balanceError) {
-            console.warn('Balance retrieval failed, setting to 0:', balanceError);
+            console.warn(
+              'Balance retrieval failed, setting to 0:',
+              balanceError
+            );
             setBalance(BigInt(0));
             setModuleStatus('Wallet created successfully!');
           }
-          
+
           setIsLoadingWallet(false);
         } catch (error) {
           console.error('Error in wallet creation callback:', error);
           Alert.alert(
-            'Wallet Creation Error', 
+            'Wallet Creation Error',
             'An unexpected error occurred during wallet creation. Please try again.',
             [{ text: 'OK' }]
           );
           setIsLoadingWallet(false);
         }
       });
-      
+
       // Set the generated mnemonic and show modal
       setGeneratedMnemonic(mnemonic);
       setShowMnemonicModal(true);
-      
+
       return; // Return early since wallet creation happens in modal callback
-      
     } catch (error) {
       console.error('Wallet creation error:', error);
       setModuleStatus(`Wallet creation failed: ${getErrorMessage(error)}`);
@@ -690,16 +735,15 @@ export function useWallet() {
       if (typeof wallet.mintQuote !== 'function') {
         throw new Error('Wallet mintQuote method not available');
       }
-      
+
       const amount = { value: BigInt(receiveAmount) };
       const mintQuote = await wallet.mintQuote(amount, 'Cashu wallet receive');
-      
+
       setInvoice(mintQuote.request);
       setQuoteId(mintQuote.id);
-      
+
       // Start automatic payment checking with the quote ID directly
       startPaymentChecking(mintQuote.id);
-      
     } catch (error) {
       console.error('Failed to create invoice:', error);
       const errorMsg = getErrorMessage(error);
@@ -717,47 +761,53 @@ export function useWallet() {
   // Silent background payment checking
   const checkPaymentStatus = async (currentQuoteId?: string) => {
     const activeQuoteId = currentQuoteId || quoteId;
-    
+
     if (!wallet || !activeQuoteId) {
       return false;
     }
-    
+
     try {
       if (typeof wallet.mintQuoteState !== 'function') {
         return false;
       }
-      
+
       const quoteState = await wallet.mintQuoteState(activeQuoteId);
-      
+
       if (quoteState.state === FfiMintQuoteState.Paid) {
         if (typeof wallet.mint === 'function') {
           try {
-            const mintedAmount = await wallet.mint(activeQuoteId, FfiSplitTarget.Default);
+            const mintedAmount = await wallet.mint(
+              activeQuoteId,
+              FfiSplitTarget.Default
+            );
             const newBalance = wallet.balance();
             setBalance(newBalance.value);
-            
+
             // Clear the interval
             if (paymentCheckInterval.current) {
               clearInterval(paymentCheckInterval.current);
               paymentCheckInterval.current = null;
             }
-            
+
             // Clear invoice data and close modal
             setInvoice('');
             setQuoteId('');
             setShowReceiveModal(false);
-            
+
             // Show confetti animation
             setPaymentReceivedAmount(mintedAmount.value);
             setShowConfetti(true);
-            
+
             // Hide confetti after 3 seconds
             setTimeout(() => setShowConfetti(false), 3000);
-            
+
             return true;
           } catch (mintError) {
             console.error('Failed to mint tokens:', mintError);
-            Alert.alert('Error', `Failed to mint tokens: ${getErrorMessage(mintError)}`);
+            Alert.alert(
+              'Error',
+              `Failed to mint tokens: ${getErrorMessage(mintError)}`
+            );
             return false;
           }
         }
@@ -775,12 +825,15 @@ export function useWallet() {
     if (paymentCheckInterval.current) {
       clearInterval(paymentCheckInterval.current);
     }
-    
+
     // Check immediately first
     checkPaymentStatus(targetQuoteId);
-    
+
     // Start checking every second
-    paymentCheckInterval.current = setInterval(() => checkPaymentStatus(targetQuoteId), 1000);
+    paymentCheckInterval.current = setInterval(
+      () => checkPaymentStatus(targetQuoteId),
+      1000
+    );
   };
 
   // Stop automatic payment checking
@@ -793,13 +846,13 @@ export function useWallet() {
 
   const sendPayment = async (scannedInvoice?: string) => {
     const invoiceToUse = scannedInvoice || lightningInvoice;
-    
+
     // Prevent duplicate calls
     if (isProcessingPayment.current) {
       console.log('Payment already in progress, ignoring duplicate call');
       return;
     }
-    
+
     if (!wallet || !invoiceToUse.trim()) {
       Alert.alert('Error', 'Please enter a Lightning invoice');
       return;
@@ -811,7 +864,10 @@ export function useWallet() {
     }
 
     if (!invoiceToUse.toLowerCase().startsWith('lnbc')) {
-      Alert.alert('Error', 'Please enter a valid Lightning invoice (should start with lnbc)');
+      Alert.alert(
+        'Error',
+        'Please enter a valid Lightning invoice (should start with lnbc)'
+      );
       return;
     }
 
@@ -819,51 +875,61 @@ export function useWallet() {
     setIsSending(true);
     try {
       const currentBalance = wallet.balance();
-      
+
       if (currentBalance.value <= 0) {
         Alert.alert('Error', 'Insufficient balance to send payment');
         setIsSending(false);
         isProcessingPayment.current = false;
         return;
       }
-      
+
       if (typeof wallet.meltQuote !== 'function') {
-        console.error('meltQuote is not a function, type:', typeof wallet.meltQuote);
-        
+        console.error(
+          'meltQuote is not a function, type:',
+          typeof wallet.meltQuote
+        );
+
         Alert.alert(
           'Lightning Payments Not Supported',
-          'This CDK version does not support Lightning payments (meltQuote/melt methods are missing).\n\nAvailable methods: ' + Object.getOwnPropertyNames(Object.getPrototypeOf(wallet)).join(', '),
+          'This CDK version does not support Lightning payments (meltQuote/melt methods are missing).\n\nAvailable methods: ' +
+            Object.getOwnPropertyNames(Object.getPrototypeOf(wallet)).join(
+              ', '
+            ),
           [
             {
               text: 'OK',
               onPress: () => {
                 setIsSending(false);
                 isProcessingPayment.current = false;
-              }
-            }
+              },
+            },
           ]
         );
         return;
       }
-      
+
       try {
         const meltQuote = await wallet.meltQuote(invoiceToUse);
-        
+
         const prepareResult = {
           amount: meltQuote.amount,
-          totalFee: meltQuote.feeReserve || { value: BigInt(0) }
+          totalFee: meltQuote.feeReserve || { value: BigInt(0) },
         };
-        
-        const totalAmount = prepareResult.amount.value + prepareResult.totalFee.value;
-        
+
+        const totalAmount =
+          prepareResult.amount.value + prepareResult.totalFee.value;
+
         const currentBalance = wallet.balance();
         if (currentBalance.value < totalAmount) {
-          Alert.alert('Insufficient Balance', `You need ${formatSats(totalAmount)} but only have ${formatSats(currentBalance.value)}`);
+          Alert.alert(
+            'Insufficient Balance',
+            `You need ${formatSats(totalAmount)} but only have ${formatSats(currentBalance.value)}`
+          );
           setIsSending(false);
           isProcessingPayment.current = false;
           return;
         }
-        
+
         Alert.alert(
           'Confirm Payment',
           `Amount: ${formatSats(prepareResult.amount.value)}\nFee: ${formatSats(prepareResult.totalFee.value)}\nTotal: ${formatSats(totalAmount)}\n\nDo you want to proceed?`,
@@ -874,7 +940,7 @@ export function useWallet() {
               onPress: () => {
                 setIsSending(false);
                 isProcessingPayment.current = false;
-              }
+              },
             },
             {
               text: 'Send',
@@ -882,51 +948,49 @@ export function useWallet() {
                 try {
                   // Show loading indicator
                   setShowSendingLoader(true);
-                  
+
                   // Small delay to ensure the loading indicator renders
-                  await new Promise(resolve => setTimeout(resolve, 100));
-                  
+                  await new Promise((resolve) => setTimeout(resolve, 100));
+
                   const sendResult = await wallet.melt(meltQuote.id);
-                  
+
                   const newBalance = wallet.balance();
                   setBalance(newBalance.value);
-                  
+
                   // Clear invoice and close modal
                   setLightningInvoice('');
                   setShowSendModal(false);
-                  
+
                   // Hide loading indicator
                   setShowSendingLoader(false);
-                  
+
                   // Show sent confetti animation
                   setPaymentSentAmount(prepareResult.amount.value);
                   setShowSentConfetti(true);
-                  
+
                   // Hide confetti after 3 seconds
                   setTimeout(() => setShowSentConfetti(false), 3000);
-                  
                 } catch (sendError) {
                   console.error('Payment failed:', sendError);
-                  
+
                   // Hide loading indicator on error
                   setShowSendingLoader(false);
-                  
+
                   const errorMsg = getErrorMessage(sendError);
-                  
+
                   Alert.alert('Payment Failed', errorMsg);
                 } finally {
                   setIsSending(false);
                   isProcessingPayment.current = false;
                 }
-              }
-            }
+              },
+            },
           ]
         );
       } catch (meltError) {
         console.error('Melt quote failed:', meltError);
         throw meltError;
       }
-      
     } catch (error) {
       console.error('Payment preparation failed:', error);
       const errorMsg = getErrorMessage(error);
@@ -951,14 +1015,14 @@ export function useWallet() {
       setModuleStatus('CDK module not loaded');
       return;
     }
-    
+
     if (!activeMintUrl) {
       setModuleStatus('Please set a mint URL first');
       setShouldShowRecoverAfterMint(true);
       promptForMintUrl();
       return;
     }
-    
+
     setShowRecoverModal(true);
   };
 
@@ -974,14 +1038,14 @@ export function useWallet() {
     setShowRecoveryLoader(true); // Show recovery loading indicator
 
     // Small delay to ensure the loading indicator renders
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     try {
       // Store the seed phrase securely first
       const stored = await SecureStorageService.storeSeedPhrase(mnemonic);
       if (!stored) {
         Alert.alert(
-          'Warning', 
+          'Warning',
           'Failed to securely store seed phrase. The wallet will still be recovered, but you should backup your seed phrase manually.',
           [{ text: 'Continue' }]
         );
@@ -997,7 +1061,9 @@ export function useWallet() {
           localStore = new FfiLocalStore();
         } catch (fallbackError) {
           const fallbackErrorMsg = getErrorMessage(fallbackError);
-          setModuleStatus(`CDK storage failed: ${getErrorMessage(storeError)}. Fallback failed: ${fallbackErrorMsg}`);
+          setModuleStatus(
+            `CDK storage failed: ${getErrorMessage(storeError)}. Fallback failed: ${fallbackErrorMsg}`
+          );
           setIsLoadingWallet(false);
           setShowRecoveryLoader(false);
           return;
@@ -1036,10 +1102,9 @@ export function useWallet() {
 
       // Show recovery confetti animation
       setShowRecoveryConfetti(true);
-      
+
       // Hide confetti after 3 seconds
       setTimeout(() => setShowRecoveryConfetti(false), 3000);
-
     } catch (error) {
       console.error('Wallet recovery error:', error);
       const errorMsg = getErrorMessage(error);
@@ -1078,7 +1143,7 @@ export function useWallet() {
     shouldShowRecoverAfterMint,
     showRecoveryLoader,
     showRecoveryConfetti,
-    
+
     // Actions
     testWalletCreation,
     handleReceive,
@@ -1095,7 +1160,7 @@ export function useWallet() {
     checkWalletExists,
     restoreExistingWallet,
     loadMintUrlsFromStorage,
-    
+
     // Modal controls
     closeReceiveModal,
     setReceiveAmount,
@@ -1107,4 +1172,4 @@ export function useWallet() {
     handleWalletRecovery,
     setShowRecoverModal,
   };
-} 
+}

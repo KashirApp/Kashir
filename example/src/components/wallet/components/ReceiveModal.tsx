@@ -40,13 +40,13 @@ export function ReceiveModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalContainer}
       >
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Receive Payment</Text>
-          
+
           {!invoice ? (
             <View style={styles.amountInputContainer}>
               <Text style={styles.inputLabel}>Amount (sats)</Text>
@@ -71,7 +71,7 @@ export function ReceiveModal({
           ) : (
             <ScrollView style={styles.invoiceContainer}>
               <Text style={styles.invoiceLabel}>Lightning Invoice</Text>
-              
+
               {/* QR Code Container */}
               <View style={styles.qrCodeContainer}>
                 <QRCode
@@ -81,20 +81,18 @@ export function ReceiveModal({
                   backgroundColor="#ffffff"
                 />
               </View>
-              
+
               <TouchableOpacity
                 style={[styles.button, styles.copyButton]}
                 onPress={onCopyInvoice}
               >
                 <Text style={styles.buttonText}>Copy Invoice</Text>
               </TouchableOpacity>
-              
-              <Text style={styles.waitingText}>
-                Waiting for payment...
-              </Text>
+
+              <Text style={styles.waitingText}>Waiting for payment...</Text>
             </ScrollView>
           )}
-          
+
           <TouchableOpacity
             style={[styles.button, styles.modalCloseButton]}
             onPress={onClose}
@@ -206,4 +204,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#666666',
     marginTop: 10,
   },
-}); 
+});

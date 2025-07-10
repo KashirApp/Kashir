@@ -59,4 +59,4 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       </View>
     </SafeAreaView>
   );
-} 
+}

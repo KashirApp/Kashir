@@ -178,4 +178,4 @@ export const styles = StyleSheet.create({
     color: '#4a90e2',
     marginBottom: 4,
   },
-}); 
+});

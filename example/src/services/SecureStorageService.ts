@@ -10,7 +10,10 @@ export class SecureStorageService {
   private static async isKeychainAvailable(): Promise<boolean> {
     try {
       // Test if keychain module is properly linked
-      if (!Keychain || typeof Keychain.getSupportedBiometryType !== 'function') {
+      if (
+        !Keychain ||
+        typeof Keychain.getSupportedBiometryType !== 'function'
+      ) {
         return false;
       }
       await Keychain.getSupportedBiometryType();
@@ -59,7 +62,7 @@ export class SecureStorageService {
 
     try {
       const credentials = await Keychain.getInternetCredentials(SERVICE_NAME);
-      
+
       if (credentials && credentials.password) {
         return credentials.password;
       }
@@ -81,10 +84,15 @@ export class SecureStorageService {
 
     try {
       // Updated API for react-native-keychain v10.0.0 - service is now part of options object
-      const credentials = await Keychain.hasInternetCredentials({ server: SERVICE_NAME });
+      const credentials = await Keychain.hasInternetCredentials({
+        server: SERVICE_NAME,
+      });
       return credentials;
     } catch (error) {
-      console.warn('SecureStorageService: Error checking for credentials:', error);
+      console.warn(
+        'SecureStorageService: Error checking for credentials:',
+        error
+      );
       // If we can't check (e.g., user cancelled biometric), assume it doesn't exist
       return false;
     }
@@ -125,4 +133,4 @@ export class SecureStorageService {
       return false;
     }
   }
-} 
+}

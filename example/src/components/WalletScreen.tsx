@@ -1,5 +1,12 @@
 import React from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import {
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  View,
+  Text,
+  ActivityIndicator,
+} from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import {
   WalletBalance,
@@ -22,28 +29,26 @@ interface SuccessConfettiProps {
 
 function SuccessConfetti({ visible, children }: SuccessConfettiProps) {
   if (!visible) return null;
-  
+
   return (
     <View style={styles.confettiContainer}>
       <ConfettiCannon
         count={150}
-        origin={{x: 0, y: 0}}
+        origin={{ x: 0, y: 0 }}
         fadeOut={false}
         autoStart={true}
         explosionSpeed={500}
         fallSpeed={3000}
         colors={['#FFD700', '#4CAF50', '#2196F3', '#FF9800', '#E91E63']}
       />
-      <View style={styles.successOverlay}>
-        {children}
-      </View>
+      <View style={styles.successOverlay}>{children}</View>
     </View>
   );
 }
 
 export function WalletScreen() {
   const [showQRScanner, setShowQRScanner] = React.useState(false);
-  
+
   const {
     // State
     balance,
@@ -67,7 +72,7 @@ export function WalletScreen() {
     showRecoveryLoader,
     showRecoveryConfetti,
     showMintUrlModal,
-    
+
     // Actions
     testWalletCreation,
     handleReceive,
@@ -77,7 +82,7 @@ export function WalletScreen() {
     sendPayment,
     handleRecoverWallet,
     handleWalletRecovery,
-    
+
     // Modal controls
     closeReceiveModal,
     setReceiveAmount,
@@ -102,11 +107,11 @@ export function WalletScreen() {
     if (data.toLowerCase().startsWith('lightning:')) {
       invoice = data.substring(10);
     }
-    
+
     // Set the invoice and close scanner - same as before
     setLightningInvoice(invoice);
     setShowQRScanner(false);
-    
+
     // Trigger payment confirmation directly with the scanned invoice - same as before
     sendPayment(invoice);
   };
@@ -115,12 +120,9 @@ export function WalletScreen() {
     <>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" />
-        
-        <WalletBalance 
-          balance={balance} 
-          wallet={wallet} 
-        />
-        
+
+        <WalletBalance balance={balance} wallet={wallet} />
+
         <WalletActions
           wallet={wallet}
           isLoadingWallet={isLoadingWallet}
@@ -129,7 +131,7 @@ export function WalletScreen() {
           onReceive={handleReceive}
           onSend={handleSend}
         />
-        
+
         <ReceiveModal
           visible={showReceiveModal}
           receiveAmount={receiveAmount}
@@ -140,7 +142,7 @@ export function WalletScreen() {
           onCreateInvoice={createInvoice}
           onCopyInvoice={copyToClipboard}
         />
-        
+
         <SendModal
           visible={showSendModal}
           lightningInvoice={lightningInvoice}
@@ -175,25 +177,21 @@ export function WalletScreen() {
           onSubmit={handleMintUrlSubmit}
         />
       </SafeAreaView>
-      
+
       {/* Confetti Animation Overlay - Outside SafeAreaView for proper layering */}
       {showConfetti && (
         <SuccessConfetti visible={showConfetti}>
-          <Text style={styles.successText}>
-            Payment Received! 🎉
-          </Text>
+          <Text style={styles.successText}>Payment Received! 🎉</Text>
           <Text style={styles.successAmount}>
             +{formatSats(paymentReceivedAmount)}
           </Text>
         </SuccessConfetti>
       )}
-      
+
       {/* Payment Sent Confetti Animation */}
       {showSentConfetti && (
         <SuccessConfetti visible={showSentConfetti}>
-          <Text style={styles.sentText}>
-            Payment Sent! ⚡
-          </Text>
+          <Text style={styles.sentText}>Payment Sent! ⚡</Text>
           <Text style={styles.sentAmount}>
             -{formatSats(paymentSentAmount)}
           </Text>
@@ -203,45 +201,38 @@ export function WalletScreen() {
       {/* Wallet Recovery Confetti Animation */}
       {showRecoveryConfetti && (
         <SuccessConfetti visible={showRecoveryConfetti}>
-          <Text style={styles.recoveryText}>
-            Wallet Recovered! 🎉
-          </Text>
+          <Text style={styles.recoveryText}>Wallet Recovered! 🎉</Text>
           <Text style={styles.recoverySubtext}>
             Your wallet has been successfully restored
           </Text>
         </SuccessConfetti>
       )}
-       
-       {/* Payment Sending Loader */}
-       {showSendingLoader && (
-         <View style={styles.loadingContainer}>
-           <View style={styles.loadingOverlay}>
-             <ActivityIndicator size="large" color="#ffffff" />
-             <Text style={styles.loadingText}>
-               Sending Payment...
-             </Text>
-             <Text style={styles.loadingSubtext}>
-               Please wait while we process your transaction
-             </Text>
-           </View>
-         </View>
-       )}
 
-       {/* Wallet Recovery Loader */}
-       {showRecoveryLoader && (
-         <View style={styles.loadingContainer}>
-           <View style={styles.loadingOverlay}>
-             <ActivityIndicator size="large" color="#ffffff" />
-             <Text style={styles.loadingText}>
-               Recovering Wallet...
-             </Text>
-             <Text style={styles.loadingSubtext}>
-               Please wait while we restore your wallet from the recovery phrase
-             </Text>
-           </View>
-         </View>
-       )}
+      {/* Payment Sending Loader */}
+      {showSendingLoader && (
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.loadingText}>Sending Payment...</Text>
+            <Text style={styles.loadingSubtext}>
+              Please wait while we process your transaction
+            </Text>
+          </View>
+        </View>
+      )}
 
+      {/* Wallet Recovery Loader */}
+      {showRecoveryLoader && (
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.loadingText}>Recovering Wallet...</Text>
+            <Text style={styles.loadingSubtext}>
+              Please wait while we restore your wallet from the recovery phrase
+            </Text>
+          </View>
+        </View>
+      )}
     </>
   );
 }
@@ -422,4 +413,4 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-}); 
+});

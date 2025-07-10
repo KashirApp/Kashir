@@ -8,7 +8,12 @@ interface MintItemProps {
   onRemove: (url: string) => void;
 }
 
-export function MintItem({ mintUrl, isActive, onSetActive, onRemove }: MintItemProps) {
+export function MintItem({
+  mintUrl,
+  isActive,
+  onSetActive,
+  onRemove,
+}: MintItemProps) {
   // Always show the full URL to users
 
   const handleSetActive = () => {
@@ -26,8 +31,8 @@ export function MintItem({ mintUrl, isActive, onSetActive, onRemove }: MintItemP
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => onRemove(mintUrl)
-        }
+          onPress: () => onRemove(mintUrl),
+        },
       ]
     );
   };
@@ -35,29 +40,35 @@ export function MintItem({ mintUrl, isActive, onSetActive, onRemove }: MintItemP
   return (
     <View style={[styles.container, isActive && styles.activeContainer]}>
       <View style={styles.leftSection}>
-        <Text style={styles.mintUrl}>
-          {mintUrl}
-        </Text>
+        <Text style={styles.mintUrl}>{mintUrl}</Text>
         {isActive && (
           <View style={styles.activeBadge}>
             <Text style={styles.activeBadgeText}>Active</Text>
           </View>
         )}
       </View>
-      
+
       <View style={styles.rightSection}>
         {!isActive && (
-          <TouchableOpacity onPress={handleSetActive} style={styles.setActiveButton}>
+          <TouchableOpacity
+            onPress={handleSetActive}
+            style={styles.setActiveButton}
+          >
             <Text style={styles.setActiveButtonText}>Set Active</Text>
           </TouchableOpacity>
         )}
-        
-        <TouchableOpacity 
-          onPress={handleRemove} 
+
+        <TouchableOpacity
+          onPress={handleRemove}
           style={[styles.removeButton, isActive && styles.removeButtonDisabled]}
           disabled={isActive}
         >
-          <Text style={[styles.removeButtonText, isActive && styles.removeButtonTextDisabled]}>
+          <Text
+            style={[
+              styles.removeButtonText,
+              isActive && styles.removeButtonTextDisabled,
+            ]}
+          >
             Remove
           </Text>
         </TouchableOpacity>

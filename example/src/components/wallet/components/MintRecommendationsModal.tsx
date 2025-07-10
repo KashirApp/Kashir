@@ -9,7 +9,10 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
-import { MintRecommendationService, type MintRecommendation } from '../../../services';
+import {
+  MintRecommendationService,
+  type MintRecommendation,
+} from '../../../services';
 
 interface MintRecommendationsModalProps {
   visible: boolean;
@@ -17,12 +20,14 @@ interface MintRecommendationsModalProps {
   onSelectMint: (url: string) => void;
 }
 
-export function MintRecommendationsModal({ 
-  visible, 
-  onClose, 
-  onSelectMint 
+export function MintRecommendationsModal({
+  visible,
+  onClose,
+  onSelectMint,
 }: MintRecommendationsModalProps) {
-  const [recommendations, setRecommendations] = useState<MintRecommendation[]>([]);
+  const [recommendations, setRecommendations] = useState<MintRecommendation[]>(
+    []
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -64,8 +69,8 @@ export function MintRecommendationsModal({
           </TouchableOpacity>
         </View>
 
-        <ScrollView 
-          style={styles.content} 
+        <ScrollView
+          style={styles.content}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
@@ -83,11 +88,10 @@ export function MintRecommendationsModal({
                   onPress={() => handleSelectMint(rec.url)}
                 >
                   <View style={styles.recommendationContent}>
-                    <Text style={styles.recommendationUrl}>
-                      {rec.url}
-                    </Text>
+                    <Text style={styles.recommendationUrl}>{rec.url}</Text>
                     <Text style={styles.recommendationCount}>
-                      Recommended by {rec.count} {rec.count === 1 ? 'user' : 'users'}
+                      Recommended by {rec.count}{' '}
+                      {rec.count === 1 ? 'user' : 'users'}
                     </Text>
                   </View>
                   <View style={styles.selectButton}>
@@ -219,4 +223,4 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
   },
-}); 
+});

@@ -15,7 +15,11 @@ interface MnemonicModalProps {
   onDone: () => void;
 }
 
-export function MnemonicModal({ visible, mnemonic, onDone }: MnemonicModalProps) {
+export function MnemonicModal({
+  visible,
+  mnemonic,
+  onDone,
+}: MnemonicModalProps) {
   const handleCopy = () => {
     Clipboard.setString(mnemonic);
     Alert.alert('Copied!', 'Recovery phrase copied to clipboard');
@@ -35,22 +39,24 @@ export function MnemonicModal({ visible, mnemonic, onDone }: MnemonicModalProps)
 
         <View style={styles.content}>
           <Text style={styles.warning}>
-            ⚠️ Important: Write down these 12 words in order. You'll need them to restore your wallet if you lose your device.
+            ⚠️ Important: Write down these 12 words in order. You'll need them
+            to restore your wallet if you lose your device.
           </Text>
-          
+
           <View style={styles.mnemonicContainer}>
             <Text style={styles.mnemonicText}>{mnemonic}</Text>
           </View>
 
           <Text style={styles.hint}>
-            Keep this recovery phrase safe and private. Anyone with access to these words can control your wallet.
+            Keep this recovery phrase safe and private. Anyone with access to
+            these words can control your wallet.
           </Text>
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity onPress={handleCopy} style={styles.copyButton}>
               <Text style={styles.copyText}>Copy to Clipboard</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity onPress={onDone} style={styles.doneButton}>
               <Text style={styles.doneText}>I've Saved It - Continue</Text>
             </TouchableOpacity>
@@ -139,4 +145,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-}); 
+});
