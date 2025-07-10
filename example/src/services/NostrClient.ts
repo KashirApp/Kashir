@@ -57,5 +57,4 @@ class NostrClientService {
   }
 }
 
-// Export with the expected name
-export { NostrClientService as NostrClient };
+export { NostrClientService };
