@@ -140,11 +140,11 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       const updatedRelays = await StorageService.loadRelays();
       setRelays(updatedRelays);
       setShowRelayModal(false);
-      
+
       // Reconnect Nostr client with new relays
       const clientService = NostrClientService.getInstance();
       await clientService.reconnectWithNewRelays();
-      
+
       Alert.alert('Success', 'Relay added successfully');
     } catch (error) {
       Alert.alert('Error', 'Failed to add relay');
@@ -156,11 +156,11 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     if (success) {
       const updatedRelays = await StorageService.loadRelays();
       setRelays(updatedRelays);
-      
+
       // Reconnect Nostr client with updated relays
       const clientService = NostrClientService.getInstance();
       await clientService.reconnectWithNewRelays();
-      
+
       Alert.alert('Success', 'Relay removed successfully');
     } else {
       Alert.alert('Error', 'Cannot remove the last relay');

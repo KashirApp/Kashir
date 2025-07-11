@@ -17,7 +17,11 @@ interface RelayUrlModalProps {
   onSubmit: (url: string) => void;
 }
 
-export function RelayUrlModal({ visible, onClose, onSubmit }: RelayUrlModalProps) {
+export function RelayUrlModal({
+  visible,
+  onClose,
+  onSubmit,
+}: RelayUrlModalProps) {
   const [relayUrl, setRelayUrl] = useState('');
 
   const handleSubmit = () => {
@@ -29,11 +33,9 @@ export function RelayUrlModal({ visible, onClose, onSubmit }: RelayUrlModalProps
 
     // Basic validation for websocket URL
     if (!trimmedUrl.startsWith('wss://') && !trimmedUrl.startsWith('ws://')) {
-      Alert.alert(
-        'Invalid URL',
-        'Relay URL must start with wss:// or ws://',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Invalid URL', 'Relay URL must start with wss:// or ws://', [
+        { text: 'OK' },
+      ]);
       return;
     }
 

@@ -61,7 +61,7 @@ export class ProfileService {
     }
   }
 
-  async fetchProfilesForPubkeys(client: Client, pubkeys: PublicKey[]) {
+  async fetchProfilesForPubkeys(client: Client, pubkeys: PublicKeyInterface[]) {
     if (pubkeys.length === 0) return;
 
     // Filter out already cached profiles

@@ -2,13 +2,16 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Button, SafeAreaView, Alert } from 'react-native';
 import { NostrClientService } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
+import { SecureStorageService } from '../services/SecureStorageService';
 import { usePosts } from '../hooks/usePosts';
 import { useFollowing } from '../hooks/useFollowing';
+import { useTrending } from '../hooks/useTrending';
 import { Header } from './Header';
 import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
 import type { TabType } from '../types';
 import { styles } from '../App.styles';
+import { Keys, SecretKey } from '../../../src';
 
 interface PostsScreenProps {
   userNpub: string;
@@ -19,7 +22,8 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
   const [isClientReady, setIsClientReady] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('following');
+  const [activeTab, setActiveTab] = useState<TabType>('trending');
+  const [userKeys, setUserKeys] = useState<Keys | null>(null);
 
   // Use ref to track if initial fetch has been triggered
   const hasInitialFetchStarted = useRef(false);
@@ -39,6 +43,13 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
     fetchFollowingList,
     fetchFollowingPosts,
   } = useFollowing(client, profileService);
+  const {
+    trendingPosts,
+    trendingEventIds,
+    trendingLoading,
+    profilesLoading: trendingProfilesLoading,
+    fetchTrendingPosts,
+  } = useTrending(client, profileService);
 
   // Initialize client on mount
   useEffect(() => {
@@ -60,6 +71,26 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
     };
   }, [clientService]);
 
+  // Load user keys for signing DVM requests
+  useEffect(() => {
+    const loadKeys = async () => {
+      try {
+        const privateKey = await SecureStorageService.getNostrPrivateKey();
+        if (privateKey) {
+          const secretKey = SecretKey.parse(privateKey);
+          const keys = new Keys(secretKey);
+          setUserKeys(keys);
+        } else {
+          console.log('No Nostr private key found in secure storage');
+        }
+      } catch (error) {
+        console.error('Failed to load user keys:', error);
+      }
+    };
+
+    loadKeys();
+  }, []);
+
   // Fetch user profile
   useEffect(() => {
     const fetchProfile = async () => {
@@ -77,14 +108,20 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
     fetchProfile();
   }, [client, isClientReady, userNpub, profileService]);
 
-  // Auto-fetch following data when client is ready (only once)
+  // Auto-fetch trending data when client is ready (only once)
   useEffect(() => {
-    if (isClientReady && userNpub && !hasInitialFetchStarted.current) {
+    if (
+      isClientReady &&
+      userNpub &&
+      userKeys &&
+      !hasInitialFetchStarted.current
+    ) {
       hasInitialFetchStarted.current = true;
-      fetchFollowingList(userNpub);
-      fetchFollowingPosts(userNpub);
+
+      // Fetch trending content on startup (default tab)
+      fetchTrendingPosts(userKeys);
     }
-  }, [isClientReady, userNpub, fetchFollowingList, fetchFollowingPosts]);
+  }, [isClientReady, userNpub, userKeys, fetchTrendingPosts]);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
@@ -98,14 +135,24 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
       fetchFollowingPosts(userNpub);
     } else if (tab === 'your-posts' && posts.length === 0 && !loading) {
       fetchPosts(userNpub);
+    } else if (
+      tab === 'trending' &&
+      trendingPosts.length === 0 &&
+      trendingEventIds.length === 0 &&
+      !trendingLoading &&
+      userKeys
+    ) {
+      fetchTrendingPosts(userKeys);
     }
   };
 
   const handleRefresh = () => {
     if (activeTab === 'your-posts') {
       fetchPosts(userNpub);
-    } else {
+    } else if (activeTab === 'following') {
       fetchFollowingPosts(userNpub);
+    } else if (activeTab === 'trending' && userKeys) {
+      fetchTrendingPosts(userKeys);
     }
   };
 
@@ -114,9 +161,18 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
     await onLogout();
   };
 
-  const currentPosts = activeTab === 'your-posts' ? posts : followingPosts;
+  const currentPosts =
+    activeTab === 'your-posts'
+      ? posts
+      : activeTab === 'following'
+        ? followingPosts
+        : trendingPosts;
   const currentLoading =
-    activeTab === 'your-posts' ? loading : followingLoading;
+    activeTab === 'your-posts'
+      ? loading
+      : activeTab === 'following'
+        ? followingLoading
+        : trendingLoading;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -144,15 +200,20 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
         />
       </View>
 
+      {/* Simplified rendering - just show loading or posts */}
       <PostList
         posts={currentPosts}
         loading={currentLoading}
-        showAuthor={activeTab === 'following'}
+        showAuthor={activeTab === 'following' || activeTab === 'trending'}
         profileService={profileService}
         title={
           activeTab === 'your-posts'
             ? 'Fetching your posts...'
-            : 'Fetching posts from following...'
+            : activeTab === 'following'
+              ? 'Fetching posts from following...'
+              : activeTab === 'trending' && trendingPosts.length > 0
+                ? 'Trending posts'
+                : 'Fetching trending posts...'
         }
       />
     </SafeAreaView>

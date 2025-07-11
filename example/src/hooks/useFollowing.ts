@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Client, PublicKey, Filter, Kind } from '../../../src';
-import type { EventInterface } from '../../../src';
+import type { EventInterface, PublicKeyInterface } from '../../../src';
 import { ProfileService } from '../services/ProfileService';
 import { tagsToArray } from '../services/NostrUtils';
 
@@ -10,7 +10,7 @@ export function useFollowing(
   profileService: ProfileService
 ) {
   const [followingPosts, setFollowingPosts] = useState<EventInterface[]>([]);
-  const [followingList, setFollowingList] = useState<PublicKey[]>([]);
+  const [followingList, setFollowingList] = useState<PublicKeyInterface[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
   const [profilesLoading, setProfilesLoading] = useState(false);
 
@@ -39,7 +39,7 @@ export function useFollowing(
           const contactListEvent = eventArray[0];
           if (contactListEvent) {
             const tags = contactListEvent.tags();
-            const followingPubkeys: PublicKey[] = [];
+            const followingPubkeys: PublicKeyInterface[] = [];
 
             // Extract public keys from p tags
             const tagArrays = tagsToArray(tags);
@@ -51,7 +51,7 @@ export function useFollowing(
                 if (tagData.length > 1 && tagData[0] === 'p') {
                   try {
                     const hexPubkey = tagData[1] as string;
-                    let pubkey = null;
+                    let pubkey: PublicKeyInterface | null = null;
 
                     try {
                       pubkey = PublicKey.parse(hexPubkey);
@@ -157,7 +157,9 @@ export function useFollowing(
                 return null;
               }
             })
-            .filter((pk) => pk !== null && pk !== undefined) as PublicKey[];
+            .filter(
+              (pk) => pk !== null && pk !== undefined
+            ) as PublicKeyInterface[];
 
           // Fetch profiles in background without affecting main loading state
           if (authorPubkeys.length > 0) {

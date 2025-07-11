@@ -111,7 +111,9 @@ export class StorageService {
     try {
       const relays = await StorageService.loadRelays();
       // Check if relay already exists (case-insensitive)
-      const exists = relays.some(r => r.toLowerCase() === relay.toLowerCase());
+      const exists = relays.some(
+        (r) => r.toLowerCase() === relay.toLowerCase()
+      );
       if (!exists) {
         relays.push(relay);
         await StorageService.saveRelays(relays);
@@ -129,15 +131,15 @@ export class StorageService {
     try {
       const relays = await StorageService.loadRelays();
       const filteredRelays = relays.filter(
-        r => r.toLowerCase() !== relay.toLowerCase()
+        (r) => r.toLowerCase() !== relay.toLowerCase()
       );
-      
+
       // Don't allow removing all relays
       if (filteredRelays.length === 0) {
         console.warn('Cannot remove last relay');
         return false;
       }
-      
+
       await StorageService.saveRelays(filteredRelays);
       return true;
     } catch (error) {

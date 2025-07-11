@@ -1,6 +1,7 @@
 import * as Keychain from 'react-native-keychain';
 
 const SEED_PHRASE_KEY = 'wallet_seed_phrase';
+const NOSTR_PRIVATE_KEY = 'nostr_private_key';
 const SERVICE_NAME = 'KashirWallet';
 
 export class SecureStorageService {
@@ -130,6 +131,102 @@ export class SecureStorageService {
       const biometryType = await Keychain.getSupportedBiometryType();
       return biometryType !== null;
     } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Store the Nostr private key securely using react-native-keychain
+   */
+  static async storeNostrPrivateKey(privateKey: string): Promise<boolean> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      console.warn(
+        'Keychain not available, cannot store Nostr private key securely'
+      );
+      return false;
+    }
+
+    try {
+      await Keychain.setInternetCredentials(
+        `${SERVICE_NAME}_nostr`,
+        NOSTR_PRIVATE_KEY,
+        privateKey,
+        {
+          accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+        }
+      );
+      return true;
+    } catch (error) {
+      console.error('Failed to store Nostr private key:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Retrieve the Nostr private key securely using react-native-keychain
+   */
+  static async getNostrPrivateKey(): Promise<string | null> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      console.warn('Keychain not available, cannot retrieve Nostr private key');
+      return null;
+    }
+
+    try {
+      const credentials = await Keychain.getInternetCredentials(
+        `${SERVICE_NAME}_nostr`
+      );
+
+      if (credentials && credentials.password) {
+        return credentials.password;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to retrieve Nostr private key:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if a Nostr private key exists in secure storage
+   */
+  static async hasNostrPrivateKey(): Promise<boolean> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      return false;
+    }
+
+    try {
+      const credentials = await Keychain.hasInternetCredentials({
+        server: `${SERVICE_NAME}_nostr`,
+      });
+      return credentials;
+    } catch (error) {
+      console.warn(
+        'SecureStorageService: Error checking for Nostr credentials:',
+        error
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Remove the Nostr private key from secure storage
+   */
+  static async removeNostrPrivateKey(): Promise<boolean> {
+    const available = await this.isKeychainAvailable();
+    if (!available) {
+      return false;
+    }
+
+    try {
+      await Keychain.resetInternetCredentials({
+        server: `${SERVICE_NAME}_nostr`,
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to remove Nostr private key:', error);
       return false;
     }
   }

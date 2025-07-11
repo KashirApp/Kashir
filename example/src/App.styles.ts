@@ -37,6 +37,46 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
+  // Login Method Toggle Styles
+  loginMethodContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 4,
+  },
+  loginMethodButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+  },
+  activeLoginMethod: {
+    backgroundColor: '#444',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  loginMethodText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#999',
+  },
+  activeLoginMethodText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#ff9500',
+    marginBottom: 15,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
   // Header Styles
   headerContainer: {
     padding: 20,

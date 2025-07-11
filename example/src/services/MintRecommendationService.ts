@@ -1,5 +1,5 @@
 import { Filter, Kind } from '../../../src';
-import { NostrClient } from './NostrClient';
+import { NostrClientService } from './NostrClient';
 import { tagsToArray } from './NostrUtils';
 
 export interface MintRecommendation {
@@ -30,7 +30,7 @@ export class MintRecommendationService {
 
     try {
       // Get the existing Nostr client
-      const clientService = NostrClient.getInstance();
+      const clientService = NostrClientService.getInstance();
       let client = clientService.getClient();
 
       // Initialize if not already done

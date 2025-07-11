@@ -66,7 +66,7 @@ class NostrClientService {
   async reconnectWithNewRelays(): Promise<Client> {
     // Disconnect existing client
     this.disconnect();
-    
+
     // Re-initialize with new relays
     return this.initialize();
   }
