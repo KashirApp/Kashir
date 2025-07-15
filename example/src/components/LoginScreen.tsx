@@ -24,7 +24,7 @@ type LoginMethod = 'private' | 'amber';
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [keyInput, setKeyInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<LoginMethod>('private');
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('amber');
 
   const checkAmberInstalled = async (): Promise<boolean> => {
     try {
@@ -139,22 +139,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           <TouchableOpacity
             style={[
               styles.loginMethodButton,
-              loginMethod === 'private' && styles.activeLoginMethod,
-            ]}
-            onPress={() => setLoginMethod('private')}
-          >
-            <Text
-              style={[
-                styles.loginMethodText,
-                loginMethod === 'private' && styles.activeLoginMethodText,
-              ]}
-            >
-              Private Key
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.loginMethodButton,
               loginMethod === 'amber' && styles.activeLoginMethod,
             ]}
             onPress={() => setLoginMethod('amber')}
@@ -166,6 +150,22 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               ]}
             >
               🟡 Amber
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.loginMethodButton,
+              loginMethod === 'private' && styles.activeLoginMethod,
+            ]}
+            onPress={() => setLoginMethod('private')}
+          >
+            <Text
+              style={[
+                styles.loginMethodText,
+                loginMethod === 'private' && styles.activeLoginMethodText,
+              ]}
+            >
+              Private Key
             </Text>
           </TouchableOpacity>
         </View>
