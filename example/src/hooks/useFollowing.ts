@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { Client, PublicKey, Filter, Kind } from '../../../src';
-import type { EventInterface, PublicKeyInterface } from '../../../src';
+import { Client, PublicKey, Filter, Kind } from 'kashir';
+import type { EventInterface, PublicKeyInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { tagsToArray } from '../services/NostrUtils';
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Button, SafeAreaView, Alert } from 'react-native';
-import { NostrClientService } from '../services/NostrClient';
+import { NostrClientService, LoginType } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
 import { usePosts } from '../hooks/usePosts';
@@ -11,14 +11,15 @@ import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
 import type { TabType } from '../types';
 import { styles } from '../App.styles';
-import { Keys, SecretKey } from '../../../src';
+import { Keys, SecretKey } from 'kashir';
 
 interface PostsScreenProps {
   userNpub: string;
+  loginType: LoginType;
   onLogout: () => Promise<void>;
 }
 
-export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
+export function PostsScreen({ userNpub, loginType, onLogout }: PostsScreenProps) {
   const [isClientReady, setIsClientReady] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
@@ -113,13 +114,20 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
     if (
       isClientReady &&
       userNpub &&
-      userKeys &&
       !hasInitialFetchStarted.current
     ) {
       hasInitialFetchStarted.current = true;
 
       // Fetch trending content on startup (default tab)
-      fetchTrendingPosts(userKeys);
+      // For Amber users, userKeys will be null, but trending doesn't require signing
+      if (userKeys) {
+        fetchTrendingPosts(userKeys);
+      } else {
+        // For Amber users, we can still fetch trending without keys
+        // since it only reads DVM responses, doesn't publish
+        console.log('Fetching trending posts for Amber user (no local keys)');
+        fetchTrendingPosts(null);
+      }
     }
   }, [isClientReady, userNpub, userKeys, fetchTrendingPosts]);
 
@@ -139,10 +147,10 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
       tab === 'trending' &&
       trendingPosts.length === 0 &&
       trendingEventIds.length === 0 &&
-      !trendingLoading &&
-      userKeys
+      !trendingLoading
     ) {
-      fetchTrendingPosts(userKeys);
+      // For trending, try with userKeys if available, otherwise null for Amber users
+      fetchTrendingPosts(userKeys || null);
     }
   };
 
@@ -151,8 +159,8 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
       fetchPosts(userNpub);
     } else if (activeTab === 'following') {
       fetchFollowingPosts(userNpub);
-    } else if (activeTab === 'trending' && userKeys) {
-      fetchTrendingPosts(userKeys);
+    } else if (activeTab === 'trending') {
+      fetchTrendingPosts(userKeys || null);
     }
   };
 

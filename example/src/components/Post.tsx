@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import type { EventInterface, TimestampInterface } from '../../../src';
+import type { EventInterface, TimestampInterface } from 'kashir';
 import { styles } from '../App.styles';
 
 interface PostProps {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
-import type { EventInterface } from '../../../src';
+import type { EventInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { Post } from './Post';
 import { styles } from '../App.styles';

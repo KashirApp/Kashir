@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { Client, PublicKey, Filter, Kind } from '../../../src';
-import type { EventInterface } from '../../../src';
+import { Client, PublicKey, Filter, Kind } from 'kashir';
+import type { EventInterface } from 'kashir';
 
 export function usePosts(client: Client | null) {
   const [posts, setPosts] = useState<EventInterface[]>([]);

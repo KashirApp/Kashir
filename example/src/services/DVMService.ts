@@ -1,5 +1,5 @@
-import { Filter, Kind, PublicKey, EventId } from '../../../src';
-import type { EventInterface, Client } from '../../../src';
+import { Filter, Kind, PublicKey, EventId } from 'kashir';
+import type { EventInterface, Client } from 'kashir';
 
 interface DVMResponse {
   eventIds: string[];
@@ -14,6 +14,7 @@ export class DVMService {
 
   async requestTrendingContent(client: Client): Promise<DVMResponse | null> {
     try {
+      console.log('Fetching existing DVM trending responses...');
       const dvmPubkey = PublicKey.parse(this.DVM_PUBKEY);
 
       const dvmFilter = new Filter()

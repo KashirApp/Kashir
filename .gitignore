@@ -84,12 +84,12 @@ NostrSdkFramework.xcframework/
 CdkFramework.xcframework/
 kashir.podspec
 ios/
-android/
+/android/
 cpp/
 src/
 !example/ios/
-!example/android/
 !example/src/
+!example/android/app/src/
 
 # React Native Nitro Modules
 nitrogen/

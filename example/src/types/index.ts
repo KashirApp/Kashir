@@ -1,4 +1,4 @@
-import type { PublicKey } from '../../../src';
+import type { PublicKey } from 'kashir';
 
 export type TabType = 'your-posts' | 'following' | 'trending';
 export type MainTabType = 'nostr' | 'wallet' | 'settings';

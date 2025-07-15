@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Allow Lightning network endpoints -->
+        <domain includeSubdomains="true">lightning.network</domain>
+        <domain includeSubdomains="true">lnurl.fiatjaf.com</domain>
+        <!-- Add your specific mint domains here if needed -->
+    </domain-config>
+    
+    <!-- Base configuration for API levels 28+ -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system CAs -->
+            <certificates src="system"/>
+            <!-- Trust user-added CAs for debugging -->
+            <certificates src="user"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config> 

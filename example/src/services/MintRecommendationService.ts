@@ -1,4 +1,4 @@
-import { Filter, Kind } from '../../../src';
+import { Filter, Kind } from 'kashir';
 import { NostrClientService } from './NostrClient';
 import { tagsToArray } from './NostrUtils';
 

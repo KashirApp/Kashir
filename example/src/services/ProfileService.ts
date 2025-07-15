@@ -1,5 +1,5 @@
-import { Client, PublicKey, Filter, Kind } from '../../../src';
-import type { PublicKeyInterface } from '../../../src';
+import { Client, PublicKey, Filter, Kind } from 'kashir';
+import type { PublicKeyInterface } from 'kashir';
 import type { ProfileCache } from '../types';
 
 export class ProfileService {

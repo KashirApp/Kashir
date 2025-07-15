@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { EventInterface, Client, Keys, PublicKey } from '../../../src';
+import type { EventInterface, Client, Keys, PublicKey } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
 
@@ -8,7 +8,7 @@ interface UseTrendingResult {
   trendingEventIds: string[];
   trendingLoading: boolean;
   profilesLoading: boolean;
-  fetchTrendingPosts: (keys: Keys) => Promise<void>;
+  fetchTrendingPosts: (keys: Keys | null) => Promise<void>;
 }
 
 export function useTrending(
@@ -23,9 +23,9 @@ export function useTrending(
   const dvmService = new DVMService();
 
   const fetchTrendingPosts = useCallback(
-    async (keys: Keys) => {
-      if (!client || !keys) {
-        console.log('Client or keys not available for trending posts');
+    async (keys: Keys | null) => {
+      if (!client) {
+        console.log('Client not available for trending posts');
         return;
       }
 
@@ -33,7 +33,9 @@ export function useTrending(
       try {
         console.log('Fetching trending posts via DVM...');
 
-        // Request trending content from DVM
+        // Note: Current implementation just reads existing DVM responses,
+        // doesn't publish new requests, so no signing required
+        // Request trending content from DVM (reads existing responses)
         const dvmResponse = await dvmService.requestTrendingContent(client);
 
         if (dvmResponse && dvmResponse.eventIds.length > 0) {

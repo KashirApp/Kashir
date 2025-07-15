@@ -9,7 +9,7 @@ import {
   FfiMintQuoteState,
   FfiSplitTarget,
   generateMnemonic,
-} from '../../../../../src';
+} from 'kashir';
 import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
 import { formatSats, getSatUnit } from '../utils/formatUtils';

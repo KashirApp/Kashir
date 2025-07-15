@@ -77,6 +77,28 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
   },
+  // Amber Login Styles
+  amberContainer: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  amberDescription: {
+    fontSize: 14,
+    color: '#fff',
+    marginBottom: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  amberNote: {
+    fontSize: 12,
+    color: '#ccc',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
   // Header Styles
   headerContainer: {
     padding: 20,

@@ -1,71 +1,106 @@
 import React, { useState, useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Linking } from 'react-native';
 import { LoginScreen } from './components/LoginScreen';
 import { PostsScreen } from './components/PostsScreen';
 import { WalletScreen } from './components/WalletScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { BottomTabNavigation } from './components/BottomTabNavigation';
 import { StorageService } from './services/StorageService';
+import { NostrClientService, LoginType } from './services/NostrClient';
+import { PublicKey } from 'kashir';
 import type { MainTabType } from './types';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userNpub, setUserNpub] = useState('');
+  const [loginType, setLoginType] = useState<LoginType>(LoginType.Amber);
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('wallet');
-  const [isLoadingStoredNpub, setIsLoadingStoredNpub] = useState(true);
+  const [isLoadingStoredSession, setIsLoadingStoredSession] = useState(true);
 
-  // Check for stored npub on app startup
+  // Global deep link listener for debugging
   useEffect(() => {
-    const checkStoredNpub = async () => {
+    const handleDeepLink = ({ url }: { url: string }) => {
+      console.log('App: Received deep link:', url);
+    };
+
+    // Listen for deep links when app is running
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check for initial URL when app launches
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log('App: Initial URL:', url);
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  // Check for stored session on app startup
+  useEffect(() => {
+    const checkStoredSession = async () => {
       try {
-        const storedNpub = await StorageService.loadNpub();
-        if (storedNpub) {
-          setUserNpub(storedNpub);
+        const nostrClient = NostrClientService.getInstance();
+        const session = await nostrClient.loadStoredSession();
+        
+        if (session && session.publicKey) {
+          // Convert hex to npub for display
+          const publicKey = PublicKey.parse(session.publicKey);
+          const npub = publicKey.toBech32();
+          
+          setUserNpub(npub);
+          setLoginType(session.type);
           setIsLoggedIn(true);
+          
+          // Initialize the client
+          await nostrClient.initialize();
         }
       } catch (error) {
-        console.error('Error loading stored npub:', error);
+        console.error('Error loading stored session:', error);
       } finally {
-        setIsLoadingStoredNpub(false);
+        setIsLoadingStoredSession(false);
       }
     };
 
-    checkStoredNpub();
+    checkStoredSession();
   }, []);
 
-  const handleLogin = async (npub: string) => {
+  const handleLogin = async (npub: string, loginType: LoginType) => {
     try {
-      // Save npub to storage
-      await StorageService.saveNpub(npub);
       setUserNpub(npub);
+      setLoginType(loginType);
       setIsLoggedIn(true);
     } catch (error) {
-      console.error('Error saving npub:', error);
-      // Continue with login even if storage fails
-      setUserNpub(npub);
-      setIsLoggedIn(true);
+      console.error('Error during login:', error);
+      throw error;
     }
   };
 
   const handleLogout = async () => {
     try {
-      // Remove npub from storage
+      const nostrClient = NostrClientService.getInstance();
+      nostrClient.logout();
+      
+      // Legacy cleanup
       await StorageService.removeNpub();
     } catch (error) {
-      console.error('Error removing npub from storage:', error);
+      console.error('Error during logout:', error);
     }
 
     setIsLoggedIn(false);
     setUserNpub('');
-    // Keep current tab - don't reset to nostr automatically
+    setLoginType(LoginType.Amber);
   };
 
   const handleMainTabChange = (tab: MainTabType) => {
     setActiveMainTab(tab);
   };
 
-  // Show loading state while checking for stored npub
-  if (isLoadingStoredNpub) {
+  // Show loading state while checking for stored session
+  if (isLoadingStoredSession) {
     return <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />;
   }
 
@@ -90,7 +125,11 @@ export default function App() {
           }}
         >
           {isLoggedIn ? (
-            <PostsScreen userNpub={userNpub} onLogout={handleLogout} />
+            <PostsScreen 
+              userNpub={userNpub} 
+              loginType={loginType}
+              onLogout={handleLogout} 
+            />
           ) : (
             <LoginScreen onLogin={handleLogin} />
           )}
