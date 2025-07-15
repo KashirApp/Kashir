@@ -1,16 +1,12 @@
 import { Linking } from 'react-native';
-import {
-  SignerBackend,
-  PublicKey,
-  Event,
-} from 'kashir';
+import { SignerBackend, PublicKey, Event } from 'kashir';
 import type {
   CustomNostrSigner,
   PublicKeyInterface,
   UnsignedEventInterface,
   EventInterface,
 } from 'kashir';
-import AmberModule from './AmberModule';
+import AmberService from './AmberService';
 
 export interface AmberResponse {
   id: string;
@@ -19,7 +15,10 @@ export interface AmberResponse {
 }
 
 export class AmberSigner implements CustomNostrSigner {
-  private pendingRequests: Map<string, { resolve: Function; reject: Function }> = new Map();
+  private pendingRequests: Map<
+    string,
+    { resolve: Function; reject: Function }
+  > = new Map();
   private currentUser?: string;
 
   constructor() {
@@ -33,16 +32,18 @@ export class AmberSigner implements CustomNostrSigner {
   private setupDeepLinkListener(): void {
     // Handle incoming URLs when app is already running
     Linking.addEventListener('url', this.handleDeepLink.bind(this));
-    
+
     // Handle initial URL when app is launched via deep link
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        console.log('AmberSigner: Initial URL received:', url);
-        this.handleDeepLink({ url });
-      }
-    }).catch((error) => {
-      console.error('AmberSigner: Error getting initial URL:', error);
-    });
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) {
+          console.log('AmberSigner: Initial URL received:', url);
+          this.handleDeepLink({ url });
+        }
+      })
+      .catch((error) => {
+        console.error('AmberSigner: Error getting initial URL:', error);
+      });
   }
 
   private handleDeepLink({ url }: { url: string }): void {
@@ -52,16 +53,34 @@ export class AmberSigner implements CustomNostrSigner {
       if (url.startsWith('kashir://')) {
         // Our return URL format
         const urlObj = new URL(url);
-        console.log('AmberSigner: Parsed URL:', urlObj.protocol, urlObj.pathname, urlObj.search);
-        
-        if (urlObj.pathname === '/amber-response' || urlObj.pathname === '//amber-response') {
+        console.log(
+          'AmberSigner: Parsed URL:',
+          urlObj.protocol,
+          urlObj.pathname,
+          urlObj.search
+        );
+
+        if (
+          urlObj.pathname === '/amber-response' ||
+          urlObj.pathname === '//amber-response'
+        ) {
           const params = new URLSearchParams(urlObj.search);
           const id = params.get('id');
           const result = params.get('result');
           const error = params.get('error');
 
-          console.log('AmberSigner: Parsed params - id:', id, 'result:', result, 'error:', error);
-          console.log('AmberSigner: Pending requests:', Array.from(this.pendingRequests.keys()));
+          console.log(
+            'AmberSigner: Parsed params - id:',
+            id,
+            'result:',
+            result,
+            'error:',
+            error
+          );
+          console.log(
+            'AmberSigner: Pending requests:',
+            Array.from(this.pendingRequests.keys())
+          );
 
           if (id && this.pendingRequests.has(id)) {
             const { resolve, reject } = this.pendingRequests.get(id)!;
@@ -78,7 +97,10 @@ export class AmberSigner implements CustomNostrSigner {
               reject(new Error('No result received from Amber'));
             }
           } else {
-            console.log('AmberSigner: No matching pending request found for id:', id);
+            console.log(
+              'AmberSigner: No matching pending request found for id:',
+              id
+            );
           }
         }
       } else if (url.startsWith('nostrsigner:')) {
@@ -87,26 +109,29 @@ export class AmberSigner implements CustomNostrSigner {
         const jsonPart = url.substring('nostrsigner:'.length);
         const decoded = decodeURIComponent(jsonPart);
         console.log('AmberSigner: Decoded response:', decoded);
-        
+
         try {
           const response = JSON.parse(decoded);
           console.log('AmberSigner: Parsed response:', response);
-          
+
           // For get_public_key responses, there might not be an ID
           // In this case, resolve the first pending get_public_key request
           if (response.result && this.pendingRequests.size > 0) {
-            console.log('AmberSigner: Resolving pending request with result:', response.result);
-            
+            console.log(
+              'AmberSigner: Resolving pending request with result:',
+              response.result
+            );
+
             // Find the first pending request (should be our get_public_key)
             const firstId = Array.from(this.pendingRequests.keys())[0];
             if (firstId) {
-              const { resolve, reject } = this.pendingRequests.get(firstId)!;
+              const { resolve } = this.pendingRequests.get(firstId)!;
               this.pendingRequests.delete(firstId);
               resolve(response.result);
               return;
             }
           }
-          
+
           // Traditional ID-based matching
           if (response.id && this.pendingRequests.has(response.id)) {
             const { resolve, reject } = this.pendingRequests.get(response.id)!;
@@ -116,19 +141,31 @@ export class AmberSigner implements CustomNostrSigner {
               console.log('AmberSigner: Rejecting with error:', response.error);
               reject(new Error(response.error));
             } else if (response.result) {
-              console.log('AmberSigner: Resolving with result:', response.result);
+              console.log(
+                'AmberSigner: Resolving with result:',
+                response.result
+              );
               resolve(response.result);
             } else {
               console.log('AmberSigner: No result in response');
               reject(new Error('No result received from Amber'));
             }
           } else {
-            console.log('AmberSigner: No matching pending request found for id:', response.id);
+            console.log(
+              'AmberSigner: No matching pending request found for id:',
+              response.id
+            );
             console.log('AmberSigner: Response:', response);
-            console.log('AmberSigner: Pending requests:', Array.from(this.pendingRequests.keys()));
+            console.log(
+              'AmberSigner: Pending requests:',
+              Array.from(this.pendingRequests.keys())
+            );
           }
         } catch (parseError) {
-          console.error('AmberSigner: Failed to parse response JSON:', parseError);
+          console.error(
+            'AmberSigner: Failed to parse response JSON:',
+            parseError
+          );
         }
       } else {
         console.log('AmberSigner: URL does not match expected pattern:', url);
@@ -138,16 +175,19 @@ export class AmberSigner implements CustomNostrSigner {
     }
   }
 
-  private async makeAmberRequest(type: string, data: any = {}): Promise<string> {
+  private async makeAmberRequest(
+    type: string,
+    data: any = {}
+  ): Promise<string> {
     const id = Math.random().toString(36).substring(7);
-    
+
     console.log('AmberSigner: Making request with id:', id, 'type:', type);
 
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
 
       let requestData: any;
-      
+
       if (type === 'get_public_key') {
         // For get_public_key, use simplified format without returnUrl
         requestData = {
@@ -172,13 +212,15 @@ export class AmberSigner implements CustomNostrSigner {
       console.log('AmberSigner: Opening Amber URL:', amberUrl);
       console.log('AmberSigner: Request data:', requestData);
 
-      Linking.openURL(amberUrl).then(() => {
-        console.log('AmberSigner: Successfully opened Amber');
-      }).catch((error) => {
-        console.error('AmberSigner: Failed to open Amber:', error);
-        this.pendingRequests.delete(id);
-        reject(new Error(`Failed to open Amber: ${error.message}`));
-      });
+      Linking.openURL(amberUrl)
+        .then(() => {
+          console.log('AmberSigner: Successfully opened Amber');
+        })
+        .catch((error) => {
+          console.error('AmberSigner: Failed to open Amber:', error);
+          this.pendingRequests.delete(id);
+          reject(new Error(`Failed to open Amber: ${error.message}`));
+        });
 
       // Set a timeout for the request
       setTimeout(() => {
@@ -195,34 +237,37 @@ export class AmberSigner implements CustomNostrSigner {
     try {
       const permissions = [
         {
-          type: 'nip04_encrypt'
+          type: 'nip04_encrypt',
         },
         {
-          type: 'nip04_decrypt'
+          type: 'nip04_decrypt',
         },
         {
           type: 'sign_event',
-          kind: 37818  // PrimalWalletOperation
+          kind: 37818, // PrimalWalletOperation
         },
         {
-          type: 'sign_event', 
-          kind: 30078  // ApplicationSpecificData
-        }
+          type: 'sign_event',
+          kind: 30078, // ApplicationSpecificData
+        },
       ];
 
       // Try native module first if available
-      if (AmberModule) {
-        console.log('AmberSigner: Using native module to get public key');
+      if (AmberService) {
+        console.log('AmberSigner: Using AmberService to get public key');
         console.log('AmberSigner: Permissions:', permissions);
 
         try {
           const permissionsJson = JSON.stringify(permissions);
-          const result = await AmberModule.getPublicKey(permissionsJson);
-          
+          const result = await AmberService.getPublicKey(permissionsJson);
+
           if (result) {
-            console.log('AmberSigner: Received public key result from native module:', result);
+            console.log(
+              'AmberSigner: Received public key result from AmberService:',
+              result
+            );
             this.currentUser = result;
-            
+
             // Handle both hex and npub formats
             let publicKey: PublicKeyInterface;
             if (result.startsWith('npub')) {
@@ -230,15 +275,17 @@ export class AmberSigner implements CustomNostrSigner {
             } else {
               publicKey = PublicKey.parse(result);
             }
-            
+
             return publicKey;
           }
         } catch (error) {
-          console.error('AmberSigner: Native module failed:', error);
+          console.error('AmberSigner: AmberService failed:', error);
           console.log('AmberSigner: Falling back to URL approach');
         }
       } else {
-        console.log('AmberSigner: Native module not available, using URL approach');
+        console.log(
+          'AmberSigner: AmberService not available, using URL approach'
+        );
       }
 
       // Fallback to URL approach
@@ -249,14 +296,19 @@ export class AmberSigner implements CustomNostrSigner {
     return undefined;
   }
 
-  private async getPublicKeyWithUrl(permissions: any[]): Promise<PublicKeyInterface | undefined> {
+  private async getPublicKeyWithUrl(
+    permissions: any[]
+  ): Promise<PublicKeyInterface | undefined> {
     try {
-      console.log('AmberSigner: Using URL approach with permissions:', permissions);
-      
+      console.log(
+        'AmberSigner: Using URL approach with permissions:',
+        permissions
+      );
+
       // Try the JSON approach like Primal's sign_event
       const requestData = {
         type: 'get_public_key',
-        permissions: permissions
+        permissions: permissions,
       };
 
       const amberUrl = `nostrsigner:${encodeURIComponent(JSON.stringify(requestData))}`;
@@ -266,13 +318,15 @@ export class AmberSigner implements CustomNostrSigner {
         const id = 'url_' + Math.random().toString(36).substring(7);
         this.pendingRequests.set(id, { resolve, reject });
 
-        Linking.openURL(amberUrl).then(() => {
-          console.log('AmberSigner: Successfully opened Amber URL');
-        }).catch((error) => {
-          console.error('AmberSigner: Failed to open Amber:', error);
-          this.pendingRequests.delete(id);
-          reject(new Error(`Failed to open Amber: ${error.message}`));
-        });
+        Linking.openURL(amberUrl)
+          .then(() => {
+            console.log('AmberSigner: Successfully opened Amber URL');
+          })
+          .catch((error) => {
+            console.error('AmberSigner: Failed to open Amber:', error);
+            this.pendingRequests.delete(id);
+            reject(new Error(`Failed to open Amber: ${error.message}`));
+          });
 
         setTimeout(() => {
           if (this.pendingRequests.has(id)) {
@@ -288,7 +342,9 @@ export class AmberSigner implements CustomNostrSigner {
     }
   }
 
-  async signEvent(unsignedEvent: UnsignedEventInterface): Promise<EventInterface | undefined> {
+  async signEvent(
+    unsignedEvent: UnsignedEventInterface
+  ): Promise<EventInterface | undefined> {
     try {
       if (!this.currentUser) {
         throw new Error('No user logged in with Amber');
