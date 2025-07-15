@@ -25,7 +25,7 @@ class ReactNativeAmberService implements AmberServiceInterface {
           type: 'get_public_key',
           permissions: permissions  // Pass as string like Kotlin does
         }
-      });
+      } as any);
 
       console.log('AmberService: Received result from Amber:', result);
 
