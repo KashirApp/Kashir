@@ -13,6 +13,7 @@ import { MintsList, MintUrlModal, useWallet } from './wallet';
 import { RelaysList, RelayUrlModal } from './nostr';
 import { SecureStorageService, StorageService } from '../services';
 import { NostrClientService } from '../services/NostrClient';
+import packageInfo from '../../package.json';
 
 interface SettingsScreenProps {
   isVisible: boolean;
@@ -225,6 +226,13 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
             <Text style={styles.noSeedPhraseText}>No seed phrase stored</Text>
           )}
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <View style={styles.aboutContainer}>
+            <Text style={styles.aboutText}>Version: {packageInfo.version}</Text>
+          </View>
+        </View>
       </ScrollView>
 
       <MintUrlModal
@@ -297,5 +305,13 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  aboutContainer: {
+    paddingVertical: 10,
+  },
+  aboutText: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 5,
   },
 });
