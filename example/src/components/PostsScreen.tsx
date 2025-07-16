@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Button, SafeAreaView, Alert } from 'react-native';
+import { View, Button, SafeAreaView, Alert, TouchableOpacity, Text } from 'react-native';
 import { NostrClientService, LoginType } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
@@ -9,6 +9,7 @@ import { useTrending } from '../hooks/useTrending';
 import { Header } from './Header';
 import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
+import { ComposeNoteModal } from './ComposeNoteModal';
 import type { TabType } from '../types';
 import { styles } from '../App.styles';
 import { Keys, SecretKey } from 'kashir';
@@ -25,6 +26,7 @@ export function PostsScreen({ userNpub, loginType, onLogout }: PostsScreenProps)
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [userKeys, setUserKeys] = useState<Keys | null>(null);
+  const [isComposeModalVisible, setIsComposeModalVisible] = useState(false);
 
   // Use ref to track if initial fetch has been triggered
   const hasInitialFetchStarted = useRef(false);
@@ -169,6 +171,15 @@ export function PostsScreen({ userNpub, loginType, onLogout }: PostsScreenProps)
     await onLogout();
   };
 
+  const handleComposeNote = () => {
+    setIsComposeModalVisible(true);
+  };
+
+  const handleNotePosted = () => {
+    // Refresh the current tab after posting a note
+    handleRefresh();
+  };
+
   const currentPosts =
     activeTab === 'your-posts'
       ? posts
@@ -223,6 +234,24 @@ export function PostsScreen({ userNpub, loginType, onLogout }: PostsScreenProps)
                 ? 'Trending posts'
                 : 'Fetching trending posts...'
         }
+      />
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={handleComposeNote}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
+
+      {/* Compose Note Modal */}
+      <ComposeNoteModal
+        visible={isComposeModalVisible}
+        onClose={() => setIsComposeModalVisible(false)}
+        userKeys={userKeys}
+        loginType={loginType}
+        onNotePosted={handleNotePosted}
       />
     </SafeAreaView>
   );
