@@ -46,7 +46,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Get Amber',
-            onPress: () => Linking.openURL('https://github.com/greenart7c3/Amber'),
+            onPress: () =>
+              Linking.openURL('https://github.com/greenart7c3/Amber'),
           },
         ]
       );
@@ -57,7 +58,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     try {
       const nostrClient = NostrClientService.getInstance();
       const result = await nostrClient.loginWithAmber();
-      
+
       // The result could be either hex string or npub format
       let npub: string;
       if (result.startsWith('npub')) {
@@ -67,13 +68,15 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         const publicKey = PublicKey.parse(result);
         npub = publicKey.toBech32();
       }
-      
+
       await onLogin(npub, LoginType.Amber);
     } catch (error) {
       console.error('Amber login error:', error);
       Alert.alert(
         'Login Failed',
-        error instanceof Error ? error.message : 'Failed to login with Amber. Please try again.'
+        error instanceof Error
+          ? error.message
+          : 'Failed to login with Amber. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -82,10 +85,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
   const handleKeyLogin = async () => {
     if (!keyInput.trim()) {
-      Alert.alert(
-        'Error',
-        'Please enter your private key'
-      );
+      Alert.alert('Error', 'Please enter your private key');
       return;
     }
 
@@ -112,10 +112,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
       await onLogin(npub, LoginType.PrivateKey);
     } catch (error) {
-      Alert.alert(
-        'Error',
-        'Invalid private key. Please check and try again.'
-      );
+      Alert.alert('Error', 'Invalid private key. Please check and try again.');
     } finally {
       setLoading(false);
     }
@@ -185,8 +182,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             />
 
             <Text style={styles.warningText}>
-              ⚠️ Private keys are stored securely for signing. Only use on trusted
-              devices.
+              ⚠️ Private keys are stored securely for signing. Only use on
+              trusted devices.
             </Text>
           </>
         )}
@@ -197,7 +194,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               🟡 Login with Amber external signer app for secure key management.
             </Text>
             <Text style={styles.amberNote}>
-              Your private keys remain secure in the Amber app and never leave your device.
+              Your private keys remain secure in the Amber app and never leave
+              your device.
             </Text>
           </View>
         )}

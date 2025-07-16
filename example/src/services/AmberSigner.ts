@@ -237,19 +237,26 @@ export class AmberSigner implements CustomNostrSigner {
 
       let timestamp;
       try {
-        timestamp = eventData.created_at?.asSecs ? Number(eventData.created_at.asSecs()) : 
-                   eventData.created_at?.seconds ? Number(eventData.created_at.seconds) :
-                   eventData.created_at ? Number(eventData.created_at) :
-                   Math.floor(Date.now() / 1000);
+        timestamp = eventData.created_at?.asSecs
+          ? Number(eventData.created_at.asSecs())
+          : (eventData.created_at as any)?.seconds
+            ? Number((eventData.created_at as any).seconds)
+            : eventData.created_at
+              ? Number(eventData.created_at)
+              : Math.floor(Date.now() / 1000);
       } catch (e) {
         timestamp = Math.floor(Date.now() / 1000);
       }
 
       let kind;
       try {
-        kind = eventData.kind?.asU16 ? Number(eventData.kind.asU16()) :
-               eventData.kind?.value ? Number(eventData.kind.value) :
-               eventData.kind ? Number(eventData.kind) : 1;
+        kind = eventData.kind?.asU16
+          ? Number(eventData.kind.asU16())
+          : (eventData.kind as any)?.value
+            ? Number((eventData.kind as any).value)
+            : eventData.kind
+              ? Number(eventData.kind)
+              : 1;
       } catch (e) {
         kind = 1;
       }
@@ -261,7 +268,7 @@ export class AmberSigner implements CustomNostrSigner {
         content: eventData.content,
         pubkey: eventData.pubkey,
       });
-      
+
       const result = await AmberService.signEvent(eventJson, this.currentUser);
 
       if (result) {
@@ -269,7 +276,9 @@ export class AmberSigner implements CustomNostrSigner {
         return Event.fromJson(JSON.stringify(signedEventData));
       }
     } catch (error) {
-      throw new Error(`Failed to sign event with Amber: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to sign event with Amber: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
     return undefined;
   }

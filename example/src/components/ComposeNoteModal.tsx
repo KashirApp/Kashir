@@ -46,7 +46,10 @@ export function ComposeNoteModal({
     }
 
     if (noteContent.length > maxCharacters) {
-      Alert.alert('Error', `Note is too long. Maximum ${maxCharacters} characters allowed.`);
+      Alert.alert(
+        'Error',
+        `Note is too long. Maximum ${maxCharacters} characters allowed.`
+      );
       return;
     }
 
@@ -91,7 +94,9 @@ export function ComposeNoteModal({
       console.error('Failed to post note:', error);
       Alert.alert(
         'Error',
-        error instanceof Error ? error.message : 'Failed to post note. Please try again.'
+        error instanceof Error
+          ? error.message
+          : 'Failed to post note. Please try again.'
       );
     } finally {
       setIsPosting(false);
@@ -155,7 +160,9 @@ export function ComposeNoteModal({
                 { opacity: isPosting || !noteContent.trim() ? 0.5 : 1 },
               ]}
               onPress={handlePost}
-              disabled={isPosting || !noteContent.trim() || charactersRemaining < 0}
+              disabled={
+                isPosting || !noteContent.trim() || charactersRemaining < 0
+              }
             >
               {isPosting ? (
                 <ActivityIndicator size="small" color="#fff" />

@@ -86,7 +86,7 @@ class NostrClientService {
       }
 
       const publicKeyHex = publicKey.toHex();
-      
+
       // Create simplified session (no signer saved)
       this.currentSession = {
         type: LoginType.Amber,
@@ -99,7 +99,7 @@ class NostrClientService {
 
       // Create signer for current session only
       const signer = NostrSigner.custom(this.amberSigner);
-      
+
       // Reinitialize client with the new signer
       this.disconnect();
       await this.initialize();
@@ -121,35 +121,35 @@ class NostrClientService {
         if (npub) {
           const publicKey = PublicKey.parse(npub);
           const publicKeyHex = publicKey.toHex();
-          
+
           this.currentSession = {
             type: LoginType.PrivateKey,
             publicKey: publicKeyHex,
           };
-          
+
           return this.currentSession;
         }
       }
-      
+
       // Check for npub only (Amber login)
       const npub = await StorageService.loadNpub();
       if (npub) {
         const publicKey = PublicKey.parse(npub);
         const publicKeyHex = publicKey.toHex();
-        
+
         this.currentSession = {
           type: LoginType.Amber,
           publicKey: publicKeyHex,
         };
-        
+
         // Recreate AmberSigner for Amber login
         if (!this.amberSigner) {
           this.amberSigner = new AmberSigner();
         }
-        
+
         return this.currentSession;
       }
-      
+
       // No login found
       return null;
     } catch (error) {
@@ -171,11 +171,11 @@ class NostrClientService {
       this.amberSigner.disconnect();
       this.amberSigner = null;
     }
-    
+
     this.currentSession = null;
     StorageService.removeNpub();
     SecureStorageService.removeNostrPrivateKey();
-    
+
     this.disconnect();
   }
 

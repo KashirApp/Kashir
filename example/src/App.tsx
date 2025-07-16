@@ -45,16 +45,16 @@ export default function App() {
       try {
         const nostrClient = NostrClientService.getInstance();
         const session = await nostrClient.loadStoredSession();
-        
+
         if (session && session.publicKey) {
           // Convert hex to npub for display
           const publicKey = PublicKey.parse(session.publicKey);
           const npub = publicKey.toBech32();
-          
+
           setUserNpub(npub);
           setLoginType(session.type);
           setIsLoggedIn(true);
-          
+
           // Initialize the client
           await nostrClient.initialize();
         }
@@ -83,7 +83,7 @@ export default function App() {
     try {
       const nostrClient = NostrClientService.getInstance();
       nostrClient.logout();
-      
+
       // Legacy cleanup
       await StorageService.removeNpub();
     } catch (error) {
@@ -125,10 +125,10 @@ export default function App() {
           }}
         >
           {isLoggedIn ? (
-            <PostsScreen 
-              userNpub={userNpub} 
+            <PostsScreen
+              userNpub={userNpub}
               loginType={loginType}
-              onLogout={handleLogout} 
+              onLogout={handleLogout}
             />
           ) : (
             <LoginScreen onLogin={handleLogin} />

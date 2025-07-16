@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Button, SafeAreaView, Alert, TouchableOpacity, Text } from 'react-native';
+import {
+  View,
+  Button,
+  SafeAreaView,
+  Alert,
+  TouchableOpacity,
+  Text,
+} from 'react-native';
 import { NostrClientService, LoginType } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
@@ -20,7 +27,11 @@ interface PostsScreenProps {
   onLogout: () => Promise<void>;
 }
 
-export function PostsScreen({ userNpub, loginType, onLogout }: PostsScreenProps) {
+export function PostsScreen({
+  userNpub,
+  loginType,
+  onLogout,
+}: PostsScreenProps) {
   const [isClientReady, setIsClientReady] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
@@ -113,11 +124,7 @@ export function PostsScreen({ userNpub, loginType, onLogout }: PostsScreenProps)
 
   // Auto-fetch trending data when client is ready (only once)
   useEffect(() => {
-    if (
-      isClientReady &&
-      userNpub &&
-      !hasInitialFetchStarted.current
-    ) {
+    if (isClientReady && userNpub && !hasInitialFetchStarted.current) {
       hasInitialFetchStarted.current = true;
 
       // Fetch trending content on startup (default tab)

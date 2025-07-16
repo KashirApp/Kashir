@@ -9,7 +9,9 @@ interface AmberServiceInterface {
 class ReactNativeAmberService implements AmberServiceInterface {
   async getPublicKey(permissions: string): Promise<string> {
     try {
-      const isInstalled = await AppUtils.isAppInstalled('com.greenart7c3.nostrsigner');
+      const isInstalled = await AppUtils.isAppInstalled(
+        'com.greenart7c3.nostrsigner'
+      );
       if (!isInstalled) {
         throw new Error('Amber app is not installed');
       }
@@ -20,8 +22,8 @@ class ReactNativeAmberService implements AmberServiceInterface {
         packageName: 'com.greenart7c3.nostrsigner',
         extra: {
           type: 'get_public_key',
-          permissions: permissions
-        }
+          permissions: permissions,
+        },
       } as any);
 
       if (result && result.extra && result.extra.result) {
@@ -30,13 +32,17 @@ class ReactNativeAmberService implements AmberServiceInterface {
         throw new Error('No result received from Amber');
       }
     } catch (error) {
-      throw new Error(`Failed to launch Amber: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to launch Amber: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   async signEvent(event: string, currentUser?: string): Promise<string> {
     try {
-      const isInstalled = await AppUtils.isAppInstalled('com.greenart7c3.nostrsigner');
+      const isInstalled = await AppUtils.isAppInstalled(
+        'com.greenart7c3.nostrsigner'
+      );
       if (!isInstalled) {
         throw new Error('Amber app is not installed');
       }
@@ -47,25 +53,27 @@ class ReactNativeAmberService implements AmberServiceInterface {
         packageName: 'com.greenart7c3.nostrsigner',
         extra: {
           type: 'sign_event',
-          ...(currentUser && { current_user: currentUser })
-        }
+          ...(currentUser && { current_user: currentUser }),
+        },
       } as any);
 
       if (result && result.extra && result.extra.event) {
         return result.extra.event;
       } else if (result && result.extra && result.extra.result) {
         return result.extra.result;
-      } else if (result && result.event) {
-        return result.event;
-      } else if (result && result.result) {
-        return result.result;
+      } else if (result && (result as any).event) {
+        return (result as any).event;
+      } else if (result && (result as any).result) {
+        return (result as any).result;
       } else if (result && typeof result === 'string') {
         return result;
       } else {
         throw new Error('No signed event received from Amber');
       }
     } catch (error) {
-      throw new Error(`Failed to launch Amber: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to launch Amber: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 }
