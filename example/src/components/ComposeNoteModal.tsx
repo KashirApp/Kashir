@@ -30,9 +30,6 @@ export function ComposeNoteModal({
   const [noteContent, setNoteContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
 
-  const maxCharacters = 280;
-  const charactersRemaining = maxCharacters - noteContent.length;
-
   const handleClose = () => {
     if (isPosting) return;
     setNoteContent('');
@@ -42,14 +39,6 @@ export function ComposeNoteModal({
   const handlePost = async () => {
     if (!noteContent.trim()) {
       Alert.alert('Error', 'Please enter some content for your note.');
-      return;
-    }
-
-    if (noteContent.length > maxCharacters) {
-      Alert.alert(
-        'Error',
-        `Note is too long. Maximum ${maxCharacters} characters allowed.`
-      );
       return;
     }
 
@@ -132,17 +121,7 @@ export function ComposeNoteModal({
             multiline
             autoFocus
             editable={!isPosting}
-            maxLength={maxCharacters}
           />
-
-          <Text
-            style={[
-              styles.characterCount,
-              { color: charactersRemaining < 0 ? '#ff4444' : '#999' },
-            ]}
-          >
-            {charactersRemaining} characters remaining
-          </Text>
 
           <View style={styles.modalButtons}>
             <TouchableOpacity
@@ -160,9 +139,7 @@ export function ComposeNoteModal({
                 { opacity: isPosting || !noteContent.trim() ? 0.5 : 1 },
               ]}
               onPress={handlePost}
-              disabled={
-                isPosting || !noteContent.trim() || charactersRemaining < 0
-              }
+              disabled={isPosting || !noteContent.trim()}
             >
               {isPosting ? (
                 <ActivityIndicator size="small" color="#fff" />
