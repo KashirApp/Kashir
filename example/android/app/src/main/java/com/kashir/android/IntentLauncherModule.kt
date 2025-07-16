@@ -1,11 +1,16 @@
 package com.kashir.android
 
 import android.app.Activity
+import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import com.facebook.react.bridge.*
 import com.facebook.react.module.annotations.ReactModule
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -20,7 +25,9 @@ class IntentLauncherModule(private val reactContext: ReactApplicationContext) :
         reactContext.addActivityEventListener(this)
     }
 
-    override fun getName(): String = NAME
+    override fun getName(): String {
+        return NAME
+    }
 
     override fun onActivityResult(
         activity: Activity?,
@@ -90,7 +97,7 @@ class IntentLauncherModule(private val reactContext: ReactApplicationContext) :
     override fun onNewIntent(intent: Intent?) {
         // Not used for this implementation
     }
-
+    
     @ReactMethod
     fun startActivity(options: ReadableMap, promise: Promise) {
         try {
@@ -151,6 +158,96 @@ class IntentLauncherModule(private val reactContext: ReactApplicationContext) :
                 ReadableType.Null -> intent.putExtra(key, "")
                 else -> intent.putExtra(key, value.asString())
             }
+        }
+    }
+    
+    @ReactMethod
+    fun queryContentResolver(
+        uri: String,
+        projection: ReadableArray?,
+        selection: String?,
+        selectionArgs: ReadableArray?,
+        promise: Promise
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = performContentResolverQuery(uri, projection, selection, selectionArgs)
+                
+                withContext(Dispatchers.Main) {
+                    promise.resolve(result)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    promise.reject("CONTENT_RESOLVER_ERROR", "Failed to query content resolver: ${e.message}", e)
+                }
+            }
+        }
+    }
+    
+    private suspend fun performContentResolverQuery(
+        uriString: String,
+        projection: ReadableArray?,
+        selection: String?,
+        selectionArgs: ReadableArray?
+    ): WritableMap {
+        return withContext(Dispatchers.IO) {
+            val contentResolver: ContentResolver = reactContext.contentResolver
+            val uri = Uri.parse(uriString)
+            
+            // Convert ReadableArray to String arrays
+            val projectionArray = projection?.let { array ->
+                Array(array.size()) { i -> array.getString(i) }
+            }
+            
+            val result = Arguments.createMap()
+            
+            try {
+                // Content resolver query format: projection contains the data, selection is "1", selectionArgs is null
+                val cursor = contentResolver.query(
+                    uri,
+                    projectionArray,  // This contains [event, "", currentUser] 
+                    selection,        // This is "1"
+                    null,            // selectionArgs is always null
+                    null             // sortOrder is always null
+                )
+                
+                cursor?.use { c ->
+                    if (c.moveToFirst()) {
+                        // Get all column names and their values
+                        val columnNames = c.columnNames
+                        
+                        // Response handling: Look for specific columns
+                        val eventColumn = c.getColumnIndex("event")
+                        val rejectedColumn = c.getColumnIndex("rejected")
+                        val signatureColumn = c.getColumnIndex("signature")
+                        
+                        if (rejectedColumn >= 0) {
+                            result.putString("rejected", "true")
+                        } else if (eventColumn >= 0) {
+                            val eventValue = c.getString(eventColumn)
+                            result.putString("event", eventValue)
+                        } else if (signatureColumn >= 0) {
+                            val signatureValue = c.getString(signatureColumn)
+                            result.putString("signature", signatureValue)
+                        }
+                        
+                        // Also add all columns for debugging
+                        for (columnName in columnNames) {
+                            val columnIndex = c.getColumnIndex(columnName)
+                            if (columnIndex != -1) {
+                                val value = c.getString(columnIndex)
+                                if (!result.hasKey(columnName)) {
+                                    result.putString(columnName, value)
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Silent failure
+            }
+            
+            result
         }
     }
     

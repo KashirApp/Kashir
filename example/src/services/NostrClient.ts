@@ -37,7 +37,11 @@ class NostrClientService {
     try {
       // Create signer based on session type
       let signer: NostrSignerInterface | undefined;
-      if (this.currentSession?.type === LoginType.Amber && this.amberSigner) {
+      if (this.currentSession?.type === LoginType.Amber) {
+        // Ensure AmberSigner is available
+        if (!this.amberSigner) {
+          this.amberSigner = new AmberSigner();
+        }
         signer = NostrSigner.custom(this.amberSigner);
       }
 
@@ -46,13 +50,11 @@ class NostrClientService {
 
       // Load relays from storage
       const relays = await StorageService.loadRelays();
-      console.log(`Loading ${relays.length} relays from storage`);
 
       // Add all relays
       for (const relay of relays) {
         try {
           await newClient.addRelay(relay);
-          console.log(`Added relay: ${relay}`);
         } catch (error) {
           console.error(`Failed to add relay ${relay}:`, error);
         }
@@ -65,7 +67,6 @@ class NostrClientService {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       this.client = newClient;
-      console.log('Client initialized and connected to relays');
       return newClient;
     } catch (error) {
       console.error('Failed to initialize client:', error);
@@ -97,6 +98,9 @@ class NostrClientService {
       const npub = publicKey.toBech32();
       await StorageService.saveNpub(npub);
 
+      // Update AmberSigner with the npub
+      this.amberSigner = new AmberSigner(npub);
+
       // Create signer for current session only
       const signer = NostrSigner.custom(this.amberSigner);
 
@@ -116,6 +120,7 @@ class NostrClientService {
     try {
       // Check for private key first (takes precedence)
       const hasPrivateKey = await SecureStorageService.hasNostrPrivateKey();
+
       if (hasPrivateKey) {
         const npub = await StorageService.loadNpub();
         if (npub) {
@@ -133,6 +138,7 @@ class NostrClientService {
 
       // Check for npub only (Amber login)
       const npub = await StorageService.loadNpub();
+
       if (npub) {
         const publicKey = PublicKey.parse(npub);
         const publicKeyHex = publicKey.toHex();
@@ -144,7 +150,7 @@ class NostrClientService {
 
         // Recreate AmberSigner for Amber login
         if (!this.amberSigner) {
-          this.amberSigner = new AmberSigner();
+          this.amberSigner = new AmberSigner(npub);
         }
 
         return this.currentSession;

@@ -1,4 +1,3 @@
-import { Linking } from 'react-native';
 import IntentLauncher, { AppUtils } from './IntentLauncher';
 
 interface AmberServiceInterface {
@@ -43,16 +42,60 @@ class ReactNativeAmberService implements AmberServiceInterface {
       const isInstalled = await AppUtils.isAppInstalled(
         'com.greenart7c3.nostrsigner'
       );
+
       if (!isInstalled) {
         throw new Error('Amber app is not installed');
       }
 
+      // First try content resolver for automatic signing (no UI)
+      try {
+        if (!IntentLauncher.queryContentResolver) {
+          throw new Error('queryContentResolver method not available');
+        }
+
+        // Try content resolver queries - primary method should be the uppercase URI
+        const queries = [
+          {
+            uri: 'content://com.greenart7c3.nostrsigner.SIGN_EVENT',
+            projection: [event, '', currentUser || ''],
+            selection: '1',
+            selectionArgs: undefined,
+          },
+          {
+            uri: 'content://com.greenart7c3.nostrsigner.sign_event',
+            projection: [event, '', currentUser || ''],
+            selection: '1',
+            selectionArgs: undefined,
+          },
+        ];
+
+        for (const query of queries) {
+          const contentResult = await IntentLauncher.queryContentResolver(
+            query.uri,
+            query.projection,
+            query.selection,
+            query.selectionArgs
+          );
+
+          if (contentResult && contentResult.event) {
+            return contentResult.event;
+          } else if (contentResult && contentResult.rejected) {
+            throw new Error('Signing was rejected by Amber');
+          }
+        }
+      } catch (contentError) {
+        // Fall back to UI launcher if content resolver fails
+      }
+
+      // Fall back to UI launcher if content resolver is unavailable or returns undecided
       const result = await IntentLauncher.startActivity({
         action: 'android.intent.action.VIEW',
         data: `nostrsigner:${event}`,
         packageName: 'com.greenart7c3.nostrsigner',
         extra: {
           type: 'sign_event',
+          silent: true, // Try to minimize UI
+          auto_approve: true, // Try to auto-approve if permission exists
           ...(currentUser && { current_user: currentUser }),
         },
       } as any);

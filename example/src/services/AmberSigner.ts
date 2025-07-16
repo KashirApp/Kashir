@@ -21,7 +21,8 @@ export class AmberSigner implements CustomNostrSigner {
   > = new Map();
   private currentUser?: string;
 
-  constructor() {
+  constructor(currentUser?: string) {
+    this.currentUser = currentUser;
     this.setupDeepLinkListener();
   }
 
@@ -135,6 +136,19 @@ export class AmberSigner implements CustomNostrSigner {
   }
 
   async getPublicKey(): Promise<PublicKeyInterface | undefined> {
+    // If we have currentUser (from storage), parse it directly
+    if (this.currentUser) {
+      try {
+        return PublicKey.parse(this.currentUser);
+      } catch (error) {
+        console.error(
+          'AmberSigner: Failed to parse currentUser as public key:',
+          error
+        );
+      }
+    }
+
+    // Fallback to Amber service for fresh key
     try {
       const permissions = [
         {
@@ -160,15 +174,7 @@ export class AmberSigner implements CustomNostrSigner {
 
           if (result) {
             this.currentUser = result;
-
-            let publicKey: PublicKeyInterface;
-            if (result.startsWith('npub')) {
-              publicKey = PublicKey.parse(result);
-            } else {
-              publicKey = PublicKey.parse(result);
-            }
-
-            return publicKey;
+            return PublicKey.parse(result);
           }
         } catch (error) {
           // Fallback to URL approach
@@ -214,7 +220,6 @@ export class AmberSigner implements CustomNostrSigner {
         }, 30000);
       });
     } catch (error) {
-      console.error('URL approach error:', error);
       throw error;
     }
   }
@@ -299,7 +304,6 @@ export class AmberSigner implements CustomNostrSigner {
 
       return result;
     } catch (error) {
-      console.error('Error encrypting with Amber:', error);
       throw error;
     }
   }
@@ -320,7 +324,6 @@ export class AmberSigner implements CustomNostrSigner {
 
       return result;
     } catch (error) {
-      console.error('Error decrypting with Amber:', error);
       throw error;
     }
   }
@@ -341,7 +344,6 @@ export class AmberSigner implements CustomNostrSigner {
 
       return result;
     } catch (error) {
-      console.error('Error encrypting with NIP-44 via Amber:', error);
       throw error;
     }
   }
@@ -362,7 +364,6 @@ export class AmberSigner implements CustomNostrSigner {
 
       return result;
     } catch (error) {
-      console.error('Error decrypting with NIP-44 via Amber:', error);
       throw error;
     }
   }

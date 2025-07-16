@@ -22,27 +22,55 @@ export interface AppUtils {
 export const AppUtils: AppUtils = {
   isAppInstalled: (packageName: string): Promise<boolean> => {
     if (!IntentLauncher) {
-      console.warn('IntentLauncher native module not available');
       return Promise.resolve(false);
     }
-    console.log('IntentLauncher module found:', IntentLauncher);
     return IntentLauncher.isAppInstalled(packageName);
-  }
+  },
 };
 
 interface IntentLauncherInterface {
   startActivity(options: IntentOptions): Promise<ActivityResult>;
+  queryContentResolver(
+    uri: string,
+    projection?: string[],
+    selection?: string,
+    selectionArgs?: string[]
+  ): Promise<any>;
 }
 
 const IntentLauncherModule: IntentLauncherInterface = {
   startActivity: (options: IntentOptions): Promise<ActivityResult> => {
     if (!IntentLauncher) {
-      console.warn('IntentLauncher native module not available');
-      return Promise.reject(new Error('IntentLauncher native module not available'));
+      return Promise.reject(
+        new Error('IntentLauncher native module not available')
+      );
     }
-    console.log('IntentLauncher module found:', IntentLauncher);
     return IntentLauncher.startActivity(options);
-  }
+  },
+
+  queryContentResolver: (
+    uri: string,
+    projection?: string[],
+    selection?: string,
+    selectionArgs?: string[]
+  ): Promise<any> => {
+    if (!IntentLauncher) {
+      return Promise.reject(
+        new Error('IntentLauncher native module not available')
+      );
+    }
+    if (!IntentLauncher.queryContentResolver) {
+      return Promise.reject(
+        new Error('IntentLauncher.queryContentResolver method not available')
+      );
+    }
+    return IntentLauncher.queryContentResolver(
+      uri,
+      projection,
+      selection,
+      selectionArgs
+    );
+  },
 };
 
 export default IntentLauncherModule;
