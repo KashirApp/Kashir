@@ -67,7 +67,7 @@ export function ComposeNoteModal({
 
       if (loginType === LoginType.Amber) {
         // Use Amber for signing
-        const signer = client.signer();
+        const signer = await client.signer();
         if (!signer) {
           throw new Error('Amber signer not available');
         }
