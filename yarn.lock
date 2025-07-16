@@ -3149,13 +3149,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@yz1311/react-native-intent-launcher@npm:^0.3.5":
-  version: 0.3.5
-  resolution: "@yz1311/react-native-intent-launcher@npm:0.3.5"
-  checksum: 6bbe9ca7e0d16407cdd3738e29be1c47ae277e8ed4b358413ef1058b1aacb356be4aa06392ad6da4f5b498636c79990d34a247cb278c13c0a01ba6d0b53d5fdf
-  languageName: node
-  linkType: hard
-
 "abbrev@npm:^3.0.0":
   version: 3.0.1
   resolution: "abbrev@npm:3.0.1"
@@ -7778,7 +7771,6 @@ __metadata:
     "@react-native/metro-config": 0.78.1
     "@react-native/typescript-config": 0.78.1
     "@types/react": ^19.0.0
-    "@yz1311/react-native-intent-launcher": ^0.3.5
     react: 19.0.0
     react-native: 0.78.1
     react-native-builder-bob: ^0.38.3

@@ -1,5 +1,5 @@
 import { Linking } from 'react-native';
-import IntentLauncher, { AppUtils } from '@yz1311/react-native-intent-launcher';
+import IntentLauncher, { AppUtils } from './IntentLauncher';
 
 interface AmberServiceInterface {
   getPublicKey(permissions: string): Promise<string>;

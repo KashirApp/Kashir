@@ -1,9 +1,0 @@
-{
-  "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "kashir": ["../src/index"],
-      "@yz1311/react-native-intent-launcher": ["./src/types/react-native-intent-launcher.d.ts"]
-    }
-  }
-}
