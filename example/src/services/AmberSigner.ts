@@ -7,6 +7,7 @@ import type {
   EventInterface,
 } from 'kashir';
 import AmberService from './AmberService';
+import { AMBER_PACKAGE, createAmberUrl, createAmberErrorMessage } from './AmberUtils';
 
 export interface AmberResponse {
   id: string;
@@ -115,7 +116,7 @@ export class AmberSigner implements CustomNostrSigner {
         }
       }
 
-      const amberUrl = `nostrsigner:${encodeURIComponent(JSON.stringify(requestData))}`;
+      const amberUrl = createAmberUrl(requestData);
 
       Linking.openURL(amberUrl)
         .then(() => {
@@ -123,7 +124,7 @@ export class AmberSigner implements CustomNostrSigner {
         })
         .catch((error) => {
           this.pendingRequests.delete(id);
-          reject(new Error(`Failed to open Amber: ${error.message}`));
+          reject(new Error(createAmberErrorMessage('open Amber', error)));
         });
 
       setTimeout(() => {
@@ -197,7 +198,7 @@ export class AmberSigner implements CustomNostrSigner {
         permissions: permissions,
       };
 
-      const amberUrl = `nostrsigner:${encodeURIComponent(JSON.stringify(requestData))}`;
+      const amberUrl = createAmberUrl(requestData);
 
       return new Promise((resolve, reject) => {
         const id = 'url_' + Math.random().toString(36).substring(7);
@@ -209,7 +210,7 @@ export class AmberSigner implements CustomNostrSigner {
           })
           .catch((error) => {
             this.pendingRequests.delete(id);
-            reject(new Error(`Failed to open Amber: ${error.message}`));
+            reject(new Error(createAmberErrorMessage('open Amber', error)));
           });
 
         setTimeout(() => {
@@ -281,9 +282,7 @@ export class AmberSigner implements CustomNostrSigner {
         return Event.fromJson(JSON.stringify(signedEventData));
       }
     } catch (error) {
-      throw new Error(
-        `Failed to sign event with Amber: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new Error(createAmberErrorMessage('sign event with Amber', error));
     }
     return undefined;
   }

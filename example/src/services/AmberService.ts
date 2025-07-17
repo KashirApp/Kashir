@@ -1,4 +1,5 @@
 import IntentLauncher, { AppUtils } from './IntentLauncher';
+import { AMBER_PACKAGE, createAmberErrorMessage } from './AmberUtils';
 
 interface AmberServiceInterface {
   getPublicKey(permissions: string): Promise<string>;
@@ -8,9 +9,7 @@ interface AmberServiceInterface {
 class ReactNativeAmberService implements AmberServiceInterface {
   async getPublicKey(permissions: string): Promise<string> {
     try {
-      const isInstalled = await AppUtils.isAppInstalled(
-        'com.greenart7c3.nostrsigner'
-      );
+      const isInstalled = await AppUtils.isAppInstalled(AMBER_PACKAGE);
       if (!isInstalled) {
         throw new Error('Amber app is not installed');
       }
@@ -18,7 +17,7 @@ class ReactNativeAmberService implements AmberServiceInterface {
       const result = await IntentLauncher.startActivity({
         action: 'android.intent.action.VIEW',
         data: 'nostrsigner:',
-        packageName: 'com.greenart7c3.nostrsigner',
+        packageName: AMBER_PACKAGE,
         extra: {
           type: 'get_public_key',
           permissions: permissions,
@@ -31,17 +30,13 @@ class ReactNativeAmberService implements AmberServiceInterface {
         throw new Error('No result received from Amber');
       }
     } catch (error) {
-      throw new Error(
-        `Failed to launch Amber: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new Error(createAmberErrorMessage('launch Amber', error));
     }
   }
 
   async signEvent(event: string, currentUser?: string): Promise<string> {
     try {
-      const isInstalled = await AppUtils.isAppInstalled(
-        'com.greenart7c3.nostrsigner'
-      );
+      const isInstalled = await AppUtils.isAppInstalled(AMBER_PACKAGE);
 
       if (!isInstalled) {
         throw new Error('Amber app is not installed');
@@ -91,7 +86,7 @@ class ReactNativeAmberService implements AmberServiceInterface {
       const result = await IntentLauncher.startActivity({
         action: 'android.intent.action.VIEW',
         data: `nostrsigner:${event}`,
-        packageName: 'com.greenart7c3.nostrsigner',
+        packageName: AMBER_PACKAGE,
         extra: {
           type: 'sign_event',
           silent: true, // Try to minimize UI
@@ -100,23 +95,13 @@ class ReactNativeAmberService implements AmberServiceInterface {
         },
       } as any);
 
-      if (result && result.extra && result.extra.event) {
-        return result.extra.event;
-      } else if (result && result.extra && result.extra.result) {
-        return result.extra.result;
-      } else if (result && (result as any).event) {
-        return (result as any).event;
-      } else if (result && (result as any).result) {
-        return (result as any).result;
-      } else if (result && typeof result === 'string') {
-        return result;
-      } else {
+      const signedEvent = result?.extra?.event || (result as any)?.event;
+      if (!signedEvent) {
         throw new Error('No signed event received from Amber');
       }
+      return signedEvent;
     } catch (error) {
-      throw new Error(
-        `Failed to launch Amber: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      throw new Error(createAmberErrorMessage('launch Amber', error));
     }
   }
 }
