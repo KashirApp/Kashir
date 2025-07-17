@@ -1026,6 +1026,72 @@ export function useWallet() {
     setShowRecoverModal(true);
   };
 
+  // Send cashu token directly (not Lightning)
+  const sendCashuToken = async (amount: string, memo?: string) => {
+    if (!wallet || !amount || parseInt(amount) <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return null;
+    }
+
+    try {
+      const amountBigInt = BigInt(amount);
+      const currentBalance = wallet.balance();
+
+      if (currentBalance.value < amountBigInt) {
+        Alert.alert(
+          'Insufficient Balance',
+          `You need ${formatSats(amountBigInt)} but only have ${formatSats(currentBalance.value)}`
+        );
+        return null;
+      }
+
+      const cashuToken = await wallet.sendCashuToken(
+        { value: amountBigInt },
+        memo || undefined
+      );
+
+      // Update balance
+      const newBalance = wallet.balance();
+      setBalance(newBalance.value);
+
+      return cashuToken;
+    } catch (error) {
+      console.error('Failed to send cashu token:', error);
+      const errorMsg = getErrorMessage(error);
+      Alert.alert('Error', `Failed to send cashu token: ${errorMsg}`);
+      return null;
+    }
+  };
+
+  // Receive cashu token
+  const receiveCashuToken = async (tokenString: string) => {
+    if (!wallet || !tokenString.trim()) {
+      Alert.alert('Error', 'Please enter a valid cashu token');
+      return false;
+    }
+
+    try {
+      const receivedAmount = await wallet.receiveCashuToken(tokenString);
+      
+      // Update balance
+      const newBalance = wallet.balance();
+      setBalance(newBalance.value);
+
+      // Show success message
+      Alert.alert(
+        'Token Received!',
+        `Successfully received ${formatSats(receivedAmount.value)}`
+      );
+
+      return true;
+    } catch (error) {
+      console.error('Failed to receive cashu token:', error);
+      const errorMsg = getErrorMessage(error);
+      Alert.alert('Error', `Failed to receive cashu token: ${errorMsg}`);
+      return false;
+    }
+  };
+
   // Handle wallet recovery from mnemonic
   const handleWalletRecovery = async (mnemonic: string) => {
     if (!cdkModule || !activeMintUrl) {
@@ -1151,6 +1217,8 @@ export function useWallet() {
     createInvoice,
     copyToClipboard,
     sendPayment,
+    sendCashuToken,
+    receiveCashuToken,
     promptForMintUrl,
     handleMintUrlSubmit,
     addMintUrl,

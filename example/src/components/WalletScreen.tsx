@@ -80,6 +80,8 @@ export function WalletScreen() {
     createInvoice,
     copyToClipboard,
     sendPayment,
+    sendCashuToken,
+    receiveCashuToken,
     handleRecoverWallet,
     handleWalletRecovery,
 
@@ -141,6 +143,7 @@ export function WalletScreen() {
           onAmountChange={setReceiveAmount}
           onCreateInvoice={createInvoice}
           onCopyInvoice={copyToClipboard}
+          onReceiveCashuToken={receiveCashuToken}
         />
 
         <SendModal
@@ -151,6 +154,7 @@ export function WalletScreen() {
           onInvoiceChange={setLightningInvoice}
           onSendPayment={sendPayment}
           onShowScanner={handleShowScanner}
+          onSendCashuToken={sendCashuToken}
         />
 
         <MnemonicModal
