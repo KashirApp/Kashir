@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 interface ReceiveModalProps {
   visible: boolean;
@@ -48,13 +49,25 @@ export function ReceiveModal({
 
     setIsProcessingToken(true);
     try {
-      const success = await onReceiveCashuToken(cashuTokenInput.trim());
-      if (success) {
-        setCashuTokenInput('');
-        // Modal will be closed by parent component after showing success
-      }
+      // The receiveCashuToken function will handle the dialog and modal closing
+      await onReceiveCashuToken(cashuTokenInput.trim());
+      // Clear the input since the operation was initiated
+      setCashuTokenInput('');
     } finally {
       setIsProcessingToken(false);
+    }
+  };
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const clipboardContent = await Clipboard.getString();
+      if (clipboardContent && clipboardContent.trim()) {
+        setCashuTokenInput(clipboardContent.trim());
+      } else {
+        Alert.alert('Clipboard Empty', 'No content found in clipboard');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to read from clipboard');
     }
   };
 
@@ -185,10 +198,7 @@ export function ReceiveModal({
                 <View style={styles.actionButtonsContainer}>
                   <TouchableOpacity
                     style={[styles.button, styles.pasteButton]}
-                    onPress={() => {
-                      // Add paste from clipboard functionality here if needed
-                      // For now, user can manually paste
-                    }}
+                    onPress={handlePasteFromClipboard}
                     disabled={isProcessingToken}
                   >
                     <Text style={styles.buttonText}>📋 Paste Token</Text>

@@ -43,6 +43,7 @@ export function useWallet() {
   const [showSentConfetti, setShowSentConfetti] = useState(false);
   const [paymentSentAmount, setPaymentSentAmount] = useState<bigint>(BigInt(0));
   const [showSendingLoader, setShowSendingLoader] = useState(false);
+  const [showReceivingLoader, setShowReceivingLoader] = useState(false);
   const [generatedMnemonic, setGeneratedMnemonic] = useState<string>('');
   const [showMnemonicModal, setShowMnemonicModal] = useState(false);
   const [pendingWalletCreation, setPendingWalletCreation] = useState<any>(null);
@@ -1070,26 +1071,62 @@ export function useWallet() {
       return false;
     }
 
-    try {
-      const receivedAmount = await wallet.receiveCashuToken(tokenString);
-      
-      // Update balance
-      const newBalance = wallet.balance();
-      setBalance(newBalance.value);
+    // Show confirmation dialog first, similar to Lightning payments
+    Alert.alert(
+      'Redeem Cashu Token',
+      'Do you want to redeem this cashu token to your wallet?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Redeem',
+          onPress: async () => {
+            try {
+              // Close the receive modal first
+              setShowReceiveModal(false);
+              
+              // Show receiving loading indicator
+              setShowReceivingLoader(true);
 
-      // Show success message
-      Alert.alert(
-        'Token Received!',
-        `Successfully received ${formatSats(receivedAmount.value)}`
-      );
+              // Small delay to ensure the loading indicator renders
+              await new Promise((resolve) => setTimeout(resolve, 100));
 
-      return true;
-    } catch (error) {
-      console.error('Failed to receive cashu token:', error);
-      const errorMsg = getErrorMessage(error);
-      Alert.alert('Error', `Failed to receive cashu token: ${errorMsg}`);
-      return false;
-    }
+              const receivedAmount = await wallet.receiveCashuToken(tokenString);
+              
+              // Update balance
+              const newBalance = wallet.balance();
+              setBalance(newBalance.value);
+
+              // Hide receiving loading indicator
+              setShowReceivingLoader(false);
+
+              // Show success confetti animation
+              setPaymentReceivedAmount(receivedAmount.value);
+              setShowConfetti(true);
+
+              // Hide confetti after 3 seconds
+              setTimeout(() => setShowConfetti(false), 3000);
+
+              return true;
+            } catch (error) {
+              console.error('Failed to receive cashu token:', error);
+              
+              // Hide receiving loading indicator on error
+              setShowReceivingLoader(false);
+              
+              const errorMsg = getErrorMessage(error);
+              Alert.alert('Error', `Failed to receive cashu token: ${errorMsg}`);
+              return false;
+            }
+          },
+        },
+      ]
+    );
+
+    // Return true to indicate the dialog was shown
+    return true;
   };
 
   // Handle wallet recovery from mnemonic
@@ -1202,6 +1239,7 @@ export function useWallet() {
     showSentConfetti,
     paymentSentAmount,
     showSendingLoader,
+    showReceivingLoader,
     generatedMnemonic,
     showMnemonicModal,
     pendingWalletCreation,

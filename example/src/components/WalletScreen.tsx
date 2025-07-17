@@ -66,6 +66,7 @@ export function WalletScreen() {
     showSentConfetti,
     paymentSentAmount,
     showSendingLoader,
+    showReceivingLoader,
     generatedMnemonic,
     showMnemonicModal,
     showRecoverModal,
@@ -220,6 +221,19 @@ export function WalletScreen() {
             <Text style={styles.loadingText}>Sending Payment...</Text>
             <Text style={styles.loadingSubtext}>
               Please wait while we process your transaction
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Token Receiving Loader */}
+      {showReceivingLoader && (
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.loadingText}>Receiving Token...</Text>
+            <Text style={styles.loadingSubtext}>
+              Please wait while we redeem your cashu token
             </Text>
           </View>
         </View>
