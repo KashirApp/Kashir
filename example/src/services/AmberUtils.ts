@@ -4,6 +4,9 @@ export function createAmberUrl(data: any): string {
   return `nostrsigner:${encodeURIComponent(JSON.stringify(data))}`;
 }
 
-export function createAmberErrorMessage(operation: string, error: unknown): string {
+export function createAmberErrorMessage(
+  operation: string,
+  error: unknown
+): string {
   return `Failed to ${operation}: ${error instanceof Error ? error.message : 'Unknown error'}`;
 }

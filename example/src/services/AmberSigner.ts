@@ -7,7 +7,7 @@ import type {
   EventInterface,
 } from 'kashir';
 import AmberService from './AmberService';
-import { AMBER_PACKAGE, createAmberUrl, createAmberErrorMessage } from './AmberUtils';
+import { createAmberUrl, createAmberErrorMessage } from './AmberUtils';
 
 export interface AmberResponse {
   id: string;

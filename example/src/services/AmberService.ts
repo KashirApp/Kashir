@@ -89,8 +89,6 @@ class ReactNativeAmberService implements AmberServiceInterface {
         packageName: AMBER_PACKAGE,
         extra: {
           type: 'sign_event',
-          silent: true, // Try to minimize UI
-          auto_approve: true, // Try to auto-approve if permission exists
           ...(currentUser && { current_user: currentUser }),
         },
       } as any);
