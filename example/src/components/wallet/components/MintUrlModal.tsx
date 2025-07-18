@@ -15,14 +15,18 @@ interface MintUrlModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (url: string) => void;
+  isWalletCreation?: boolean;
 }
 
 export function MintUrlModal({
   visible,
   onClose,
   onSubmit,
+  isWalletCreation = false,
 }: MintUrlModalProps) {
-  const [url, setUrl] = useState('https://mint.kashir.xyz');
+  const [url, setUrl] = useState(
+    isWalletCreation ? 'https://mint.kashir.xyz' : ''
+  );
   const [isValidating, setIsValidating] = useState(false);
   const [showRecommendationsModal, setShowRecommendationsModal] =
     useState(false);

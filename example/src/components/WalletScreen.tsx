@@ -73,6 +73,7 @@ export function WalletScreen() {
     showRecoveryLoader,
     showRecoveryConfetti,
     showMintUrlModal,
+    shouldCreateWalletAfterMint,
 
     // Actions
     testWalletCreation,
@@ -180,6 +181,7 @@ export function WalletScreen() {
           visible={showMintUrlModal}
           onClose={handleMintUrlModalClose}
           onSubmit={handleMintUrlSubmit}
+          isWalletCreation={shouldCreateWalletAfterMint}
         />
       </SafeAreaView>
 

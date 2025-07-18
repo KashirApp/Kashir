@@ -1245,6 +1245,7 @@ export function useWallet() {
     pendingWalletCreation,
     showRecoverModal,
     shouldShowRecoverAfterMint,
+    shouldCreateWalletAfterMint,
     showRecoveryLoader,
     showRecoveryConfetti,
 
