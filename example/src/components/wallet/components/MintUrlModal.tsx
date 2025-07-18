@@ -22,7 +22,7 @@ export function MintUrlModal({
   onClose,
   onSubmit,
 }: MintUrlModalProps) {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState('https://mint.kashir.xyz');
   const [isValidating, setIsValidating] = useState(false);
   const [showRecommendationsModal, setShowRecommendationsModal] =
     useState(false);
