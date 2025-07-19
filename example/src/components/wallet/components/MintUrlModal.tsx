@@ -31,12 +31,16 @@ export function MintUrlModal({
   const [showRecommendationsModal, setShowRecommendationsModal] =
     useState(false);
 
-  // Reset validation state when modal becomes visible
+  // Reset validation state and URL when modal becomes visible
   useEffect(() => {
     if (visible) {
       setIsValidating(false);
+      // Reset URL to default for wallet creation
+      if (isWalletCreation) {
+        setUrl('https://mint.kashir.xyz');
+      }
     }
-  }, [visible]);
+  }, [visible, isWalletCreation]);
 
   // Validate mint by checking /v1/info endpoint
   const validateMint = async (mintUrl: string): Promise<boolean> => {
@@ -103,7 +107,10 @@ export function MintUrlModal({
 
       if (isValid) {
         onSubmit(url.trim());
-        setUrl(''); // Clear the input on successful submission
+        // Only clear the input for non-wallet creation scenarios
+        if (!isWalletCreation) {
+          setUrl('');
+        }
       } else {
         Alert.alert(
           'Invalid Mint',
@@ -123,7 +130,10 @@ export function MintUrlModal({
   };
 
   const handleCancel = () => {
-    setUrl(''); // Clear the input
+    // Don't clear URL for wallet creation to keep the default
+    if (!isWalletCreation) {
+      setUrl(''); // Only clear the input for non-wallet creation scenarios
+    }
     setIsValidating(false); // Reset validation state
     onClose();
   };
@@ -183,7 +193,7 @@ export function MintUrlModal({
             {isValidating ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color="#ffffff" />
-                <Text style={[styles.submitText, { marginLeft: 8 }]}>
+                <Text style={[styles.submitText, styles.loadingText]}>
                   Validating Mint...
                 </Text>
               </View>
@@ -285,6 +295,9 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginLeft: 8,
   },
   divider: {
     height: 1,

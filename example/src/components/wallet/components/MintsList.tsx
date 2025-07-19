@@ -128,9 +128,6 @@ export function MintsList({
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No mints connected</Text>
-        <TouchableOpacity onPress={onAddMint} style={styles.addMintButton}>
-          <Text style={styles.addMintButtonText}>Add Your First Mint</Text>
-        </TouchableOpacity>
       </View>
     );
   }
