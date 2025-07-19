@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,7 @@ export function MintsList({
   const [mintBalances, setMintBalances] = useState<MintBalance[]>([]);
 
   // Memoize the mint URLs to prevent unnecessary re-renders
-  const memoizedMintUrls = useMemo(() => mintUrls, [JSON.stringify(mintUrls)]);
+  const memoizedMintUrls = useMemo(() => mintUrls, [mintUrls]);
 
   // Load cached balances when component mounts or mintUrls change
   useEffect(() => {

@@ -1330,7 +1330,8 @@ export function useWallet() {
                     
                   } catch (walletCreationError) {
                     console.error('Failed to create target wallet:', walletCreationError);
-                    throw new Error(`Failed to create wallet for mint ${tokenMintUrl}: ${walletCreationError.message}`);
+                    const errorMessage = walletCreationError instanceof Error ? walletCreationError.message : 'Unknown error';
+                    throw new Error(`Failed to create wallet for mint ${tokenMintUrl}: ${errorMessage}`);
                   }
                 }
 
