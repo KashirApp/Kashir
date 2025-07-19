@@ -1,20 +1,32 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { formatSats } from '../utils/formatUtils';
 
 interface MintItemProps {
   mintUrl: string;
   isActive: boolean;
+  balance?: bigint;
   onSetActive: (url: string) => void;
   onRemove: (url: string) => void;
+  onRefresh?: (url: string) => Promise<void>;
 }
 
 export function MintItem({
   mintUrl,
   isActive,
+  balance,
   onSetActive,
   onRemove,
+  onRefresh,
 }: MintItemProps) {
-  // Always show the full URL to users
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleSetActive = () => {
     if (!isActive) {
@@ -37,10 +49,33 @@ export function MintItem({
     );
   };
 
+  const handleRefresh = async () => {
+    if (!onRefresh) return;
+
+    setIsRefreshing(true);
+    try {
+      await onRefresh(mintUrl);
+    } catch (error) {
+      // Silently handle errors - balance will remain unchanged
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <View style={[styles.container, isActive && styles.activeContainer]}>
       <View style={styles.leftSection}>
         <Text style={styles.mintUrl}>{mintUrl}</Text>
+
+        <View style={styles.balanceContainer}>
+          <Text style={styles.balanceLabel}>Balance: </Text>
+          {balance !== undefined ? (
+            <Text style={styles.balanceValue}>{formatSats(balance)}</Text>
+          ) : (
+            <Text style={styles.balanceValue}>Loading...</Text>
+          )}
+        </View>
+
         {isActive && (
           <View style={styles.activeBadge}>
             <Text style={styles.activeBadgeText}>Active</Text>
@@ -49,6 +84,20 @@ export function MintItem({
       </View>
 
       <View style={styles.rightSection}>
+        {onRefresh && (
+          <TouchableOpacity
+            onPress={handleRefresh}
+            style={styles.refreshButton}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.refreshButtonText}>Sync</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
         {!isActive && (
           <TouchableOpacity
             onPress={handleSetActive}
@@ -122,6 +171,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start', // Align buttons to top for multi-line URLs
     gap: 8,
     paddingTop: 2, // Small offset to align with text baseline
+    flexWrap: 'wrap', // Allow buttons to wrap if needed
+  },
+  refreshButton: {
+    backgroundColor: '#28a745',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  refreshButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
   },
   setActiveButton: {
     backgroundColor: '#007AFF',
@@ -150,5 +213,27 @@ const styles = StyleSheet.create({
   },
   removeButtonTextDisabled: {
     color: '#888',
+  },
+  balanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  balanceLabel: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '500',
+  },
+  balanceValue: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+    fontFamily: 'monospace',
+  },
+  balanceError: {
+    fontSize: 12,
+    color: '#ff6b6b',
+    fontStyle: 'italic',
   },
 });

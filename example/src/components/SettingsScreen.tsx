@@ -34,6 +34,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     loadMintUrlsFromStorage,
     setActiveMint,
     removeMintUrl,
+    updateTotalBalance,
   } = useWallet();
 
   // Check if seed phrase exists and wallet database exists when component becomes visible
@@ -185,6 +186,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
               onSetActive={setActiveMint}
               onRemove={removeMintUrl}
               onAddMint={promptForMintUrl}
+              onUpdateTotalBalance={updateTotalBalance}
             />
           </View>
         </View>

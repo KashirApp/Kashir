@@ -34,7 +34,9 @@ export function SendModal({
   onShowScanner,
   onSendCashuToken,
 }: SendModalProps) {
-  const [activeTab, setActiveTab] = useState<'lightning' | 'cashu'>('lightning');
+  const [activeTab, setActiveTab] = useState<'lightning' | 'cashu'>(
+    'lightning'
+  );
   const [cashuAmount, setCashuAmount] = useState('');
   const [cashuMemo, setCashuMemo] = useState('');
   const [generatedToken, setGeneratedToken] = useState<string>('');
@@ -106,10 +108,7 @@ export function SendModal({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === 'cashu' && styles.activeTab,
-              ]}
+              style={[styles.tab, activeTab === 'cashu' && styles.activeTab]}
               onPress={() => setActiveTab('cashu')}
             >
               <Text
@@ -189,15 +188,19 @@ export function SendModal({
                       disabled={isGeneratingToken || !cashuAmount.trim()}
                     >
                       <Text style={styles.buttonText}>
-                        {isGeneratingToken ? 'Creating Token...' : 'Create Cashu Token'}
+                        {isGeneratingToken
+                          ? 'Creating Token...'
+                          : 'Create Cashu Token'}
                       </Text>
                     </TouchableOpacity>
                   </>
                 ) : (
                   <>
-                    <Text style={styles.successLabel}>✅ Cashu Token Created!</Text>
+                    <Text style={styles.successLabel}>
+                      ✅ Cashu Token Created!
+                    </Text>
                     <Text style={styles.inputLabel}>Share this token:</Text>
-                    
+
                     <View style={styles.tokenContainer}>
                       <Text style={styles.tokenText} numberOfLines={4}>
                         {generatedToken}

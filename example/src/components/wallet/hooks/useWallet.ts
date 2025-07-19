@@ -14,8 +14,17 @@ import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
 import { formatSats, getSatUnit } from '../utils/formatUtils';
 import { SecureStorageService } from '../../../services/SecureStorageService';
+import {
+  getMintDbPath,
+  clearWalletCache,
+  getMintBalance,
+  getCachedMintBalance,
+  updateCachedMintBalance,
+  loadCachedBalances,
+} from '../utils/mintBalanceUtils';
 
 const MINT_URLS_STORAGE_KEY = '@cashu_mint_urls';
+const ACTIVE_MINT_URL_STORAGE_KEY = '@cashu_active_mint_url';
 
 export function useWallet() {
   const [balance, setBalance] = useState<bigint>(BigInt(0));
@@ -24,6 +33,12 @@ export function useWallet() {
   const [wallet, setWallet] = useState<any>(null);
   const [mintUrls, setMintUrls] = useState<string[]>([]);
   const [activeMintUrl, setActiveMintUrl] = useState<string>('');
+  // Track current mint URL to ensure synchronous updates
+  const currentMintUrlRef = useRef<string>('');
+
+  const setCurrentMintUrlRef = (value: string) => {
+    currentMintUrlRef.current = value;
+  };
   const [isLoadingWallet, setIsLoadingWallet] = useState(true);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveAmount, setReceiveAmount] = useState('');
@@ -79,6 +94,28 @@ export function useWallet() {
     }
   };
 
+  // Function to save active mint URL to storage
+  const saveActiveMintUrlToStorage = async (url: string) => {
+    try {
+      await AsyncStorage.setItem(ACTIVE_MINT_URL_STORAGE_KEY, url);
+    } catch (error) {
+      console.error('Failed to save active mint URL to storage:', error);
+    }
+  };
+
+  // Function to load active mint URL from storage
+  const loadActiveMintUrlFromStorage = async () => {
+    try {
+      const savedActiveMintUrl = await AsyncStorage.getItem(
+        ACTIVE_MINT_URL_STORAGE_KEY
+      );
+      return savedActiveMintUrl;
+    } catch (error) {
+      console.error('Failed to load active mint URL from storage:', error);
+      return null;
+    }
+  };
+
   // Function to save mint URLs to storage
   const saveMintUrlsToStorage = async (urls: string[]) => {
     try {
@@ -96,9 +133,36 @@ export function useWallet() {
         newUrls.push(url);
         setMintUrls(newUrls);
         await saveMintUrlsToStorage(newUrls);
+
+        // Create/restore wallet instance for the new mint
+        const walletExists = await checkWalletExists(url);
+        if (!walletExists) {
+          // Create a new wallet instance for this mint
+          const mnemonic = await SecureStorageService.getSeedPhrase();
+          if (mnemonic) {
+            try {
+              const dbPath = getMintDbPath(url);
+              const localStore = FfiLocalStore.newWithPath(dbPath);
+              const walletInstance = FfiWallet.restoreFromMnemonic(
+                url,
+                FfiCurrencyUnit.Sat,
+                localStore,
+                mnemonic
+              );
+              console.log(`Created wallet instance for mint: ${url}`);
+            } catch (error) {
+              console.error(`Failed to create wallet for mint ${url}:`, error);
+            }
+          }
+        }
+
         // Set as active if it's the first one
         if (newUrls.length === 1) {
           setActiveMintUrl(url);
+          await saveActiveMintUrlToStorage(url);
+          if (!currentMintUrlRef.current) {
+            setCurrentMintUrlRef(url);
+          }
         }
       }
     } catch (error) {
@@ -110,10 +174,29 @@ export function useWallet() {
   const setActiveMint = async (url: string) => {
     try {
       if (mintUrls.includes(url)) {
-        setActiveMintUrl(url);
+        const previousMintUrl = activeMintUrl;
+
+        setCurrentMintUrlRef(url);
+        await saveActiveMintUrlToStorage(url);
+        setWallet(null);
+        clearWalletCache();
+
+        setModuleStatus(`Switching to mint: ${url}...`);
+        const restored = await restoreExistingWallet(url);
+
+        if (restored) {
+          setModuleStatus(`Active mint changed to: ${url}`);
+        } else {
+          setModuleStatus(`Failed to switch to mint: ${url}`);
+          setCurrentMintUrlRef(previousMintUrl);
+          if (previousMintUrl) {
+            await restoreExistingWallet(previousMintUrl);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to set active mint:', error);
+      setModuleStatus(`Error switching mint: ${getErrorMessage(error)}`);
     }
   };
 
@@ -151,10 +234,14 @@ export function useWallet() {
     }
   };
 
-  // Function to check if wallet database exists
-  const checkWalletExists = async () => {
+  // Function to check if wallet database exists for a specific mint
+  const checkWalletExists = async (mintUrl?: string) => {
     try {
-      const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+      const urlToUse = mintUrl || activeMintUrl;
+      if (!urlToUse) {
+        return false;
+      }
+      const dbPath = getMintDbPath(urlToUse);
       const exists = await RNFS.exists(dbPath);
       return exists;
     } catch (error) {
@@ -173,7 +260,7 @@ export function useWallet() {
     try {
       setModuleStatus('Restoring existing wallet...');
 
-      const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+      const dbPath = getMintDbPath(urlToUse);
 
       let localStore;
       try {
@@ -215,16 +302,34 @@ export function useWallet() {
       try {
         // Try to get balance to verify wallet works
         const walletBalance = walletInstance.balance();
-        setBalance(walletBalance.value);
         setWallet(walletInstance);
-        setModuleStatus(
-          `Wallet restored! Balance: ${formatSats(walletBalance.value)}`
-        );
+
+        // Update cached balance for this mint
+        await updateCachedMintBalance(urlToUse, walletBalance.value);
+
+        // Update total balance from cached balances
+        await updateTotalBalance();
+
+        // Update activeMintUrl to match the restored wallet
+        setActiveMintUrl(urlToUse);
+        setCurrentMintUrlRef(urlToUse);
+
+        setModuleStatus(`Wallet restored! Total balance updated`);
         return true;
       } catch (balanceError) {
         // Wallet exists but might be empty, still consider it restored
-        setBalance(BigInt(0));
         setWallet(walletInstance);
+
+        // Update cached balance for this mint (0 for empty wallet)
+        await updateCachedMintBalance(urlToUse, BigInt(0));
+
+        // Update total balance from cached balances
+        await updateTotalBalance();
+
+        // Update activeMintUrl to match the restored wallet
+        setActiveMintUrl(urlToUse);
+        setCurrentMintUrlRef(urlToUse);
+
         setModuleStatus('Wallet restored successfully!');
         return true;
       }
@@ -326,16 +431,27 @@ export function useWallet() {
           // Set the mint URLs in state
           const parsedUrls = JSON.parse(savedMintUrls);
           setMintUrls(parsedUrls);
-          if (parsedUrls.length > 0) {
-            setActiveMintUrl(parsedUrls[0]);
+
+          // Load the active mint URL from storage (not just the first one)
+          const savedActiveMintUrl = await loadActiveMintUrlFromStorage();
+          const activeMintToUse =
+            savedActiveMintUrl && parsedUrls.includes(savedActiveMintUrl)
+              ? savedActiveMintUrl
+              : parsedUrls[0]; // Fallback to first mint if no saved active mint
+
+          if (activeMintToUse) {
+            setActiveMintUrl(activeMintToUse);
+            if (!currentMintUrlRef.current) {
+              setCurrentMintUrlRef(activeMintToUse);
+            }
           }
 
           // Mint URL exists, check if wallet database exists
-          const walletExists = await checkWalletExists();
+          const walletExists = await checkWalletExists(activeMintToUse);
 
           if (walletExists) {
-            // Try to restore existing wallet, passing the mint URL directly
-            const restored = await restoreExistingWallet(parsedUrls[0]);
+            // Try to restore existing wallet, passing the correct active mint URL
+            const restored = await restoreExistingWallet(activeMintToUse);
 
             if (!restored) {
               setModuleStatus(
@@ -386,7 +502,7 @@ export function useWallet() {
       // Call wallet creation directly here instead of through testWalletCreation
       const createWalletDirectly = async () => {
         // Check if wallet already exists first
-        const walletExists = await checkWalletExists();
+        const walletExists = await checkWalletExists(activeMintUrl);
         if (walletExists) {
           // Try to restore existing wallet instead of creating new one
           const restored = await restoreExistingWallet(activeMintUrl);
@@ -411,7 +527,7 @@ export function useWallet() {
 
           let localStore;
           try {
-            const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+            const dbPath = getMintDbPath(activeMintUrl);
             localStore = FfiLocalStore.newWithPath(dbPath);
           } catch (storeError) {
             console.error('FfiLocalStore creation failed:', storeError);
@@ -553,7 +669,7 @@ export function useWallet() {
     setIsLoadingWallet(true);
 
     // Check if wallet already exists
-    const walletExists = await checkWalletExists();
+    const walletExists = await checkWalletExists(activeMintUrl);
     if (walletExists) {
       // Try to restore existing wallet instead of creating new one
       const restored = await restoreExistingWallet(activeMintUrl);
@@ -579,7 +695,7 @@ export function useWallet() {
 
       let localStore;
       try {
-        const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+        const dbPath = getMintDbPath(activeMintUrl);
         localStore = FfiLocalStore.newWithPath(dbPath);
       } catch (storeError) {
         console.error('FfiLocalStore creation failed:', storeError);
@@ -725,6 +841,53 @@ export function useWallet() {
     setLightningInvoice('');
   };
 
+  // Function to calculate total balance across all mints using cached balances
+  const calculateTotalBalance = async (): Promise<bigint> => {
+    try {
+      const cachedBalances = await loadCachedBalances();
+      let totalBalance = BigInt(0);
+
+      for (const mintBalance of cachedBalances) {
+        totalBalance += mintBalance.balance;
+      }
+
+      return totalBalance;
+    } catch (error) {
+      console.error('Failed to calculate total balance:', error);
+      return BigInt(0);
+    }
+  };
+
+  // Function to update total balance display
+  const updateTotalBalance = async () => {
+    const total = await calculateTotalBalance();
+    setBalance(total);
+  };
+
+  // Get the current active mint URL directly from storage (bypass React state)
+  const getCurrentActiveMintUrl = async (): Promise<string> => {
+    try {
+      const savedActiveMintUrl = await AsyncStorage.getItem(
+        ACTIVE_MINT_URL_STORAGE_KEY
+      );
+      if (savedActiveMintUrl) {
+        return savedActiveMintUrl;
+      }
+
+      // Fallback to first mint if no active mint saved
+      const savedMintUrls = await AsyncStorage.getItem(MINT_URLS_STORAGE_KEY);
+      if (savedMintUrls) {
+        const parsedUrls = JSON.parse(savedMintUrls);
+        return parsedUrls[0] || '';
+      }
+
+      return '';
+    } catch (error) {
+      console.error('Failed to get current active mint URL:', error);
+      return '';
+    }
+  };
+
   const createInvoice = async () => {
     if (!wallet || !receiveAmount || parseInt(receiveAmount) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
@@ -781,8 +944,17 @@ export function useWallet() {
               activeQuoteId,
               FfiSplitTarget.Default
             );
-            const newBalance = wallet.balance();
-            setBalance(newBalance.value);
+
+            // Update cached balance arithmetically (faster than syncing)
+            const actualMintUrl = await getCurrentActiveMintUrl();
+            const currentCachedBalance =
+              await getCachedMintBalance(actualMintUrl);
+            const newBalance =
+              currentCachedBalance.balance + mintedAmount.value;
+            await updateCachedMintBalance(actualMintUrl, newBalance);
+
+            // Update total balance from cached balances
+            await updateTotalBalance();
 
             // Clear the interval
             if (paymentCheckInterval.current) {
@@ -790,7 +962,7 @@ export function useWallet() {
               paymentCheckInterval.current = null;
             }
 
-            // Clear invoice data and close modal
+            // Clear invoice data and close modal immediately for better UX
             setInvoice('');
             setQuoteId('');
             setShowReceiveModal(false);
@@ -955,8 +1127,15 @@ export function useWallet() {
 
                   const sendResult = await wallet.melt(meltQuote.id);
 
-                  const newBalance = wallet.balance();
-                  setBalance(newBalance.value);
+                  // Update cached balance arithmetically (faster than syncing)
+                  const actualMintUrl = await getCurrentActiveMintUrl();
+                  const currentCachedBalance =
+                    await getCachedMintBalance(actualMintUrl);
+                  const newBalance = currentCachedBalance.balance - totalAmount;
+                  await updateCachedMintBalance(actualMintUrl, newBalance);
+
+                  // Update total balance from cached balances
+                  await updateTotalBalance();
 
                   // Clear invoice and close modal
                   setLightningInvoice('');
@@ -1086,18 +1265,26 @@ export function useWallet() {
             try {
               // Close the receive modal first
               setShowReceiveModal(false);
-              
+
               // Show receiving loading indicator
               setShowReceivingLoader(true);
 
               // Small delay to ensure the loading indicator renders
               await new Promise((resolve) => setTimeout(resolve, 100));
 
-              const receivedAmount = await wallet.receiveCashuToken(tokenString);
-              
-              // Update balance
-              const newBalance = wallet.balance();
-              setBalance(newBalance.value);
+              const receivedAmount =
+                await wallet.receiveCashuToken(tokenString);
+
+              // Update cached balance arithmetically (faster than syncing)
+              const actualMintUrl = await getCurrentActiveMintUrl();
+              const currentCachedBalance =
+                await getCachedMintBalance(actualMintUrl);
+              const newBalance =
+                currentCachedBalance.balance + receivedAmount.value;
+              await updateCachedMintBalance(actualMintUrl, newBalance);
+
+              // Update total balance from cached balances
+              await updateTotalBalance();
 
               // Hide receiving loading indicator
               setShowReceivingLoader(false);
@@ -1112,12 +1299,15 @@ export function useWallet() {
               return true;
             } catch (error) {
               console.error('Failed to receive cashu token:', error);
-              
+
               // Hide receiving loading indicator on error
               setShowReceivingLoader(false);
-              
+
               const errorMsg = getErrorMessage(error);
-              Alert.alert('Error', `Failed to receive cashu token: ${errorMsg}`);
+              Alert.alert(
+                'Error',
+                `Failed to receive cashu token: ${errorMsg}`
+              );
               return false;
             }
           },
@@ -1156,7 +1346,7 @@ export function useWallet() {
 
       let localStore;
       try {
-        const dbPath = `${RNFS.DocumentDirectoryPath}/cdk_wallet.db`;
+        const dbPath = getMintDbPath(activeMintUrl);
         localStore = FfiLocalStore.newWithPath(dbPath);
       } catch (storeError) {
         console.error('FfiLocalStore creation failed:', storeError);
@@ -1193,10 +1383,21 @@ export function useWallet() {
 
       try {
         const walletBalance = walletInstance.balance();
-        setBalance(walletBalance.value);
+
+        // Update cached balance for this mint
+        await updateCachedMintBalance(activeMintUrl, walletBalance.value);
+
+        // Update total balance from cached balances
+        await updateTotalBalance();
+
         setModuleStatus('Wallet recovered successfully!');
       } catch (balanceError) {
-        setBalance(BigInt(0));
+        // Update cached balance for this mint (0 for empty wallet)
+        await updateCachedMintBalance(activeMintUrl, BigInt(0));
+
+        // Update total balance from cached balances
+        await updateTotalBalance();
+
         setModuleStatus('Wallet recovered successfully!');
       }
 
@@ -1278,5 +1479,6 @@ export function useWallet() {
     handleRecoverWallet,
     handleWalletRecovery,
     setShowRecoverModal,
+    updateTotalBalance,
   };
 }

@@ -37,7 +37,9 @@ export function ReceiveModal({
   onCopyInvoice,
   onReceiveCashuToken,
 }: ReceiveModalProps) {
-  const [activeTab, setActiveTab] = useState<'lightning' | 'cashu'>('lightning');
+  const [activeTab, setActiveTab] = useState<'lightning' | 'cashu'>(
+    'lightning'
+  );
   const [cashuTokenInput, setCashuTokenInput] = useState('');
   const [isProcessingToken, setIsProcessingToken] = useState(false);
 
@@ -113,10 +115,7 @@ export function ReceiveModal({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === 'cashu' && styles.activeTab,
-              ]}
+              style={[styles.tab, activeTab === 'cashu' && styles.activeTab]}
               onPress={() => setActiveTab('cashu')}
             >
               <Text
@@ -176,7 +175,9 @@ export function ReceiveModal({
                       <Text style={styles.buttonText}>Copy Invoice</Text>
                     </TouchableOpacity>
 
-                    <Text style={styles.waitingText}>Waiting for payment...</Text>
+                    <Text style={styles.waitingText}>
+                      Waiting for payment...
+                    </Text>
                   </View>
                 )}
               </>
@@ -216,7 +217,8 @@ export function ReceiveModal({
                 </View>
 
                 <Text style={styles.helpText}>
-                  💡 Paste a cashu token you received from someone else to add the funds to your wallet.
+                  💡 Paste a cashu token you received from someone else to add
+                  the funds to your wallet.
                 </Text>
               </View>
             )}
