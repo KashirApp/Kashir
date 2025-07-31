@@ -2837,6 +2837,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/geojson@npm:^7946.0.13":
+  version: 7946.0.16
+  resolution: "@types/geojson@npm:7946.0.16"
+  checksum: d66e5e023f43b3e7121448117af1930af7d06410a32a585a8bc9c6bb5d97e0d656cd93d99e31fa432976c32e98d4b780f82bf1fd1acd20ccf952eb6b8e39edf2
+  languageName: node
+  linkType: hard
+
 "@types/graceful-fs@npm:^4.1.3":
   version: 4.1.9
   resolution: "@types/graceful-fs@npm:4.1.9"
@@ -7771,13 +7778,16 @@ __metadata:
     "@react-native/metro-config": 0.78.1
     "@react-native/typescript-config": 0.78.1
     "@types/react": ^19.0.0
+    ngeohash: ^0.6.3
     react: 19.0.0
     react-native: 0.78.1
     react-native-builder-bob: ^0.38.3
     react-native-camera-kit: ^15.1.0
     react-native-confetti-cannon: ^1.5.2
+    react-native-config: ^1.5.5
     react-native-fs: ^2.20.0
     react-native-keychain: ^10.0.0
+    react-native-maps: ^1.24.13
     react-native-permissions: ^5.4.1
     react-native-qrcode-svg: ^6.3.2
     react-native-svg: ^15.8.1
@@ -8962,6 +8972,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ngeohash@npm:^0.6.3":
+  version: 0.6.3
+  resolution: "ngeohash@npm:0.6.3"
+  checksum: 563a6c403514237111a3524991640deaf962a49eb920e4426030c6aa4b084f4e8ed766aa53f060ade7914cfe77eb6103b8f7e1488de53e5214bbeb5dbc81d340
+  languageName: node
+  linkType: hard
+
 "nocache@npm:^3.0.1":
   version: 3.0.4
   resolution: "nocache@npm:3.0.4"
@@ -9974,6 +9991,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-config@npm:^1.5.5":
+  version: 1.5.5
+  resolution: "react-native-config@npm:1.5.5"
+  peerDependencies:
+    react-native-windows: ">=0.61"
+  peerDependenciesMeta:
+    react-native-windows:
+      optional: true
+  checksum: 96b83f6eaed4d4dd3095c18abdebb6231a9d5206203dbef65070414fb8f0582f30872dbc5120b47bb9e2e019ea842a9678838f7056d0f5e7b9c68de9ff5f971a
+  languageName: node
+  linkType: hard
+
 "react-native-fs@npm:^2.20.0":
   version: 2.20.0
   resolution: "react-native-fs@npm:2.20.0"
@@ -9994,6 +10023,22 @@ __metadata:
   version: 10.0.0
   resolution: "react-native-keychain@npm:10.0.0"
   checksum: 1055cc192df58cb110bd49df1264a401007a354ad28b93adefd740aeac0f746cdab86d7428887694a1b0949ef8d0dc85db8984e77db684d7b967180167b64d42
+  languageName: node
+  linkType: hard
+
+"react-native-maps@npm:^1.24.13":
+  version: 1.24.13
+  resolution: "react-native-maps@npm:1.24.13"
+  dependencies:
+    "@types/geojson": ^7946.0.13
+  peerDependencies:
+    react: ">= 18.3.1"
+    react-native: ">= 0.76.0"
+    react-native-web: ">= 0.11"
+  peerDependenciesMeta:
+    react-native-web:
+      optional: true
+  checksum: 42485fc0170c314254140f50e750a3db10d0ad18aa3f6e84977469907a647bdca6ae96d7b0e395499d049defb491d09c60f2d7eb220d2af002dc6938b1a08e18
   languageName: node
   linkType: hard
 

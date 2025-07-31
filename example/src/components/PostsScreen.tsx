@@ -18,6 +18,7 @@ import { Header } from './Header';
 import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
 import { EventList } from './EventList';
+import { EventMapScreen } from './EventMapScreen';
 import { ComposeNoteModal } from './ComposeNoteModal';
 import { UserPostsScreen } from './UserPostsScreen';
 import type { TabType } from '../types';
@@ -42,6 +43,7 @@ export function PostsScreen({
   const [userKeys, setUserKeys] = useState<Keys | null>(null);
   const [isComposeModalVisible, setIsComposeModalVisible] = useState(false);
   const [showUserPostsScreen, setShowUserPostsScreen] = useState(false);
+  const [showEventMapScreen, setShowEventMapScreen] = useState(false);
 
   // Use ref to track if initial fetch has been triggered
   const hasInitialFetchStarted = useRef(false);
@@ -209,6 +211,14 @@ export function PostsScreen({
     setShowUserPostsScreen(false);
   };
 
+  const handleShowEventMap = () => {
+    setShowEventMapScreen(true);
+  };
+
+  const handleBackFromEventMap = () => {
+    setShowEventMapScreen(false);
+  };
+
   const currentPosts = activeTab === 'following'
     ? followingPosts
     : activeTab === 'trending'
@@ -226,6 +236,21 @@ export function PostsScreen({
         userNpub={userNpub}
         userName={userName}
         onBack={handleBackFromUserPosts}
+      />
+    );
+  }
+
+  if (showEventMapScreen) {
+    return (
+      <EventMapScreen
+        events={events}
+        profileService={profileService}
+        onBack={handleBackFromEventMap}
+        onEventPress={(event) => {
+          console.log('Event pressed from map:', event.title);
+          // Navigate back to event list and show event details
+          setShowEventMapScreen(false);
+        }}
       />
     );
   }
@@ -269,6 +294,7 @@ export function PostsScreen({
             console.log('Event pressed:', event.title);
             // TODO: Navigate to event detail view
           }}
+          onMapPress={handleShowEventMap}
         />
       ) : (
         <PostList

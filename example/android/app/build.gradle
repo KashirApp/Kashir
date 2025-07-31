@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -84,6 +85,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode Integer.parseInt(System.getenv("VERSION_CODE") ?: "1")
         versionName "0.0.8"
+        
+        // Add env variables as build config fields
+        resValue "string", "GOOGLE_MAPS_API_KEY", (project.findProperty("GOOGLE_MAPS_API_KEY") ?: "")
     }
     signingConfigs {
         debug {

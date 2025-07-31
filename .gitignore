@@ -90,6 +90,7 @@ src/
 !example/ios/
 !example/src/
 !example/android/app/src/
+.env
 
 # React Native Nitro Modules
 nitrogen/

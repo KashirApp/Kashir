@@ -15,6 +15,7 @@ interface EventListProps {
   profileService: ProfileService;
   title?: string;
   onEventPress?: (event: CalendarEvent) => void;
+  onMapPress?: () => void;
 }
 
 export function EventList({
@@ -23,6 +24,7 @@ export function EventList({
   profileService,
   title = 'Calendar Events (by time)',
   onEventPress,
+  onMapPress,
 }: EventListProps) {
   const formatEventDate = (event: CalendarEvent) => {
     if (!event.startDate) return 'Date TBD';
@@ -156,6 +158,15 @@ export function EventList({
           {getEventTypeIndicator(events[0]?.kind || 31922)} {title} (
           {events.length})
         </Text>
+        {onMapPress && events.some(event => event.location || (event.tags && event.tags.some(tag => tag[0] === 'g'))) && (
+          <TouchableOpacity
+            style={styles.mapButton}
+            onPress={onMapPress}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.mapButtonText}>🗺️ Map</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -237,10 +248,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
     backgroundColor: '#2a2a2a',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  mapButton: {
+    backgroundColor: '#81b0ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  mapButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
   scrollView: {
