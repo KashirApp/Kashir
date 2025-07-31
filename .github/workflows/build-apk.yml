@@ -146,7 +146,7 @@ jobs:
         run: |
           # Check if cargo-ndk is already installed (from cache)
           if ! command -v cargo-ndk &> /dev/null; then
-            cargo install cargo-ndk --version 3.5.7
+            cargo install cargo-ndk --version 3.5.4
           fi
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
 
