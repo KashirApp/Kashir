@@ -343,4 +343,10 @@ export const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 8,
   },
+  // Back button style
+  backButton: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
 });

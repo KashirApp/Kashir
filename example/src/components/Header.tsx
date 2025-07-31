@@ -11,6 +11,7 @@ interface HeaderProps {
   currentLoading: boolean;
   onLogout: () => Promise<void>;
   onRefresh: () => void;
+  onShowUserPosts: () => void;
 }
 
 export function Header({
@@ -21,18 +22,10 @@ export function Header({
   currentLoading,
   onLogout,
   onRefresh,
+  onShowUserPosts,
 }: HeaderProps) {
   const handleUserNamePress = () => {
-    Alert.alert('User Profile', `Full npub: ${userNpub}\n\nName: ${userName}`, [
-      {
-        text: 'Copy npub',
-        onPress: () => {
-          Clipboard.setString(userNpub);
-          Alert.alert('Copied!', 'npub copied to clipboard');
-        },
-      },
-      { text: 'OK' },
-    ]);
+    onShowUserPosts();
   };
 
   return (

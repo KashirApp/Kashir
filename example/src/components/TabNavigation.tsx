@@ -42,19 +42,6 @@ export function TabNavigation({
           Trending
         </Text>
       </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.tab, activeTab === 'your-posts' && styles.activeTab]}
-        onPress={() => onTabChange('your-posts')}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            activeTab === 'your-posts' && styles.activeTabText,
-          ]}
-        >
-          Your Posts
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 }

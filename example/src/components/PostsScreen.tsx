@@ -17,6 +17,7 @@ import { Header } from './Header';
 import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
 import { ComposeNoteModal } from './ComposeNoteModal';
+import { UserPostsScreen } from './UserPostsScreen';
 import type { TabType } from '../types';
 import { styles } from '../App.styles';
 import { Keys, SecretKey } from 'kashir';
@@ -38,6 +39,7 @@ export function PostsScreen({
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [userKeys, setUserKeys] = useState<Keys | null>(null);
   const [isComposeModalVisible, setIsComposeModalVisible] = useState(false);
+  const [showUserPostsScreen, setShowUserPostsScreen] = useState(false);
 
   // Use ref to track if initial fetch has been triggered
   const hasInitialFetchStarted = useRef(false);
@@ -150,8 +152,6 @@ export function PostsScreen({
       !followingLoading
     ) {
       fetchFollowingPosts(userNpub);
-    } else if (tab === 'your-posts' && posts.length === 0 && !loading) {
-      fetchPosts(userNpub);
     } else if (
       tab === 'trending' &&
       trendingPosts.length === 0 &&
@@ -164,9 +164,7 @@ export function PostsScreen({
   };
 
   const handleRefresh = () => {
-    if (activeTab === 'your-posts') {
-      fetchPosts(userNpub);
-    } else if (activeTab === 'following') {
+    if (activeTab === 'following') {
       fetchFollowingPosts(userNpub);
     } else if (activeTab === 'trending') {
       fetchTrendingPosts(userKeys || null);
@@ -187,18 +185,30 @@ export function PostsScreen({
     handleRefresh();
   };
 
-  const currentPosts =
-    activeTab === 'your-posts'
-      ? posts
-      : activeTab === 'following'
-        ? followingPosts
-        : trendingPosts;
-  const currentLoading =
-    activeTab === 'your-posts'
-      ? loading
-      : activeTab === 'following'
-        ? followingLoading
-        : trendingLoading;
+  const handleShowUserPosts = () => {
+    setShowUserPostsScreen(true);
+  };
+
+  const handleBackFromUserPosts = () => {
+    setShowUserPostsScreen(false);
+  };
+
+  const currentPosts = activeTab === 'following'
+    ? followingPosts
+    : trendingPosts;
+  const currentLoading = activeTab === 'following'
+    ? followingLoading
+    : trendingLoading;
+
+  if (showUserPostsScreen) {
+    return (
+      <UserPostsScreen
+        userNpub={userNpub}
+        userName={userName}
+        onBack={handleBackFromUserPosts}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -210,6 +220,7 @@ export function PostsScreen({
         currentLoading={currentLoading}
         onLogout={handleLogout}
         onRefresh={handleRefresh}
+        onShowUserPosts={handleShowUserPosts}
       />
 
       <TabNavigation
@@ -233,13 +244,11 @@ export function PostsScreen({
         showAuthor={activeTab === 'following' || activeTab === 'trending'}
         profileService={profileService}
         title={
-          activeTab === 'your-posts'
-            ? 'Fetching your posts...'
-            : activeTab === 'following'
-              ? 'Fetching posts from following...'
-              : activeTab === 'trending' && trendingPosts.length > 0
-                ? 'Trending posts'
-                : 'Fetching trending posts...'
+          activeTab === 'following'
+            ? 'Fetching posts from following...'
+            : activeTab === 'trending' && trendingPosts.length > 0
+              ? 'Trending posts'
+              : 'Fetching trending posts...'
         }
       />
 

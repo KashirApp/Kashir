@@ -1,6 +1,6 @@
 import type { PublicKey } from 'kashir';
 
-export type TabType = 'your-posts' | 'following' | 'trending';
+export type TabType = 'following' | 'trending';
 export type MainTabType = 'nostr' | 'wallet' | 'settings';
 
 export interface ProfileData {
