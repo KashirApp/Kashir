@@ -41,9 +41,25 @@ export function EventList({
         displayDate = date.toLocaleDateString();
       } else {
         // Time-based event: startDate is Unix timestamp
-        const date = new Date(parseInt(event.startDate, 10) * 1000);
-        eventTime = date.getTime();
-        displayDate = date.toLocaleString();
+        const startDate = new Date(parseInt(event.startDate, 10) * 1000);
+        eventTime = startDate.getTime();
+        
+        // Format start time
+        displayDate = startDate.toLocaleString();
+        
+        // Add end time if available
+        if (event.endDate) {
+          const endDate = new Date(parseInt(event.endDate, 10) * 1000);
+          const startTime = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const endTime = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          
+          // Check if same day
+          if (startDate.toDateString() === endDate.toDateString()) {
+            displayDate = `${startDate.toLocaleDateString()} ${startTime} - ${endTime}`;
+          } else {
+            displayDate = `${startDate.toLocaleString()} - ${endDate.toLocaleString()}`;
+          }
+        }
       }
 
       // Add timing context
@@ -225,9 +241,9 @@ export function EventList({
                 <Text style={styles.organizer}>
                   by {getOrganizerName(event.pubkey)}
                 </Text>
-                <Text style={styles.eventKind}>
-                  {event.kind === 31922 ? 'All Day' : 'Timed'}
-                </Text>
+                {event.kind === 31922 && (
+                  <Text style={styles.eventKind}>All Day</Text>
+                )}
               </View>
             </View>
           </TouchableOpacity>
