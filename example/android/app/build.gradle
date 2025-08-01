@@ -87,7 +87,7 @@ android {
         versionName "0.0.10"
         
         // Add env variables as build config fields
-        resValue "string", "GOOGLE_MAPS_API_KEY", (project.findProperty("GOOGLE_MAPS_API_KEY") ?: "")
+        resValue "string", "GOOGLE_MAPS_API_KEY", (project.env.get("GOOGLE_MAPS_API_KEY") ?: "")
     }
     signingConfigs {
         debug {
