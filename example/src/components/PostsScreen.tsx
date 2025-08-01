@@ -14,10 +14,12 @@ import { usePosts } from '../hooks/usePosts';
 import { useFollowing } from '../hooks/useFollowing';
 import { useTrending } from '../hooks/useTrending';
 import { useEvents } from '../hooks/useEvents';
+import type { CalendarEvent } from '../hooks/useEvents';
 import { Header } from './Header';
 import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
 import { EventList } from './EventList';
+import { EventDetail } from './EventDetail';
 import { EventMapScreen } from './EventMapScreen';
 import { ComposeNoteModal } from './ComposeNoteModal';
 import { UserPostsScreen } from './UserPostsScreen';
@@ -44,6 +46,8 @@ export function PostsScreen({
   const [isComposeModalVisible, setIsComposeModalVisible] = useState(false);
   const [showUserPostsScreen, setShowUserPostsScreen] = useState(false);
   const [showEventMapScreen, setShowEventMapScreen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [showEventDetail, setShowEventDetail] = useState(false);
 
   // Use ref to track if initial fetch has been triggered
   const hasInitialFetchStarted = useRef(false);
@@ -219,6 +223,23 @@ export function PostsScreen({
     setShowEventMapScreen(false);
   };
 
+  const handleShowEventDetail = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setShowEventDetail(true);
+  };
+
+  const handleBackFromEventDetail = () => {
+    setShowEventDetail(false);
+    setSelectedEvent(null);
+  };
+
+  const handleEventRSVP = async (status: 'accepted' | 'declined' | 'tentative') => {
+    // TODO: Implement RSVP functionality with Nostr
+    console.log('RSVP submitted:', status, 'for event:', selectedEvent?.title);
+    // For now, just show success
+    return Promise.resolve();
+  };
+
   const currentPosts = activeTab === 'following'
     ? followingPosts
     : activeTab === 'trending'
@@ -247,10 +268,20 @@ export function PostsScreen({
         profileService={profileService}
         onBack={handleBackFromEventMap}
         onEventPress={(event) => {
-          console.log('Event pressed from map:', event.title);
-          // Navigate back to event list and show event details
           setShowEventMapScreen(false);
+          handleShowEventDetail(event);
         }}
+      />
+    );
+  }
+
+  if (showEventDetail && selectedEvent) {
+    return (
+      <EventDetail
+        event={selectedEvent}
+        profileService={profileService}
+        onBack={handleBackFromEventDetail}
+        onRSVP={handleEventRSVP}
       />
     );
   }
@@ -291,8 +322,7 @@ export function PostsScreen({
           profileService={profileService}
           title="Calendar Events"
           onEventPress={(event) => {
-            console.log('Event pressed:', event.title);
-            // TODO: Navigate to event detail view
+            handleShowEventDetail(event);
           }}
           onMapPress={handleShowEventMap}
         />

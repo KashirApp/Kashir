@@ -1,4 +1,5 @@
 export { BottomTabNavigation } from './BottomTabNavigation';
+export { EventDetail } from './EventDetail';
 export { EventMapScreen } from './EventMapScreen';
 export { Header } from './Header';
 export { LoginScreen } from './LoginScreen';
