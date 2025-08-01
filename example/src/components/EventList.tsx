@@ -62,40 +62,7 @@ export function EventList({
         }
       }
 
-      // Add timing context
-      const timeDiff = eventTime - now;
-      const absTimeDiff = Math.abs(timeDiff);
-      const daysDiff = Math.floor(absTimeDiff / (1000 * 60 * 60 * 24));
-      const hoursDiff = Math.floor(absTimeDiff / (1000 * 60 * 60));
-      const minutesDiff = Math.floor(absTimeDiff / (1000 * 60));
-
-      let timeContext = '';
-      
-      if (timeDiff > 0) {
-        // Future event
-        if (daysDiff > 0) {
-          timeContext = ` (in ${daysDiff} day${daysDiff > 1 ? 's' : ''})`;
-        } else if (hoursDiff > 0) {
-          timeContext = ` (in ${hoursDiff} hour${hoursDiff > 1 ? 's' : ''})`;
-        } else if (minutesDiff > 0) {
-          timeContext = ` (in ${minutesDiff} min)`;
-        } else {
-          timeContext = ' (starting soon!)';
-        }
-      } else {
-        // Past event
-        if (daysDiff > 0) {
-          timeContext = ` (${daysDiff} day${daysDiff > 1 ? 's' : ''} ago)`;
-        } else if (hoursDiff > 0) {
-          timeContext = ` (${hoursDiff} hour${hoursDiff > 1 ? 's' : ''} ago)`;
-        } else if (minutesDiff > 0) {
-          timeContext = ` (${minutesDiff} min ago)`;
-        } else {
-          timeContext = ' (happening now!)';
-        }
-      }
-
-      return displayDate + timeContext;
+      return displayDate;
     } catch (error) {
       return 'Invalid Date';
     }
