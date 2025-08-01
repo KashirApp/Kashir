@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LoginScreen } from './components/LoginScreen';
-import { PostsScreen } from './components/PostsScreen';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { NostrNavigator } from './components/NostrNavigator';
 import { WalletScreen } from './components/WalletScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { BottomTabNavigation } from './components/BottomTabNavigation';
@@ -17,6 +17,20 @@ export default function App() {
   const [loginType, setLoginType] = useState<LoginType>(LoginType.Amber);
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('wallet');
   const [isLoadingStoredSession, setIsLoadingStoredSession] = useState(true);
+
+  // Custom dark theme to match existing app styling
+  const customDarkTheme = {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: '#81b0ff',
+      background: '#1a1a1a',
+      card: '#2a2a2a',
+      text: '#ffffff',
+      border: '#333333',
+      notification: '#81b0ff',
+    },
+  };
 
   // Global deep link listener for debugging
   useEffect(() => {
@@ -106,18 +120,19 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
-        <View style={{ flex: 1 }}>
-          {/* Keep WalletScreen always mounted to preserve state */}
-          <View
-            style={{
-              flex: 1,
-              display: activeMainTab === 'wallet' ? 'flex' : 'none',
-            }}
-          >
-            <WalletScreen />
-          </View>
+    <NavigationContainer theme={customDarkTheme}>
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+          <View style={{ flex: 1 }}>
+            {/* Keep WalletScreen always mounted to preserve state */}
+            <View
+              style={{
+                flex: 1,
+                display: activeMainTab === 'wallet' ? 'flex' : 'none',
+              }}
+            >
+              <WalletScreen />
+            </View>
 
           {/* Nostr content - show based on login state */}
           <View
@@ -126,15 +141,13 @@ export default function App() {
               display: activeMainTab === 'nostr' ? 'flex' : 'none',
             }}
           >
-            {isLoggedIn ? (
-              <PostsScreen
-                userNpub={userNpub}
-                loginType={loginType}
-                onLogout={handleLogout}
-              />
-            ) : (
-              <LoginScreen onLogin={handleLogin} />
-            )}
+            <NostrNavigator
+              isLoggedIn={isLoggedIn}
+              userNpub={userNpub}
+              loginType={loginType}
+              onLogin={handleLogin}
+              onLogout={handleLogout}
+            />
           </View>
 
           {/* Settings Screen */}
@@ -154,5 +167,6 @@ export default function App() {
         />
       </View>
     </SafeAreaProvider>
+    </NavigationContainer>
   );
 }

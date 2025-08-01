@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService, LoginType } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
@@ -19,35 +20,22 @@ import { Header } from './Header';
 import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
 import { EventList } from './EventList';
-import { EventDetail } from './EventDetail';
-import { EventMapScreen } from './EventMapScreen';
 import { ComposeNoteModal } from './ComposeNoteModal';
-import { UserPostsScreen } from './UserPostsScreen';
 import type { TabType } from '../types';
+import type { NostrStackParamList } from './NostrNavigator';
 import { styles } from '../App.styles';
 import { Keys, SecretKey } from 'kashir';
 
-interface PostsScreenProps {
-  userNpub: string;
-  loginType: LoginType;
-  onLogout: () => Promise<void>;
-}
+type PostsScreenProps = NativeStackScreenProps<NostrStackParamList, 'PostsMain'>;
 
-export function PostsScreen({
-  userNpub,
-  loginType,
-  onLogout,
-}: PostsScreenProps) {
+export function PostsScreen({ route, navigation }: PostsScreenProps) {
+  const { userNpub, loginType, onLogout } = route.params;
   const [isClientReady, setIsClientReady] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [userKeys, setUserKeys] = useState<Keys | null>(null);
   const [isComposeModalVisible, setIsComposeModalVisible] = useState(false);
-  const [showUserPostsScreen, setShowUserPostsScreen] = useState(false);
-  const [showEventMapScreen, setShowEventMapScreen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [showEventDetail, setShowEventDetail] = useState(false);
 
   // Use ref to track if initial fetch has been triggered
   const hasInitialFetchStarted = useRef(false);
@@ -208,34 +196,29 @@ export function PostsScreen({
   };
 
   const handleShowUserPosts = () => {
-    setShowUserPostsScreen(true);
-  };
-
-  const handleBackFromUserPosts = () => {
-    setShowUserPostsScreen(false);
+    navigation.navigate('UserPosts', {
+      userNpub,
+      userName,
+    });
   };
 
   const handleShowEventMap = () => {
-    setShowEventMapScreen(true);
-  };
-
-  const handleBackFromEventMap = () => {
-    setShowEventMapScreen(false);
+    navigation.navigate('EventMap', {
+      userNpub,
+      onEventSelect: handleShowEventDetail,
+    });
   };
 
   const handleShowEventDetail = (event: CalendarEvent) => {
-    setSelectedEvent(event);
-    setShowEventDetail(true);
-  };
-
-  const handleBackFromEventDetail = () => {
-    setShowEventDetail(false);
-    setSelectedEvent(null);
+    navigation.navigate('EventDetail', {
+      event,
+      userNpub,
+    });
   };
 
   const handleEventRSVP = async (status: 'accepted' | 'declined' | 'tentative') => {
     // TODO: Implement RSVP functionality with Nostr
-    console.log('RSVP submitted:', status, 'for event:', selectedEvent?.title);
+    console.log('RSVP submitted:', status);
     // For now, just show success
     return Promise.resolve();
   };
@@ -250,41 +233,6 @@ export function PostsScreen({
     : activeTab === 'trending'
     ? trendingLoading
     : eventsLoading;
-
-  if (showUserPostsScreen) {
-    return (
-      <UserPostsScreen
-        userNpub={userNpub}
-        userName={userName}
-        onBack={handleBackFromUserPosts}
-      />
-    );
-  }
-
-  if (showEventMapScreen) {
-    return (
-      <EventMapScreen
-        events={events}
-        profileService={profileService}
-        onBack={handleBackFromEventMap}
-        onEventPress={(event) => {
-          setShowEventMapScreen(false);
-          handleShowEventDetail(event);
-        }}
-      />
-    );
-  }
-
-  if (showEventDetail && selectedEvent) {
-    return (
-      <EventDetail
-        event={selectedEvent}
-        profileService={profileService}
-        onBack={handleBackFromEventDetail}
-        onRSVP={handleEventRSVP}
-      />
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>

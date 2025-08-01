@@ -13,6 +13,8 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-clipboard/clipboard": "^1.16.3",
+    "@react-navigation/native": "^7.1.16",
+    "@react-navigation/native-stack": "^7.3.23",
     "ngeohash": "^0.6.3",
     "react": "19.0.0",
     "react-native": "0.78.1",
@@ -25,6 +27,7 @@
     "react-native-permissions": "^5.4.1",
     "react-native-qrcode-svg": "^6.3.2",
     "react-native-safe-area-context": "^5.5.2",
+    "react-native-screens": "^4.13.1",
     "react-native-svg": "^15.8.1"
   },
   "devDependencies": {

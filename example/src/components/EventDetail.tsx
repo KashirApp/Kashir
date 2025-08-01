@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,22 +9,24 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProfileService } from '../services/ProfileService';
 import type { CalendarEvent } from '../hooks/useEvents';
+import type { NostrStackParamList } from './NostrNavigator';
 
-interface EventDetailProps {
-  event: CalendarEvent;
-  profileService: ProfileService;
-  onBack: () => void;
+type EventDetailScreenProps = NativeStackScreenProps<NostrStackParamList, 'EventDetail'>;
+
+interface EventDetailProps extends EventDetailScreenProps {
   onRSVP?: (status: 'accepted' | 'declined' | 'tentative') => void;
 }
 
 export function EventDetail({
-  event,
-  profileService,
-  onBack,
+  route,
+  navigation,
   onRSVP,
 }: EventDetailProps) {
+  const { event, userNpub } = route.params;
+  const profileService = useMemo(() => new ProfileService(), []);
   const [selectedRSVPStatus, setSelectedRSVPStatus] = useState<'accepted' | 'declined' | 'tentative'>('accepted');
   const [isSubmittingRSVP, setIsSubmittingRSVP] = useState(false);
 
@@ -142,19 +144,6 @@ export function EventDetail({
 
   return (
     <View style={styles.container}>
-      {/* Header with back button */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={onBack}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Event Details</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Event Title */}
         <View style={styles.section}>
@@ -288,34 +277,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    backgroundColor: '#2a2a2a',
-  },
-  backButton: {
-    paddingVertical: 8,
-    paddingRight: 16,
-  },
-  backButtonText: {
-    color: '#81b0ff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 60, // Balance the back button
   },
   scrollView: {
     flex: 1,

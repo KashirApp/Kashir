@@ -6,23 +6,20 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { usePosts } from '../hooks/usePosts';
 import { PostList } from './PostList';
 import { styles } from '../App.styles';
+import type { NostrStackParamList } from './NostrNavigator';
 
-interface UserPostsScreenProps {
-  userNpub: string;
-  userName: string;
-  onBack: () => void;
-}
+type UserPostsScreenProps = NativeStackScreenProps<NostrStackParamList, 'UserPosts'>;
 
 export function UserPostsScreen({
-  userNpub,
-  userName,
-  onBack,
+  route,
 }: UserPostsScreenProps) {
+  const { userNpub, userName } = route.params;
   const [client, setClient] = useState(NostrClientService.getInstance().getClient());
   
   // Initialize services
@@ -44,17 +41,6 @@ export function UserPostsScreen({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with back button */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={onBack}>
-            <Text style={styles.backButton}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>{userName}'s Posts</Text>
-          <View style={{ width: 60 }} />
-        </View>
-      </View>
-
       <View style={styles.headerButtons}>
         <Button
           title="Refresh"

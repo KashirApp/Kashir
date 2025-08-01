@@ -8,17 +8,15 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import MapView, { Marker, Callout, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as geohash from 'ngeohash';
 import type { CalendarEvent } from '../hooks/useEvents';
+import { useEvents } from '../hooks/useEvents';
 import { ProfileService } from '../services/ProfileService';
+import type { NostrStackParamList } from './NostrNavigator';
 
-interface EventMapScreenProps {
-  events: CalendarEvent[];
-  profileService: ProfileService;
-  onBack: () => void;
-  onEventPress?: (event: CalendarEvent) => void;
-}
+type EventMapScreenProps = NativeStackScreenProps<NostrStackParamList, 'EventMap'>;
 
 const { width, height } = Dimensions.get('window');
 
@@ -31,11 +29,11 @@ interface EventMarker {
 }
 
 export function EventMapScreen({
-  events,
-  profileService,
-  onBack,
-  onEventPress,
+  route,
+  navigation,
 }: EventMapScreenProps) {
+  const { userNpub, onEventSelect } = route.params;
+  const { events, fetchEvents } = useEvents();
   const [eventMarkers, setEventMarkers] = useState<EventMarker[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
@@ -97,6 +95,11 @@ export function EventMapScreen({
 
     return null;
   };
+
+  // Fetch events when component mounts
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   useEffect(() => {
     const processEvents = async () => {
@@ -173,12 +176,6 @@ export function EventMapScreen({
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Event Map</Text>
-        </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Processing event locations...</Text>
         </View>
@@ -189,12 +186,6 @@ export function EventMapScreen({
   if (eventMarkers.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>  
-          <Text style={styles.headerTitle}>Event Map</Text>
-        </View>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>🗺️ No mappable events found</Text>
           <Text style={styles.emptySubtext}>
@@ -207,16 +198,6 @@ export function EventMapScreen({
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Event Map ({eventMarkers.length} events)</Text>
-        <TouchableOpacity onPress={focusOnMarkers} style={styles.focusButton}>
-          <Text style={styles.focusButtonText}>Focus</Text>
-        </TouchableOpacity>
-      </View>
-
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -235,7 +216,7 @@ export function EventMapScreen({
             description={marker.event.location}
           >
             <Callout
-              onPress={() => onEventPress?.(marker.event)}
+              onPress={() => onEventSelect?.(marker.event)}
               style={styles.callout}
             >
               <View style={styles.calloutContent}>
@@ -262,6 +243,10 @@ export function EventMapScreen({
           </Marker>
         ))}
       </MapView>
+      
+      <TouchableOpacity onPress={focusOnMarkers} style={styles.focusButton}>
+        <Text style={styles.focusButtonText}>Focus</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -271,36 +256,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a1a',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#2a2a2a',
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  backButton: {
-    padding: 8,
-  },
-  backButtonText: {
-    color: '#81b0ff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
-  },
   focusButton: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
     backgroundColor: '#81b0ff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
   focusButtonText: {
     color: '#fff',
