@@ -7790,6 +7790,7 @@ __metadata:
     react-native-maps: ^1.24.13
     react-native-permissions: ^5.4.1
     react-native-qrcode-svg: ^6.3.2
+    react-native-safe-area-context: ^5.5.2
     react-native-svg: ^15.8.1
   languageName: unknown
   linkType: soft
@@ -10068,6 +10069,16 @@ __metadata:
     react-native: ">=0.63.4"
     react-native-svg: ">=14.0.0"
   checksum: e6982a90abeb4e83bc550c13502f3511c6ac2bbea08403ebb13a309bfb252b4c39a90ac762cfe4aa1679d16698c9a93636208fa92b5ce25d1551839fc91013d3
+  languageName: node
+  linkType: hard
+
+"react-native-safe-area-context@npm:^5.5.2":
+  version: 5.5.2
+  resolution: "react-native-safe-area-context@npm:5.5.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 694e293b474b0738899c6e09da9f001d8087b382b5a40b8b227765c861a8137f0ff0209f1c9d8ae94337bc9c170eb114a9b897a8661b8181f48759a21baeb265
   languageName: node
   linkType: hard
 

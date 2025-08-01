@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Linking } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoginScreen } from './components/LoginScreen';
 import { PostsScreen } from './components/PostsScreen';
 import { WalletScreen } from './components/WalletScreen';
@@ -105,51 +106,53 @@ export default function App() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
-      <View style={{ flex: 1 }}>
-        {/* Keep WalletScreen always mounted to preserve state */}
-        <View
-          style={{
-            flex: 1,
-            display: activeMainTab === 'wallet' ? 'flex' : 'none',
-          }}
-        >
-          <WalletScreen />
+    <SafeAreaProvider>
+      <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+        <View style={{ flex: 1 }}>
+          {/* Keep WalletScreen always mounted to preserve state */}
+          <View
+            style={{
+              flex: 1,
+              display: activeMainTab === 'wallet' ? 'flex' : 'none',
+            }}
+          >
+            <WalletScreen />
+          </View>
+
+          {/* Nostr content - show based on login state */}
+          <View
+            style={{
+              flex: 1,
+              display: activeMainTab === 'nostr' ? 'flex' : 'none',
+            }}
+          >
+            {isLoggedIn ? (
+              <PostsScreen
+                userNpub={userNpub}
+                loginType={loginType}
+                onLogout={handleLogout}
+              />
+            ) : (
+              <LoginScreen onLogin={handleLogin} />
+            )}
+          </View>
+
+          {/* Settings Screen */}
+          <View
+            style={{
+              flex: 1,
+              display: activeMainTab === 'settings' ? 'flex' : 'none',
+            }}
+          >
+            <SettingsScreen isVisible={activeMainTab === 'settings'} />
+          </View>
         </View>
 
-        {/* Nostr content - show based on login state */}
-        <View
-          style={{
-            flex: 1,
-            display: activeMainTab === 'nostr' ? 'flex' : 'none',
-          }}
-        >
-          {isLoggedIn ? (
-            <PostsScreen
-              userNpub={userNpub}
-              loginType={loginType}
-              onLogout={handleLogout}
-            />
-          ) : (
-            <LoginScreen onLogin={handleLogin} />
-          )}
-        </View>
-
-        {/* Settings Screen */}
-        <View
-          style={{
-            flex: 1,
-            display: activeMainTab === 'settings' ? 'flex' : 'none',
-          }}
-        >
-          <SettingsScreen isVisible={activeMainTab === 'settings'} />
-        </View>
+        <BottomTabNavigation
+          activeTab={activeMainTab}
+          onTabChange={handleMainTabChange}
+        />
       </View>
-
-      <BottomTabNavigation
-        activeTab={activeMainTab}
-        onTabChange={handleMainTabChange}
-      />
-    </View>
+    </SafeAreaProvider>
   );
 }

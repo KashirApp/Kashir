@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { MainTabType } from '../types';
 
 interface BottomTabNavigationProps {
@@ -11,8 +12,10 @@ export function BottomTabNavigation({
   activeTab,
   onTabChange,
 }: BottomTabNavigationProps) {
+  const insets = useSafeAreaInsets();
+  
   return (
-    <View style={styles.tabContainer}>
+    <View style={[styles.tabContainer, { paddingBottom: insets.bottom }]}>
       <TouchableOpacity
         style={[styles.tab, activeTab === 'wallet' && styles.activeTab]}
         onPress={() => onTabChange('wallet')}
@@ -62,7 +65,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2a2a2a',
     borderTopWidth: 1,
     borderTopColor: '#444',
-    paddingBottom: 20, // Account for safe area on newer phones
   },
   tab: {
     flex: 1,
