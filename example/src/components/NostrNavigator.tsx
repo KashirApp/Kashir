@@ -16,7 +16,7 @@ export type NostrStackParamList = {
   };
   EventDetail: {
     event: CalendarEvent;
-    userNpub: string; 
+    userNpub: string;
   };
   EventMap: {
     userNpub: string;

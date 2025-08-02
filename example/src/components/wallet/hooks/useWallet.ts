@@ -1255,11 +1255,11 @@ export function useWallet() {
       const parsedToken = await wallet.parseCashuToken(tokenString);
       const tokenMintUrl = parsedToken.mint;
       const currentActiveMint = await getCurrentActiveMintUrl();
-      
+
       // Check if we need to add a new mint
       let needsNewMint = false;
       let targetMintUrl = tokenMintUrl;
-      
+
       if (!mintUrls.includes(tokenMintUrl)) {
         needsNewMint = true;
       }
@@ -1269,126 +1269,134 @@ export function useWallet() {
         ? `This token is from: ${tokenMintUrl}\n\nThis mint will be automatically added to your wallet.\n\nDo you want to redeem this cashu token?`
         : `This token is from: ${tokenMintUrl}\n\nDo you want to redeem this cashu token to your wallet?`;
 
-      Alert.alert(
-        'Redeem Cashu Token',
-        confirmationMessage,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Redeem',
-            onPress: async () => {
-              try {
-                // Close the receive modal first
-                setShowReceiveModal(false);
+      Alert.alert('Redeem Cashu Token', confirmationMessage, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Redeem',
+          onPress: async () => {
+            try {
+              // Close the receive modal first
+              setShowReceiveModal(false);
 
-                // Show receiving loading indicator
-                setShowReceivingLoader(true);
+              // Show receiving loading indicator
+              setShowReceivingLoader(true);
 
-                // Small delay to ensure the loading indicator renders
-                await new Promise((resolve) => setTimeout(resolve, 100));
+              // Small delay to ensure the loading indicator renders
+              await new Promise((resolve) => setTimeout(resolve, 100));
 
-                // Add mint if it doesn't exist
-                if (needsNewMint) {
-                  await addMintUrl(tokenMintUrl);
-                  
-                  // Wait for React state to update after adding the mint
-                  await new Promise((resolve) => setTimeout(resolve, 500));
-                }
+              // Add mint if it doesn't exist
+              if (needsNewMint) {
+                await addMintUrl(tokenMintUrl);
 
-                // Get the wallet instance for the token's mint
-                let targetWallet = wallet;
-                let previousMintUrl = null;
-
-                // If token is from a different mint, temporarily switch to it
-                if (tokenMintUrl !== currentActiveMint) {
-                  previousMintUrl = currentActiveMint;
-                  
-                  // Create wallet for the target mint directly instead of using setActiveMint
-                  try {
-                    const dbPath = getMintDbPath(tokenMintUrl);
-                    const localStore = FfiLocalStore.newWithPath(dbPath);
-                    
-                    const storedSeedPhrase = await SecureStorageService.getSeedPhrase();
-                    if (!storedSeedPhrase) {
-                      throw new Error('No seed phrase available for target mint wallet creation');
-                    }
-                    
-                    targetWallet = FfiWallet.fromMnemonic(
-                      tokenMintUrl,
-                      FfiCurrencyUnit.Sat,
-                      localStore,
-                      storedSeedPhrase
-                    );
-                    
-                    // Verify wallet works by checking if it has the receiveCashuToken method
-                    if (typeof targetWallet.receiveCashuToken !== 'function') {
-                      throw new Error('Target wallet does not have receiveCashuToken method');
-                    }
-                    
-                  } catch (walletCreationError) {
-                    console.error('Failed to create target wallet:', walletCreationError);
-                    const errorMessage = walletCreationError instanceof Error ? walletCreationError.message : 'Unknown error';
-                    throw new Error(`Failed to create wallet for mint ${tokenMintUrl}: ${errorMessage}`);
-                  }
-                }
-
-                // Redeem the token using the correct mint's wallet
-                const receivedAmount = await targetWallet.receiveCashuToken(tokenString);
-
-                // Update cached balance for the correct mint
-                const currentCachedBalance = await getCachedMintBalance(tokenMintUrl);
-                const newBalance = currentCachedBalance.balance + receivedAmount.value;
-                await updateCachedMintBalance(tokenMintUrl, newBalance);
-
-                // Update total balance from cached balances
-                await updateTotalBalance();
-
-                // Switch back to previous mint if we changed it
-                if (previousMintUrl && previousMintUrl !== tokenMintUrl) {
-                  await setActiveMint(previousMintUrl);
-                }
-
-                // Hide receiving loading indicator
-                setShowReceivingLoader(false);
-
-                // Show success confetti animation
-                setPaymentReceivedAmount(receivedAmount.value);
-                setShowConfetti(true);
-
-                // Hide confetti after 3 seconds
-                setTimeout(() => setShowConfetti(false), 3000);
-
-                return true;
-              } catch (error) {
-                console.error('Failed to receive cashu token:', error);
-
-                // Hide receiving loading indicator on error
-                setShowReceivingLoader(false);
-
-                const errorMsg = getErrorMessage(error);
-                Alert.alert(
-                  'Error',
-                  `Failed to receive cashu token: ${errorMsg}`
-                );
-                return false;
+                // Wait for React state to update after adding the mint
+                await new Promise((resolve) => setTimeout(resolve, 500));
               }
-            },
+
+              // Get the wallet instance for the token's mint
+              let targetWallet = wallet;
+              let previousMintUrl = null;
+
+              // If token is from a different mint, temporarily switch to it
+              if (tokenMintUrl !== currentActiveMint) {
+                previousMintUrl = currentActiveMint;
+
+                // Create wallet for the target mint directly instead of using setActiveMint
+                try {
+                  const dbPath = getMintDbPath(tokenMintUrl);
+                  const localStore = FfiLocalStore.newWithPath(dbPath);
+
+                  const storedSeedPhrase =
+                    await SecureStorageService.getSeedPhrase();
+                  if (!storedSeedPhrase) {
+                    throw new Error(
+                      'No seed phrase available for target mint wallet creation'
+                    );
+                  }
+
+                  targetWallet = FfiWallet.fromMnemonic(
+                    tokenMintUrl,
+                    FfiCurrencyUnit.Sat,
+                    localStore,
+                    storedSeedPhrase
+                  );
+
+                  // Verify wallet works by checking if it has the receiveCashuToken method
+                  if (typeof targetWallet.receiveCashuToken !== 'function') {
+                    throw new Error(
+                      'Target wallet does not have receiveCashuToken method'
+                    );
+                  }
+                } catch (walletCreationError) {
+                  console.error(
+                    'Failed to create target wallet:',
+                    walletCreationError
+                  );
+                  const errorMessage =
+                    walletCreationError instanceof Error
+                      ? walletCreationError.message
+                      : 'Unknown error';
+                  throw new Error(
+                    `Failed to create wallet for mint ${tokenMintUrl}: ${errorMessage}`
+                  );
+                }
+              }
+
+              // Redeem the token using the correct mint's wallet
+              const receivedAmount =
+                await targetWallet.receiveCashuToken(tokenString);
+
+              // Update cached balance for the correct mint
+              const currentCachedBalance =
+                await getCachedMintBalance(tokenMintUrl);
+              const newBalance =
+                currentCachedBalance.balance + receivedAmount.value;
+              await updateCachedMintBalance(tokenMintUrl, newBalance);
+
+              // Update total balance from cached balances
+              await updateTotalBalance();
+
+              // Switch back to previous mint if we changed it
+              if (previousMintUrl && previousMintUrl !== tokenMintUrl) {
+                await setActiveMint(previousMintUrl);
+              }
+
+              // Hide receiving loading indicator
+              setShowReceivingLoader(false);
+
+              // Show success confetti animation
+              setPaymentReceivedAmount(receivedAmount.value);
+              setShowConfetti(true);
+
+              // Hide confetti after 3 seconds
+              setTimeout(() => setShowConfetti(false), 3000);
+
+              return true;
+            } catch (error) {
+              console.error('Failed to receive cashu token:', error);
+
+              // Hide receiving loading indicator on error
+              setShowReceivingLoader(false);
+
+              const errorMsg = getErrorMessage(error);
+              Alert.alert(
+                'Error',
+                `Failed to receive cashu token: ${errorMsg}`
+              );
+              return false;
+            }
           },
-        ]
-      );
+        },
+      ]);
 
       // Return true to indicate the dialog was shown
       return true;
     } catch (parseError) {
       console.error('Failed to parse cashu token:', parseError);
       const errorMsg = getErrorMessage(parseError);
-      Alert.alert(
-        'Invalid Token',
-        `Failed to parse cashu token: ${errorMsg}`
-      );
+      Alert.alert('Invalid Token', `Failed to parse cashu token: ${errorMsg}`);
       return false;
     }
   };

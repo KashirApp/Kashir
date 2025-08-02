@@ -41,6 +41,7 @@
     "@react-native/babel-preset": "0.78.1",
     "@react-native/metro-config": "0.78.1",
     "@react-native/typescript-config": "0.78.1",
+    "@types/ngeohash": "^0.6.8",
     "@types/react": "^19.0.0",
     "react-native-builder-bob": "^0.38.3"
   },

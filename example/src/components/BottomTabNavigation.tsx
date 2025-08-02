@@ -13,7 +13,7 @@ export function BottomTabNavigation({
   onTabChange,
 }: BottomTabNavigationProps) {
   const insets = useSafeAreaInsets();
-  
+
   return (
     <View style={[styles.tabContainer, { paddingBottom: insets.bottom }]}>
       <TouchableOpacity

@@ -9,25 +9,26 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProfileService } from '../services/ProfileService';
 import type { CalendarEvent } from '../hooks/useEvents';
 import type { NostrStackParamList } from './NostrNavigator';
 
-type EventDetailScreenProps = NativeStackScreenProps<NostrStackParamList, 'EventDetail'>;
+type EventDetailScreenProps = NativeStackScreenProps<
+  NostrStackParamList,
+  'EventDetail'
+>;
 
 interface EventDetailProps extends EventDetailScreenProps {
   onRSVP?: (status: 'accepted' | 'declined' | 'tentative') => void;
 }
 
-export function EventDetail({
-  route,
-  navigation,
-  onRSVP,
-}: EventDetailProps) {
+export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
   const { event, userNpub } = route.params;
   const profileService = useMemo(() => new ProfileService(), []);
-  const [selectedRSVPStatus, setSelectedRSVPStatus] = useState<'accepted' | 'declined' | 'tentative'>('accepted');
+  const [selectedRSVPStatus, setSelectedRSVPStatus] = useState<
+    'accepted' | 'declined' | 'tentative'
+  >('accepted');
   const [isSubmittingRSVP, setIsSubmittingRSVP] = useState(false);
 
   const formatEventDate = (event: CalendarEvent) => {
@@ -46,10 +47,10 @@ export function EventDetail({
       } else {
         // Time-based event: startDate is Unix timestamp
         const startDate = new Date(parseInt(event.startDate, 10) * 1000);
-        
+
         if (event.endDate) {
           const endDate = new Date(parseInt(event.endDate, 10) * 1000);
-          
+
           // Check if same day
           if (startDate.toDateString() === endDate.toDateString()) {
             return `${startDate.toLocaleDateString(undefined, {
@@ -57,18 +58,18 @@ export function EventDetail({
               year: 'numeric',
               month: 'long',
               day: 'numeric',
-            })} from ${startDate.toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })} to ${endDate.toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit' 
+            })} from ${startDate.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })} to ${endDate.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
             })}`;
           } else {
             return `${startDate.toLocaleString()} - ${endDate.toLocaleString()}`;
           }
         }
-        
+
         return startDate.toLocaleString(undefined, {
           weekday: 'long',
           year: 'numeric',
@@ -136,7 +137,7 @@ export function EventDetail({
       case 'tentative':
         return '❓ Maybe';
       case 'declined':
-        return '❌ Can\'t Go';
+        return "❌ Can't Go";
       default:
         return status;
     }
@@ -144,7 +145,10 @@ export function EventDetail({
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Event Title */}
         <View style={styles.section}>
           <Text style={styles.eventTitle}>
@@ -158,9 +162,7 @@ export function EventDetail({
         {/* Event Date & Time */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📅 Date & Time</Text>
-          <Text style={styles.eventDate}>
-            {formatEventDate(event)}
-          </Text>
+          <Text style={styles.eventDate}>{formatEventDate(event)}</Text>
         </View>
 
         {/* Location */}
@@ -168,12 +170,8 @@ export function EventDetail({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📍 Location</Text>
             <TouchableOpacity onPress={handleLocationPress} activeOpacity={0.7}>
-              <Text style={styles.eventLocation}>
-                {event.location}
-              </Text>
-              <Text style={styles.locationHint}>
-                Tap to open in maps
-              </Text>
+              <Text style={styles.eventLocation}>{event.location}</Text>
+              <Text style={styles.locationHint}>Tap to open in maps</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -182,9 +180,7 @@ export function EventDetail({
         {event.description && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📝 Description</Text>
-            <Text style={styles.eventDescription}>
-              {event.description}
-            </Text>
+            <Text style={styles.eventDescription}>{event.description}</Text>
           </View>
         )}
 
@@ -205,12 +201,8 @@ export function EventDetail({
         {/* Organizer */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>👤 Organizer</Text>
-          <Text style={styles.organizer}>
-            {getOrganizerName(event.pubkey)}
-          </Text>
-          <Text style={styles.organizerPubkey}>
-            {event.pubkey}
-          </Text>
+          <Text style={styles.organizer}>{getOrganizerName(event.pubkey)}</Text>
+          <Text style={styles.organizerPubkey}>{event.pubkey}</Text>
         </View>
 
         {/* RSVP Section */}
@@ -218,7 +210,7 @@ export function EventDetail({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>🎉 RSVP</Text>
             <Text style={styles.rsvpLabel}>Will you attend this event?</Text>
-            
+
             <View style={styles.rsvpOptions}>
               {['accepted', 'tentative', 'declined'].map((status) => (
                 <TouchableOpacity
@@ -226,15 +218,19 @@ export function EventDetail({
                   style={[
                     styles.rsvpOption,
                     selectedRSVPStatus === status && styles.rsvpOptionSelected,
-                    { borderColor: getStatusColor(status) }
+                    { borderColor: getStatusColor(status) },
                   ]}
                   onPress={() => setSelectedRSVPStatus(status as any)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[
-                    styles.rsvpOptionText,
-                    selectedRSVPStatus === status && { color: getStatusColor(status) }
-                  ]}>
+                  <Text
+                    style={[
+                      styles.rsvpOptionText,
+                      selectedRSVPStatus === status && {
+                        color: getStatusColor(status),
+                      },
+                    ]}
+                  >
                     {getStatusLabel(status)}
                   </Text>
                 </TouchableOpacity>
@@ -242,7 +238,10 @@ export function EventDetail({
             </View>
 
             <TouchableOpacity
-              style={[styles.rsvpSubmitButton, { backgroundColor: getStatusColor(selectedRSVPStatus) }]}
+              style={[
+                styles.rsvpSubmitButton,
+                { backgroundColor: getStatusColor(selectedRSVPStatus) },
+              ]}
               onPress={handleRSVPSubmit}
               disabled={isSubmittingRSVP}
               activeOpacity={0.7}
@@ -253,9 +252,7 @@ export function EventDetail({
                   <Text style={styles.rsvpSubmitButtonText}>Submitting...</Text>
                 </View>
               ) : (
-                <Text style={styles.rsvpSubmitButtonText}>
-                  Submit RSVP
-                </Text>
+                <Text style={styles.rsvpSubmitButtonText}>Submit RSVP</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -266,7 +263,9 @@ export function EventDetail({
           <Text style={styles.sectionTitle}>ℹ️ Event Info</Text>
           <Text style={styles.metadata}>Event ID: {event.id}</Text>
           <Text style={styles.metadata}>Event Kind: {event.kind}</Text>
-          <Text style={styles.metadata}>Created: {new Date(event.created_at * 1000).toLocaleString()}</Text>
+          <Text style={styles.metadata}>
+            Created: {new Date(event.created_at * 1000).toLocaleString()}
+          </Text>
         </View>
       </ScrollView>
     </View>

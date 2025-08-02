@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from '@react-navigation/native';
 import { NostrNavigator } from './components/NostrNavigator';
 import { WalletScreen } from './components/WalletScreen';
 import { SettingsScreen } from './components/SettingsScreen';
@@ -134,39 +138,39 @@ export default function App() {
               <WalletScreen />
             </View>
 
-          {/* Nostr content - show based on login state */}
-          <View
-            style={{
-              flex: 1,
-              display: activeMainTab === 'nostr' ? 'flex' : 'none',
-            }}
-          >
-            <NostrNavigator
-              isLoggedIn={isLoggedIn}
-              userNpub={userNpub}
-              loginType={loginType}
-              onLogin={handleLogin}
-              onLogout={handleLogout}
-            />
+            {/* Nostr content - show based on login state */}
+            <View
+              style={{
+                flex: 1,
+                display: activeMainTab === 'nostr' ? 'flex' : 'none',
+              }}
+            >
+              <NostrNavigator
+                isLoggedIn={isLoggedIn}
+                userNpub={userNpub}
+                loginType={loginType}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+            </View>
+
+            {/* Settings Screen */}
+            <View
+              style={{
+                flex: 1,
+                display: activeMainTab === 'settings' ? 'flex' : 'none',
+              }}
+            >
+              <SettingsScreen isVisible={activeMainTab === 'settings'} />
+            </View>
           </View>
 
-          {/* Settings Screen */}
-          <View
-            style={{
-              flex: 1,
-              display: activeMainTab === 'settings' ? 'flex' : 'none',
-            }}
-          >
-            <SettingsScreen isVisible={activeMainTab === 'settings'} />
-          </View>
+          <BottomTabNavigation
+            activeTab={activeMainTab}
+            onTabChange={handleMainTabChange}
+          />
         </View>
-
-        <BottomTabNavigation
-          activeTab={activeMainTab}
-          onTabChange={handleMainTabChange}
-        />
-      </View>
-    </SafeAreaProvider>
+      </SafeAreaProvider>
     </NavigationContainer>
   );
 }

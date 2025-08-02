@@ -10,11 +10,11 @@ export class EventLocationParser {
   static parseEventLocation(event: CalendarEvent): Coordinates | null {
     // First check for geohash tag (most precise)
     if (event.tags) {
-      const geohashTag = event.tags.find(tag => tag[0] === 'g');
+      const geohashTag = event.tags.find((tag) => tag[0] === 'g');
       if (geohashTag && geohashTag[1]) {
         try {
           const decoded = geohash.decode(geohashTag[1]);
-          
+
           if (this.isValidCoordinate(decoded.latitude, decoded.longitude)) {
             return {
               latitude: decoded.latitude,
@@ -43,10 +43,10 @@ export class EventLocationParser {
 
     for (const pattern of patterns) {
       const match = location.match(pattern);
-      if (match) {
+      if (match && match[1] && match[2]) {
         const lat = parseFloat(match[1]);
         const lng = parseFloat(match[2]);
-        
+
         if (this.isValidCoordinate(lat, lng)) {
           return { latitude: lat, longitude: lng };
         }
@@ -58,9 +58,12 @@ export class EventLocationParser {
 
   private static isValidCoordinate(lat: number, lng: number): boolean {
     return (
-      lat >= -90 && lat <= 90 && 
-      lng >= -180 && lng <= 180 &&
-      !isNaN(lat) && !isNaN(lng)
+      lat >= -90 &&
+      lat <= 90 &&
+      lng >= -180 &&
+      lng <= 180 &&
+      !isNaN(lat) &&
+      !isNaN(lng)
     );
   }
 }

@@ -34,13 +34,15 @@ export function EventList({
   onMapPress,
 }: EventListProps) {
   const [sortOption, setSortOption] = React.useState<SortOption>('time');
-  const [userLocation, setUserLocation] = React.useState<Coordinates | null>(null);
+  const [userLocation, setUserLocation] = React.useState<Coordinates | null>(
+    null
+  );
   const [locationLoading, setLocationLoading] = React.useState(false);
   const [sortedEvents, setSortedEvents] =
     React.useState<CalendarEvent[]>(events);
   const locationService = React.useMemo(
     () => LocationService.getInstance(),
-    [],
+    []
   );
   const formatEventDate = (event: CalendarEvent) => {
     if (!event.startDate) return 'Date TBD';
@@ -149,7 +151,7 @@ export function EventList({
     };
 
     // Filter out past events - only show future events
-    sorted = sorted.filter(event => {
+    sorted = sorted.filter((event) => {
       const eventTime = getEventTime(event);
       return eventTime > now; // Only future events
     });
@@ -164,7 +166,7 @@ export function EventList({
     } else if (sortOption === 'distance' && userLocation) {
       // Distance sorting for future events only
       // First filter out events without location
-      sorted = sorted.filter(event => {
+      sorted = sorted.filter((event) => {
         const coords = EventLocationParser.parseEventLocation(event);
         return coords !== null;
       });

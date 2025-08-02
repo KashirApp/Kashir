@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService, LoginType } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
@@ -26,7 +26,10 @@ import type { NostrStackParamList } from './NostrNavigator';
 import { styles } from '../App.styles';
 import { Keys, SecretKey } from 'kashir';
 
-type PostsScreenProps = NativeStackScreenProps<NostrStackParamList, 'PostsMain'>;
+type PostsScreenProps = NativeStackScreenProps<
+  NostrStackParamList,
+  'PostsMain'
+>;
 
 export function PostsScreen({ route, navigation }: PostsScreenProps) {
   const { userNpub, loginType, onLogout } = route.params;
@@ -162,11 +165,7 @@ export function PostsScreen({ route, navigation }: PostsScreenProps) {
     ) {
       // For trending, try with userKeys if available, otherwise null for Amber users
       fetchTrendingPosts(userKeys || null);
-    } else if (
-      tab === 'events' &&
-      events.length === 0 &&
-      !eventsLoading
-    ) {
+    } else if (tab === 'events' && events.length === 0 && !eventsLoading) {
       fetchEvents();
     }
   };
@@ -216,23 +215,27 @@ export function PostsScreen({ route, navigation }: PostsScreenProps) {
     });
   };
 
-  const handleEventRSVP = async (status: 'accepted' | 'declined' | 'tentative') => {
+  const handleEventRSVP = async (
+    status: 'accepted' | 'declined' | 'tentative'
+  ) => {
     // TODO: Implement RSVP functionality with Nostr
     console.log('RSVP submitted:', status);
     // For now, just show success
     return Promise.resolve();
   };
 
-  const currentPosts = activeTab === 'following'
-    ? followingPosts
-    : activeTab === 'trending'
-    ? trendingPosts
-    : [];
-  const currentLoading = activeTab === 'following'
-    ? followingLoading
-    : activeTab === 'trending'
-    ? trendingLoading
-    : eventsLoading;
+  const currentPosts =
+    activeTab === 'following'
+      ? followingPosts
+      : activeTab === 'trending'
+        ? trendingPosts
+        : [];
+  const currentLoading =
+    activeTab === 'following'
+      ? followingLoading
+      : activeTab === 'trending'
+        ? trendingLoading
+        : eventsLoading;
 
   return (
     <SafeAreaView style={styles.container}>

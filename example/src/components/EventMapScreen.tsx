@@ -8,7 +8,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import MapView, { Marker, Callout, PROVIDER_DEFAULT } from 'react-native-maps';
 import type { CalendarEvent } from '../hooks/useEvents';
 import { useEvents } from '../hooks/useEvents';
@@ -17,7 +17,10 @@ import { EventLocationParser } from '../services/EventLocationParser';
 import { NostrClientService } from '../services/NostrClient';
 import type { NostrStackParamList } from './NostrNavigator';
 
-type EventMapScreenProps = NativeStackScreenProps<NostrStackParamList, 'EventMap'>;
+type EventMapScreenProps = NativeStackScreenProps<
+  NostrStackParamList,
+  'EventMap'
+>;
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,18 +32,19 @@ interface EventMarker {
   };
 }
 
-export function EventMapScreen({
-  route,
-  navigation,
-}: EventMapScreenProps) {
+export function EventMapScreen({ route, navigation }: EventMapScreenProps) {
   const { userNpub, onEventSelect } = route.params;
-  
+
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
   const profileService = useMemo(() => new ProfileService(), []);
   const [client, setClient] = useState(clientService.getClient());
-  
-  const { events, loading: eventsLoading, fetchEvents } = useEvents(client, profileService);
+
+  const {
+    events,
+    loading: eventsLoading,
+    fetchEvents,
+  } = useEvents(client, profileService);
   const [eventMarkers, setEventMarkers] = useState<EventMarker[]>([]);
   const [processingEvents, setProcessingEvents] = useState(false);
   const [mapReady, setMapReady] = useState(false);
@@ -72,11 +76,14 @@ export function EventMapScreen({
   useEffect(() => {
     const processEvents = async () => {
       setProcessingEvents(true);
-      
-      console.log('EventMapScreen: Processing events, total count:', events.length);
-      
+
+      console.log(
+        'EventMapScreen: Processing events, total count:',
+        events.length
+      );
+
       const now = Date.now();
-      
+
       const getEventTime = (event: CalendarEvent) => {
         if (!event.startDate) return 0;
         if (event.kind === 31922) {
@@ -89,22 +96,37 @@ export function EventMapScreen({
       };
 
       // Filter out past events - only show future events
-      const futureEvents = events.filter(event => {
+      const futureEvents = events.filter((event) => {
         const eventTime = getEventTime(event);
         return eventTime > now; // Only future events
       });
 
-      console.log('EventMapScreen: Future events count:', futureEvents.length, 'out of', events.length);
-      
+      console.log(
+        'EventMapScreen: Future events count:',
+        futureEvents.length,
+        'out of',
+        events.length
+      );
+
       const markers: EventMarker[] = [];
-      
+
       for (const event of futureEvents) {
-        console.log('EventMapScreen: Checking event:', event.title, 'has location:', !!event.location, 'has g tag:', !!(event.tags && event.tags.some(tag => tag[0] === 'g')));
-        
-        if (event.location || (event.tags && event.tags.some(tag => tag[0] === 'g'))) {
+        console.log(
+          'EventMapScreen: Checking event:',
+          event.title,
+          'has location:',
+          !!event.location,
+          'has g tag:',
+          !!(event.tags && event.tags.some((tag) => tag[0] === 'g'))
+        );
+
+        if (
+          event.location ||
+          (event.tags && event.tags.some((tag) => tag[0] === 'g'))
+        ) {
           const coords = EventLocationParser.parseEventLocation(event);
           console.log('EventMapScreen: Parsed coordinates:', coords);
-          
+
           if (coords) {
             markers.push({
               event,
@@ -113,7 +135,7 @@ export function EventMapScreen({
           }
         }
       }
-      
+
       console.log('EventMapScreen: Total markers created:', markers.length);
       setEventMarkers(markers);
       setProcessingEvents(false);
@@ -163,7 +185,9 @@ export function EventMapScreen({
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>
-            {eventsLoading ? 'Loading events...' : 'Processing event locations...'}
+            {eventsLoading
+              ? 'Loading events...'
+              : 'Processing event locations...'}
           </Text>
         </View>
       </SafeAreaView>
@@ -176,7 +200,8 @@ export function EventMapScreen({
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>🗺️ No mappable events found</Text>
           <Text style={styles.emptySubtext}>
-            Events need location coordinates (latitude, longitude) to appear on the map
+            Events need location coordinates (latitude, longitude) to appear on
+            the map
           </Text>
         </View>
       </SafeAreaView>
