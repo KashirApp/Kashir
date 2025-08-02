@@ -26,9 +26,7 @@ export type NostrStackParamList = {
     userNpub: string;
     userName: string;
   };
-  Login: {
-    onLogin: (npub: string, loginType: LoginType) => void;
-  };
+  Login: undefined;
 };
 
 const Stack = createNativeStackNavigator<NostrStackParamList>();
@@ -37,7 +35,7 @@ interface NostrNavigatorProps {
   isLoggedIn: boolean;
   userNpub: string;
   loginType: LoginType;
-  onLogin: (npub: string, loginType: LoginType) => void;
+  onLogin: (npub: string, loginType: LoginType) => Promise<void>;
   onLogout: () => void;
 }
 
@@ -59,7 +57,6 @@ export function NostrNavigator({
           fontWeight: 'bold',
           color: '#ffffff',
         },
-        headerBackTitleVisible: false,
         animation: 'slide_from_right',
       }}
     >
@@ -102,14 +99,12 @@ export function NostrNavigator({
       ) : (
         <Stack.Screen
           name="Login"
-          component={LoginScreen}
-          initialParams={{
-            onLogin,
-          }}
           options={{
             headerShown: false, // LoginScreen has its own styling
           }}
-        />
+        >
+          {(props) => <LoginScreen {...props} onLogin={onLogin} />}
+        </Stack.Screen>
       )}
     </Stack.Navigator>
   );
