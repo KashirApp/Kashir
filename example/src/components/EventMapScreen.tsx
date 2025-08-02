@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import MapView, { Marker, Callout, PROVIDER_DEFAULT } from 'react-native-maps';
-import * as geohash from 'ngeohash';
 import type { CalendarEvent } from '../hooks/useEvents';
 import { useEvents } from '../hooks/useEvents';
 import { ProfileService } from '../services/ProfileService';
+import { EventLocationParser } from '../services/EventLocationParser';
+import { NostrClientService } from '../services/NostrClient';
 import type { NostrStackParamList } from './NostrNavigator';
 
 type EventMapScreenProps = NativeStackScreenProps<NostrStackParamList, 'EventMap'>;
@@ -33,83 +34,77 @@ export function EventMapScreen({
   navigation,
 }: EventMapScreenProps) {
   const { userNpub, onEventSelect } = route.params;
-  const { events, fetchEvents } = useEvents();
+  
+  // Initialize services
+  const clientService = useMemo(() => NostrClientService.getInstance(), []);
+  const profileService = useMemo(() => new ProfileService(), []);
+  const [client, setClient] = useState(clientService.getClient());
+  
+  const { events, loading: eventsLoading, fetchEvents } = useEvents(client, profileService);
   const [eventMarkers, setEventMarkers] = useState<EventMarker[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [processingEvents, setProcessingEvents] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef<MapView>(null);
 
-  const parseLocationToCoordinates = (event: CalendarEvent): { latitude: number; longitude: number } | null => {
-    if (event.tags) {
-      const geohashTag = event.tags.find(tag => tag[0] === 'g');
-      if (geohashTag && geohashTag[1]) {
-        try {
-          const decoded = geohash.decode(geohashTag[1]);
-          
-          if (decoded.latitude >= -90 && decoded.latitude <= 90 && 
-              decoded.longitude >= -180 && decoded.longitude <= 180 &&
-              !isNaN(decoded.latitude) && !isNaN(decoded.longitude)) {
-            return {
-              latitude: decoded.latitude,
-              longitude: decoded.longitude,
-            };
-          }
-        } catch (error) {
-          // Silently handle geohash decode errors
-        }
-      }
-    }
-
-    const location = event.location;
-    if (!location) return null;
-
-    const coordRegex = /(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/;
-    const match = location.match(coordRegex);
-    
-    if (match) {
-      const lat = parseFloat(match[1]);
-      const lng = parseFloat(match[2]);
-      
-      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { latitude: lat, longitude: lng };
-      }
-    }
-
-    const geoUriMatch = location.match(/geo:(-?\d+\.?\d*),(-?\d+\.?\d*)/i);
-    if (geoUriMatch) {
-      const lat = parseFloat(geoUriMatch[1]);
-      const lng = parseFloat(geoUriMatch[2]);
-      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { latitude: lat, longitude: lng };
-      }
-    }
-
-    const parenMatch = location.match(/\((-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\)/);
-    if (parenMatch) {
-      const lat = parseFloat(parenMatch[1]);
-      const lng = parseFloat(parenMatch[2]);
-      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { latitude: lat, longitude: lng };
-      }
-    }
-
-    return null;
-  };
-
-  // Fetch events when component mounts
+  // Initialize client on mount
   useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+    const initClient = async () => {
+      try {
+        const newClient = await clientService.initialize();
+        setClient(newClient);
+      } catch (error) {
+        console.error('Error initializing client for EventMapScreen:', error);
+      }
+    };
+
+    if (!client) {
+      initClient();
+    }
+  }, [clientService, client]);
+
+  // Fetch events when client is ready
+  useEffect(() => {
+    if (client) {
+      fetchEvents();
+    }
+  }, [client, fetchEvents]);
 
   useEffect(() => {
     const processEvents = async () => {
-      setLoading(true);
+      setProcessingEvents(true);
+      
+      console.log('EventMapScreen: Processing events, total count:', events.length);
+      
+      const now = Date.now();
+      
+      const getEventTime = (event: CalendarEvent) => {
+        if (!event.startDate) return 0;
+        if (event.kind === 31922) {
+          // Date-based event: treat as noon on that date
+          return new Date(event.startDate + 'T12:00:00Z').getTime();
+        } else {
+          // Time-based event: Unix timestamp in seconds
+          return parseInt(event.startDate, 10) * 1000;
+        }
+      };
+
+      // Filter out past events - only show future events
+      const futureEvents = events.filter(event => {
+        const eventTime = getEventTime(event);
+        return eventTime > now; // Only future events
+      });
+
+      console.log('EventMapScreen: Future events count:', futureEvents.length, 'out of', events.length);
       
       const markers: EventMarker[] = [];
       
-      for (const event of events) {
+      for (const event of futureEvents) {
+        console.log('EventMapScreen: Checking event:', event.title, 'has location:', !!event.location, 'has g tag:', !!(event.tags && event.tags.some(tag => tag[0] === 'g')));
+        
         if (event.location || (event.tags && event.tags.some(tag => tag[0] === 'g'))) {
-          const coords = parseLocationToCoordinates(event);
+          const coords = EventLocationParser.parseEventLocation(event);
+          console.log('EventMapScreen: Parsed coordinates:', coords);
+          
           if (coords) {
             markers.push({
               event,
@@ -119,12 +114,19 @@ export function EventMapScreen({
         }
       }
       
+      console.log('EventMapScreen: Total markers created:', markers.length);
       setEventMarkers(markers);
-      setLoading(false);
+      setProcessingEvents(false);
     };
 
-    processEvents();
-  }, [events]);
+    if (events.length > 0) {
+      processEvents();
+    } else if (!eventsLoading) {
+      // Events loaded but no events found
+      setEventMarkers([]);
+      setProcessingEvents(false);
+    }
+  }, [events, eventsLoading]);
 
   const formatEventDate = (event: CalendarEvent) => {
     if (!event.startDate) return 'Date TBD';
@@ -154,30 +156,15 @@ export function EventMapScreen({
     return cached?.name || `${pubkey.substring(0, 8)}...`;
   };
 
-  const focusOnMarkers = () => {
-    if (eventMarkers.length > 0 && mapRef.current) {
-      const coordinates = eventMarkers.map(marker => marker.coordinate);
-      mapRef.current.fitToCoordinates(coordinates, {
-        edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
-        animated: true,
-      });
-    }
-  };
+  const isLoading = eventsLoading || processingEvents;
 
-  useEffect(() => {
-    if (eventMarkers.length > 0 && mapReady) {
-      const timer = setTimeout(() => {
-        focusOnMarkers();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [eventMarkers, mapReady]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Processing event locations...</Text>
+          <Text style={styles.loadingText}>
+            {eventsLoading ? 'Loading events...' : 'Processing event locations...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -243,10 +230,6 @@ export function EventMapScreen({
           </Marker>
         ))}
       </MapView>
-      
-      <TouchableOpacity onPress={focusOnMarkers} style={styles.focusButton}>
-        <Text style={styles.focusButtonText}>Focus</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -255,20 +238,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
-  },
-  focusButton: {
-    position: 'absolute',
-    top: 50,
-    right: 16,
-    backgroundColor: '#81b0ff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  focusButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   map: {
     flex: 1,

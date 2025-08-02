@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   View,
   Text,
@@ -5,9 +6,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { ProfileService } from '../services/ProfileService';
+import { LocationService } from '../services/LocationService';
+import { EventLocationParser } from '../services/EventLocationParser';
 import type { CalendarEvent } from '../hooks/useEvents';
+import type { Coordinates } from '../services/LocationService';
+
+type SortOption = 'time' | 'distance';
 
 interface EventListProps {
   events: CalendarEvent[];
@@ -26,33 +33,44 @@ export function EventList({
   onEventPress,
   onMapPress,
 }: EventListProps) {
+  const [sortOption, setSortOption] = React.useState<SortOption>('time');
+  const [userLocation, setUserLocation] = React.useState<Coordinates | null>(null);
+  const [locationLoading, setLocationLoading] = React.useState(false);
+  const [sortedEvents, setSortedEvents] =
+    React.useState<CalendarEvent[]>(events);
+  const locationService = React.useMemo(
+    () => LocationService.getInstance(),
+    [],
+  );
   const formatEventDate = (event: CalendarEvent) => {
     if (!event.startDate) return 'Date TBD';
 
     try {
-      const now = Date.now();
-      let eventTime: number;
       let displayDate: string;
 
       if (event.kind === 31922) {
         // Date-based event: startDate is in YYYY-MM-DD format
         const date = new Date(event.startDate + 'T12:00:00Z');
-        eventTime = date.getTime();
         displayDate = date.toLocaleDateString();
       } else {
         // Time-based event: startDate is Unix timestamp
         const startDate = new Date(parseInt(event.startDate, 10) * 1000);
-        eventTime = startDate.getTime();
-        
+
         // Format start time
         displayDate = startDate.toLocaleString();
-        
+
         // Add end time if available
         if (event.endDate) {
           const endDate = new Date(parseInt(event.endDate, 10) * 1000);
-          const startTime = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const endTime = endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          
+          const startTime = startDate.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          const endTime = endDate.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+
           // Check if same day
           if (startDate.toDateString() === endDate.toDateString()) {
             displayDate = `${startDate.toLocaleDateString()} ${startTime} - ${endTime}`;
@@ -114,6 +132,105 @@ export function EventList({
     return cached?.name || `${pubkey.substring(0, 8)}...`;
   };
 
+  // Sort events based on current sort option
+  React.useEffect(() => {
+    let sorted = [...events];
+    const now = Date.now();
+
+    const getEventTime = (event: CalendarEvent) => {
+      if (!event.startDate) return 0;
+      if (event.kind === 31922) {
+        // Date-based event: treat as noon on that date
+        return new Date(event.startDate + 'T12:00:00Z').getTime();
+      } else {
+        // Time-based event: Unix timestamp in seconds
+        return parseInt(event.startDate, 10) * 1000;
+      }
+    };
+
+    // Filter out past events - only show future events
+    sorted = sorted.filter(event => {
+      const eventTime = getEventTime(event);
+      return eventTime > now; // Only future events
+    });
+
+    if (sortOption === 'time') {
+      // Sort future events by proximity to current time (closest upcoming first)
+      sorted.sort((a, b) => {
+        const aTime = getEventTime(a);
+        const bTime = getEventTime(b);
+        return aTime - bTime; // Chronological order for future events
+      });
+    } else if (sortOption === 'distance' && userLocation) {
+      // Distance sorting for future events only
+      // First filter out events without location
+      sorted = sorted.filter(event => {
+        const coords = EventLocationParser.parseEventLocation(event);
+        return coords !== null;
+      });
+
+      sorted.sort((a, b) => {
+        // All events are future at this point, just sort by distance
+        const coordsA = EventLocationParser.parseEventLocation(a)!; // We know it exists from filter
+        const coordsB = EventLocationParser.parseEventLocation(b)!; // We know it exists from filter
+
+        const distanceA = locationService.calculateDistance(
+          userLocation,
+          coordsA
+        );
+        const distanceB = locationService.calculateDistance(
+          userLocation,
+          coordsB
+        );
+
+        return distanceA - distanceB;
+      });
+    }
+
+    setSortedEvents(sorted);
+  }, [events, sortOption, userLocation, locationService]);
+
+  const handleSortByDistance = async () => {
+    if (sortOption === 'distance') {
+      setSortOption('time');
+      return;
+    }
+
+    setLocationLoading(true);
+    try {
+      const hasPermission = await locationService.requestLocationPermission();
+      if (!hasPermission) {
+        Alert.alert(
+          'Permission Required',
+          'Location permission is needed to sort events by distance.'
+        );
+        setLocationLoading(false);
+        return;
+      }
+
+      const location = await locationService.getCurrentLocation();
+      setUserLocation(location);
+      setSortOption('distance');
+    } catch (error) {
+      Alert.alert(
+        'Location Error',
+        'Unable to get your current location. Please check your location settings.'
+      );
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const getDistanceText = (event: CalendarEvent): string | null => {
+    if (sortOption !== 'distance' || !userLocation) return null;
+
+    const coords = EventLocationParser.parseEventLocation(event);
+    if (!coords) return null;
+
+    const distance = locationService.calculateDistance(userLocation, coords);
+    return locationService.formatDistance(distance);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -138,25 +255,56 @@ export function EventList({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>
-          {getEventTypeIndicator(events[0]?.kind || 31922)} {title} (
-          {events.length})
+          {getEventTypeIndicator(events[0]?.kind || 31922)}{' '}
+          {sortOption === 'distance' ? 'Events by Distance' : title} (
+          {sortedEvents.length})
         </Text>
-        {onMapPress && events.some(event => event.location || (event.tags && event.tags.some(tag => tag[0] === 'g'))) && (
+        <View style={styles.headerButtons}>
           <TouchableOpacity
-            style={styles.mapButton}
-            onPress={onMapPress}
+            style={[
+              styles.sortButton,
+              sortOption === 'distance' && styles.sortButtonActive,
+              locationLoading && styles.sortButtonLoading,
+            ]}
+            onPress={handleSortByDistance}
+            disabled={locationLoading}
             activeOpacity={0.7}
           >
-            <Text style={styles.mapButtonText}>🗺️ Map</Text>
+            <Text
+              style={[
+                styles.sortButtonText,
+                sortOption === 'distance' && styles.sortButtonTextActive,
+              ]}
+            >
+              {locationLoading
+                ? '📍⏳'
+                : sortOption === 'distance'
+                  ? '📍✓'
+                  : '📍'}
+            </Text>
           </TouchableOpacity>
-        )}
+          {onMapPress &&
+            events.some(
+              (event) =>
+                event.location ||
+                (event.tags && event.tags.some((tag) => tag[0] === 'g'))
+            ) && (
+              <TouchableOpacity
+                style={styles.mapButton}
+                onPress={onMapPress}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.mapButtonText}>🗺️ Map</Text>
+              </TouchableOpacity>
+            )}
+        </View>
       </View>
 
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {events.map((event) => (
+        {sortedEvents.map((event) => (
           <TouchableOpacity
             key={event.id}
             style={styles.eventItem}
@@ -178,9 +326,16 @@ export function EventList({
               </Text>
 
               {event.location && (
-                <Text style={styles.eventLocation} numberOfLines={1}>
-                  📍 {event.location}
-                </Text>
+                <View style={styles.locationContainer}>
+                  <Text style={styles.eventLocation} numberOfLines={1}>
+                    📍 {event.location}
+                  </Text>
+                  {getDistanceText(event) && (
+                    <Text style={styles.distanceText}>
+                      {getDistanceText(event)}
+                    </Text>
+                  )}
+                </View>
               )}
 
               {event.description && (
@@ -234,6 +389,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sortButton: {
+    backgroundColor: '#333',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  sortButtonActive: {
+    backgroundColor: '#66ff81',
+  },
+  sortButtonLoading: {
+    backgroundColor: '#555',
+  },
+  sortButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  sortButtonTextActive: {
+    color: '#000',
   },
   headerText: {
     color: '#fff',
@@ -312,10 +492,22 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     marginBottom: 4,
   },
+  locationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   eventLocation: {
     color: '#ccc',
     fontSize: 14,
-    marginBottom: 4,
+    flex: 1,
+  },
+  distanceText: {
+    color: '#66ff81',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   eventDescription: {
     color: '#999',
