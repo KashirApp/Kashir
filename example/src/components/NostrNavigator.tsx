@@ -48,6 +48,7 @@ export function NostrNavigator({
 }: NostrNavigatorProps) {
   return (
     <Stack.Navigator
+      {...({} as any)}
       screenOptions={{
         headerStyle: {
           backgroundColor: '#2a2a2a',
