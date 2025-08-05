@@ -5,10 +5,10 @@ import {
   TextInput,
   Button,
   Alert,
-  SafeAreaView,
   TouchableOpacity,
   Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { PublicKey, SecretKey, Keys } from 'kashir';
 import { SecureStorageService } from '../services/SecureStorageService';
 import { StorageService } from '../services/StorageService';

@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Button,
-  SafeAreaView,
   Alert,
   TouchableOpacity,
   Text,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService, LoginType } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';

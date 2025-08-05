@@ -1,12 +1,11 @@
 import React from 'react';
 import {
-  SafeAreaView,
-  StatusBar,
   StyleSheet,
   View,
   Text,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import {
   WalletBalance,
@@ -123,8 +122,6 @@ export function WalletScreen() {
   return (
     <>
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" />
-
         <WalletBalance balance={balance} wallet={wallet} />
 
         <WalletActions
