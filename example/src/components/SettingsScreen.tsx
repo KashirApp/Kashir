@@ -10,8 +10,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { MintsList, MintUrlModal, useWallet } from './wallet';
-import { RelaysList, RelayUrlModal } from './nostr';
-import { SecureStorageService, StorageService } from '../services';
+import { EnhancedRelaysList, RelayUrlModal } from './nostr';
+import { SecureStorageService, StorageService, RelayListService, UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
 import packageInfo from '../../package.json';
 
@@ -23,6 +23,9 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
   const [hasSeedPhrase, setHasSeedPhrase] = useState<boolean>(false);
   const [relays, setRelays] = useState<string[]>([]);
   const [showRelayModal, setShowRelayModal] = useState(false);
+  const [userRelayInfo, setUserRelayInfo] = useState<UserRelayInfo[]>([]);
+  const [isLoadingUserRelays, setIsLoadingUserRelays] = useState(false);
+  const [hasUserRelayList, setHasUserRelayList] = useState(false);
 
   const {
     mintUrls,
@@ -36,6 +39,62 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     removeMintUrl,
     updateTotalBalance,
   } = useWallet();
+
+  // Move loadUserRelayList outside useEffect so it can be shared
+  const loadUserRelayList = async (publicKeyHex: string) => {
+    try {
+      console.log('SettingsScreen: Loading user relay list for:', publicKeyHex);
+      const clientService = NostrClientService.getInstance();
+      let client = clientService.getClient();
+      
+      console.log('SettingsScreen: Client available:', !!client);
+      
+      if (!client) {
+        console.log('SettingsScreen: Client not initialized, initializing...');
+        await clientService.initialize();
+        client = clientService.getClient();
+        if (!client) {
+          throw new Error('Failed to initialize client');
+        }
+      }
+
+      // Get the npub instead of hex for the relay list service
+      const npub = await StorageService.loadNpub();
+      if (!npub) {
+        throw new Error('No npub found in storage');
+      }
+
+      const relayListService = RelayListService.getInstance();
+      console.log('SettingsScreen: Fetching relay list from network...');
+      const userRelays = await relayListService.fetchUserRelayList(client, npub);
+      
+      console.log('SettingsScreen: Fetched user relays:', userRelays);
+      
+      if (userRelays.length > 0) {
+        // User has a relay list, use it
+        setUserRelayInfo(userRelays);
+        const relayUrls = relayListService.relayInfoToUrls(userRelays);
+        setRelays(relayUrls);
+        setHasUserRelayList(true);
+        
+        console.log(`SettingsScreen: Loaded ${userRelays.length} relays from user's NIP-65 relay list`);
+      } else {
+        // No user relay list found, fallback to stored relays
+        console.log('SettingsScreen: No user relay list found, using stored relays');
+        const storedRelays = await StorageService.loadRelays();
+        setRelays(storedRelays);
+        setUserRelayInfo([]);
+        setHasUserRelayList(false);
+      }
+    } catch (error) {
+      console.error('SettingsScreen: Failed to load user relay list:', error);
+      // Fallback to stored relays
+      const storedRelays = await StorageService.loadRelays();
+      setRelays(storedRelays);
+      setUserRelayInfo([]);
+      setHasUserRelayList(false);
+    }
+  };
 
   // Check if seed phrase exists and wallet database exists when component becomes visible
   useEffect(() => {
@@ -59,10 +118,32 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
 
     const loadRelays = async () => {
       try {
-        const storedRelays = await StorageService.loadRelays();
-        setRelays(storedRelays);
+        console.log('SettingsScreen: Loading relays...');
+        // First, try to load user's NIP-65 relay list if logged in
+        const clientService = NostrClientService.getInstance();
+        const session = clientService.getCurrentSession();
+        
+        console.log('SettingsScreen: Current session:', session);
+        
+        if (session && session.publicKey) {
+          console.log('SettingsScreen: User is logged in, fetching NIP-65 relay list');
+          setIsLoadingUserRelays(true);
+          await loadUserRelayList(session.publicKey);
+        } else {
+          console.log('SettingsScreen: No user session, loading stored relays');
+          // Not logged in, load stored relays
+          const storedRelays = await StorageService.loadRelays();
+          setRelays(storedRelays);
+          setHasUserRelayList(false);
+        }
       } catch (error) {
         console.warn('Failed to load relays from storage:', error);
+        // Fallback to stored relays
+        const storedRelays = await StorageService.loadRelays();
+        setRelays(storedRelays);
+        setHasUserRelayList(false);
+      } finally {
+        setIsLoadingUserRelays(false);
       }
     };
 
@@ -73,6 +154,44 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       loadRelays();
     }
   }, [isVisible]);
+
+  // Effect to handle session changes and reload relays when user logs in/out
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const checkSessionAndReloadRelays = async () => {
+      const clientService = NostrClientService.getInstance();
+      
+      // Load the most recent session from storage to ensure we have the latest state
+      await clientService.loadStoredSession();
+      const session = clientService.getCurrentSession();
+      
+      console.log('SettingsScreen: Checking session for relay reload. Session:', !!session, 'HasUserRelayList:', hasUserRelayList);
+      
+      if (session && session.publicKey && !hasUserRelayList && !isLoadingUserRelays) {
+        // User just logged in and we don't have their relay list yet, and we're not already loading
+        console.log('SettingsScreen: User logged in, loading NIP-65 relay list');
+        setIsLoadingUserRelays(true);
+        try {
+          await loadUserRelayList(session.publicKey);
+        } catch (error) {
+          console.error('SettingsScreen: Failed to load relay list after login:', error);
+        } finally {
+          setIsLoadingUserRelays(false);
+        }
+      } else if (!session && hasUserRelayList) {
+        // User logged out, revert to stored relays
+        console.log('SettingsScreen: User logged out, reverting to stored relays');
+        const storedRelays = await StorageService.loadRelays();
+        setRelays(storedRelays);
+        setUserRelayInfo([]);
+        setHasUserRelayList(false);
+      }
+    };
+
+    // Check immediately when the effect runs (when screen becomes visible or hasUserRelayList changes)
+    checkSessionAndReloadRelays();
+  }, [isVisible, hasUserRelayList, isLoadingUserRelays]);
 
   // Refresh mint URLs when the modal closes (in case they were changed)
   useEffect(() => {
@@ -142,6 +261,12 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       const updatedRelays = await StorageService.loadRelays();
       setRelays(updatedRelays);
       setShowRelayModal(false);
+      
+      // Clear user relay list since we're now using custom relays
+      if (hasUserRelayList) {
+        setHasUserRelayList(false);
+        setUserRelayInfo([]);
+      }
 
       // Reconnect Nostr client with new relays
       const clientService = NostrClientService.getInstance();
@@ -158,6 +283,12 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     if (success) {
       const updatedRelays = await StorageService.loadRelays();
       setRelays(updatedRelays);
+      
+      // Clear user relay list since we're now using custom relays
+      if (hasUserRelayList) {
+        setHasUserRelayList(false);
+        setUserRelayInfo([]);
+      }
 
       // Reconnect Nostr client with updated relays
       const clientService = NostrClientService.getInstance();
@@ -195,8 +326,11 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
           <Text style={styles.sectionTitle}>Nostr Settings</Text>
 
           <View style={styles.relayInfoContainer}>
-            <RelaysList
+            <EnhancedRelaysList
               relays={relays}
+              userRelayInfo={userRelayInfo}
+              hasUserRelayList={hasUserRelayList}
+              isLoadingUserRelays={isLoadingUserRelays}
               onRemove={handleRemoveRelay}
               onAddRelay={() => setShowRelayModal(true)}
             />

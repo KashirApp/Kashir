@@ -4,14 +4,7 @@ const NPUB_STORAGE_KEY = '@npub_key';
 const NOSTR_RELAYS_KEY = '@nostr_relays';
 
 // Default relays to use if none are configured
-const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.nostr.band',
-  'wss://relay.nostr.info',
-  'wss://nostr.wine',
-  'wss://relay.snort.social',
-];
+const DEFAULT_RELAYS = ['wss://relay.damus.io'];
 
 export class StorageService {
   /**
