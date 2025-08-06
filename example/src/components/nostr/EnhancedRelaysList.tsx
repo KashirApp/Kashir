@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { RelayItem } from './RelayItem';
-import { UserRelayInfo, RelayListService } from '../../services';
+import { RelayListService } from '../../services';
+import type { UserRelayInfo } from '../../services';
 
 interface EnhancedRelaysListProps {
   relays: string[];

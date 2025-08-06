@@ -11,7 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MintsList, MintUrlModal, useWallet } from './wallet';
 import { EnhancedRelaysList, RelayUrlModal } from './nostr';
-import { SecureStorageService, StorageService, RelayListService, UserRelayInfo } from '../services';
+import { SecureStorageService, StorageService, RelayListService } from '../services';
+import type { UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
 import packageInfo from '../../package.json';
 

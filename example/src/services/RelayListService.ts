@@ -48,6 +48,11 @@ export class RelayListService {
 
       // Get the most recent relay list event
       const relayListEvent = eventArray[0];
+      if (!relayListEvent) {
+        console.log('RelayListService: No valid relay list event found');
+        return [];
+      }
+      
       console.log('RelayListService: Found relay list event:', relayListEvent.id().toHex());
       
       // Extract relay information using the NIP-65 function
@@ -95,11 +100,19 @@ export class RelayListService {
 
     relayInfo.forEach(info => {
       if (!info.metadata) {
+        // No metadata means read/write
         readWrite.push(info);
-      } else if (info.metadata === RelayMetadata.Read) {
-        read.push(info);
-      } else if (info.metadata === RelayMetadata.Write) {
-        write.push(info);
+      } else {
+        // Convert to string to compare
+        const metadataStr = String(info.metadata);
+        if (metadataStr.includes('Read') || metadataStr === '0') {
+          read.push(info);
+        } else if (metadataStr.includes('Write') || metadataStr === '1') {
+          write.push(info);
+        } else {
+          // Fallback to read/write for unknown types
+          readWrite.push(info);
+        }
       }
     });
 
@@ -111,8 +124,14 @@ export class RelayListService {
    */
   getMetadataDisplayName(metadata?: RelayMetadata): string {
     if (!metadata) return 'Read/Write';
-    if (metadata === RelayMetadata.Read) return 'Read Only';
-    if (metadata === RelayMetadata.Write) return 'Write Only';
+    
+    // Convert to string to safely compare
+    const metadataStr = String(metadata);
+    if (metadataStr.includes('Read') || metadataStr === '0') {
+      return 'Read Only';
+    } else if (metadataStr.includes('Write') || metadataStr === '1') {
+      return 'Write Only';
+    }
     return 'Unknown';
   }
 }

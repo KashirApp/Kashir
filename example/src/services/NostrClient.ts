@@ -3,6 +3,7 @@ import type { NostrSignerInterface } from 'kashir';
 import { StorageService } from './StorageService';
 import { SecureStorageService } from './SecureStorageService';
 import { AmberSigner } from './AmberSigner';
+import { RelayListService } from './RelayListService';
 
 export enum LoginType {
   Amber = 'amber',
@@ -29,7 +30,7 @@ class NostrClientService {
     return NostrClientService.instance;
   }
 
-  async initialize(): Promise<Client> {
+  async initialize(customRelays?: string[]): Promise<Client> {
     if (this.client) {
       return this.client;
     }
@@ -48,8 +49,10 @@ class NostrClientService {
       // Create a new client (with signer if available)
       const newClient = signer ? new Client(signer) : new Client();
 
-      // Load relays from storage
-      const relays = await StorageService.loadRelays();
+      // Load relays - use custom relays if provided, otherwise load from storage
+      const relays = customRelays || await StorageService.loadRelays();
+
+      console.log(`NostrClientService: Initializing with ${relays.length} relays:`, relays);
 
       // Add all relays
       for (const relay of relays) {
@@ -192,12 +195,70 @@ class NostrClientService {
     }
   }
 
-  async reconnectWithNewRelays(): Promise<Client> {
+  async loadAndApplyUserRelays(): Promise<string[]> {
+    try {
+      console.log('NostrClientService: Loading user relay list...');
+      
+      // Get the current npub
+      const npub = await StorageService.loadNpub();
+      if (!npub) {
+        console.log('NostrClientService: No npub found, using stored relays');
+        return StorageService.loadRelays();
+      }
+
+      // Initialize a temporary client with current relays to fetch user relay list
+      let tempClient: Client | null = null;
+      try {
+        // Create temporary client with stored relays for fetching relay list
+        const storedRelays = await StorageService.loadRelays();
+        tempClient = new Client();
+        
+        for (const relay of storedRelays) {
+          try {
+            await tempClient.addRelay(relay);
+          } catch (error) {
+            console.error(`Failed to add temp relay ${relay}:`, error);
+          }
+        }
+        
+        await tempClient.connect();
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Brief connection time
+
+        // Fetch user's relay list
+        const relayListService = RelayListService.getInstance();
+        const userRelayInfo = await relayListService.fetchUserRelayList(tempClient, npub);
+        
+        if (userRelayInfo.length > 0) {
+          console.log(`NostrClientService: Found ${userRelayInfo.length} relays in user's NIP-65 relay list`);
+          const userRelays = relayListService.relayInfoToUrls(userRelayInfo);
+          
+          // Store the user's relay list for future use
+          await StorageService.saveRelays(userRelays);
+          
+          return userRelays;
+        } else {
+          console.log('NostrClientService: No user relay list found, using stored relays');
+          return storedRelays;
+        }
+      } finally {
+        // Clean up temporary client
+        if (tempClient) {
+          tempClient.disconnect();
+        }
+      }
+    } catch (error) {
+      console.error('NostrClientService: Failed to load user relay list:', error);
+      // Fallback to stored relays
+      return StorageService.loadRelays();
+    }
+  }
+
+  async reconnectWithNewRelays(customRelays?: string[]): Promise<Client> {
     // Disconnect existing client
     this.disconnect();
 
     // Re-initialize with new relays
-    return this.initialize();
+    return this.initialize(customRelays);
   }
 }
 

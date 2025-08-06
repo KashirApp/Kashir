@@ -74,8 +74,20 @@ export default function App() {
           setLoginType(session.type);
           setIsLoggedIn(true);
 
-          // Initialize the client
-          await nostrClient.initialize();
+          // Load user's relay list and initialize client with proper relays
+          console.log('App: Loading user relay list for stored session...');
+          try {
+            const userRelays = await nostrClient.loadAndApplyUserRelays();
+            console.log(`App: Loaded ${userRelays.length} user relays for stored session`);
+            
+            // Initialize the client with user's relays
+            await nostrClient.initialize(userRelays);
+            console.log('App: Client initialized with user relays for stored session');
+          } catch (relayError) {
+            console.error('App: Failed to load user relays for stored session, using default:', relayError);
+            // Fallback to default initialization
+            await nostrClient.initialize();
+          }
         }
       } catch (error) {
         console.error('Error loading stored session:', error);
@@ -92,6 +104,21 @@ export default function App() {
       setUserNpub(npub);
       setLoginType(loginType);
       setIsLoggedIn(true);
+
+      // Load and apply user's relay list after successful login
+      console.log('App: Loading user relay list after login...');
+      const nostrClient = NostrClientService.getInstance();
+      try {
+        const userRelays = await nostrClient.loadAndApplyUserRelays();
+        console.log(`App: Loaded ${userRelays.length} user relays, reinitializing client...`);
+        
+        // Reinitialize client with user's relays
+        await nostrClient.reconnectWithNewRelays(userRelays);
+        console.log('App: Client reinitialized with user relays');
+      } catch (relayError) {
+        console.error('App: Failed to load user relays, continuing with default relays:', relayError);
+        // Continue with login even if relay loading fails
+      }
     } catch (error) {
       console.error('Error during login:', error);
       throw error;
