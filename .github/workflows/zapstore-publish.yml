@@ -97,7 +97,7 @@ jobs:
           cd $GITHUB_WORKSPACE
           
           # Capture zapstore output and check for warnings
-          PUBLISH_OUTPUT=$(zapstore publish --daemon-mode 2>&1)
+          PUBLISH_OUTPUT=$(zapstore publish --indexer-mode 2>&1)
           echo "$PUBLISH_OUTPUT"
           
           # Check if output contains version conflict warning
