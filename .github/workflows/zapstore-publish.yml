@@ -82,22 +82,12 @@ jobs:
         run: |
           echo "Publishing to Zapstore..."
           
-          # Step 1: Initial zapstore-cli run (shows welcome message)
-          ./zapstore-cli
-          
-          # Step 2: Set PATH as zapstore requested
-          export PATH="/home/runner/.zapstore:$PATH"
-          echo 'export PATH="/home/runner/.zapstore:$PATH"' >> ~/.bashrc
-          
-          # Step 3: Run zapstore-cli to complete installation
-          ./zapstore-cli
-          
-          # Run zapstore publish
+          # Run zapstore publish directly (no installation needed since 0.2.1)
           echo "Running zapstore publish:"
           cd $GITHUB_WORKSPACE
           
           # Capture zapstore output and check for warnings
-          PUBLISH_OUTPUT=$(zapstore publish --daemon-mode 2>&1)
+          PUBLISH_OUTPUT=$(./zapstore-cli publish --indexer-mode 2>&1)
           echo "$PUBLISH_OUTPUT"
           
           # Check if output contains version conflict warning
