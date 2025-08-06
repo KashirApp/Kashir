@@ -24,15 +24,17 @@ import { ComposeNoteModal } from './ComposeNoteModal';
 import type { TabType } from '../types';
 import type { NostrStackParamList } from './NostrNavigator';
 import { styles } from '../App.styles';
-import { Keys, SecretKey } from 'kashir';
+import { Keys, SecretKey, Client } from 'kashir';
 
 type PostsScreenProps = NativeStackScreenProps<
   NostrStackParamList,
   'PostsMain'
->;
+> & {
+  onLogout: () => void;
+};
 
-export function PostsScreen({ route, navigation }: PostsScreenProps) {
-  const { userNpub, loginType, onLogout } = route.params;
+export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
+  const { userNpub, loginType } = route.params;
   const [isClientReady, setIsClientReady] = useState(false);
   const [userName, setUserName] = useState<string>('');
   const [profileLoading, setProfileLoading] = useState(false);
@@ -46,9 +48,11 @@ export function PostsScreen({ route, navigation }: PostsScreenProps) {
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
   const profileService = useMemo(() => new ProfileService(), []);
-  const [client, setClient] = useState(clientService.getClient());
+  
+  // Get client from service but only use it when ready
+  const [client, setClient] = useState<Client | null>(null);
 
-  // Custom hooks
+  // Custom hooks - only pass client when it's ready
   const { posts, loading, fetchPosts } = usePosts(client);
   const {
     followingPosts,
@@ -72,25 +76,39 @@ export function PostsScreen({ route, navigation }: PostsScreenProps) {
     fetchEvents,
   } = useEvents(client, profileService);
 
-  // Initialize client on mount
+  // Monitor client readiness instead of initializing our own client
   useEffect(() => {
-    const initClient = async () => {
-      try {
-        const newClient = await clientService.initialize();
-        setClient(newClient);
+    const checkClientReadiness = () => {
+      if (clientService.isReady()) {
+        const readyClient = clientService.getClient();
+        console.log('PostsScreen: Client is ready, updating state');
+        setClient(readyClient);
         setIsClientReady(true);
-      } catch (error) {
-        Alert.alert('Error', 'Failed to connect to Nostr relays');
+      } else {
+        console.log('PostsScreen: Client not ready yet');
+        setClient(null);
+        setIsClientReady(false);
       }
     };
 
-    initClient();
+    // Check immediately
+    checkClientReadiness();
 
-    // Cleanup on unmount
+    // Set up an interval to check client readiness
+    const interval = setInterval(checkClientReadiness, 500); // Check every 500ms
+
+    // Clear interval when component unmounts or client becomes ready
     return () => {
-      clientService.disconnect();
+      clearInterval(interval);
     };
   }, [clientService]);
+
+  // Stop checking once client is ready
+  useEffect(() => {
+    if (isClientReady) {
+      console.log('PostsScreen: Client ready, stopping readiness checks');
+    }
+  }, [isClientReady]);
 
   // Load user keys for signing DVM requests
   useEffect(() => {

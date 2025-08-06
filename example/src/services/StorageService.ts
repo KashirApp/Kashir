@@ -13,7 +13,6 @@ export class StorageService {
   static async saveNpub(npub: string): Promise<void> {
     try {
       await AsyncStorage.setItem(NPUB_STORAGE_KEY, npub);
-      console.log('Npub saved to storage');
     } catch (error) {
       console.error('Error saving npub to storage:', error);
       throw error;
@@ -27,7 +26,6 @@ export class StorageService {
     try {
       const npub = await AsyncStorage.getItem(NPUB_STORAGE_KEY);
       if (npub) {
-        console.log('Npub loaded from storage');
         return npub;
       }
       return null;
@@ -43,7 +41,6 @@ export class StorageService {
   static async removeNpub(): Promise<void> {
     try {
       await AsyncStorage.removeItem(NPUB_STORAGE_KEY);
-      console.log('Npub removed from storage');
     } catch (error) {
       console.error('Error removing npub from storage:', error);
       throw error;
@@ -69,7 +66,6 @@ export class StorageService {
   static async saveRelays(relays: string[]): Promise<void> {
     try {
       await AsyncStorage.setItem(NOSTR_RELAYS_KEY, JSON.stringify(relays));
-      console.log('Nostr relays saved to storage');
     } catch (error) {
       console.error('Error saving relays to storage:', error);
       throw error;
@@ -84,11 +80,9 @@ export class StorageService {
       const relaysJson = await AsyncStorage.getItem(NOSTR_RELAYS_KEY);
       if (relaysJson) {
         const relays = JSON.parse(relaysJson);
-        console.log('Nostr relays loaded from storage:', relays.length);
         return relays;
       }
       // Return default relays if none are stored
-      console.log('No stored relays, using defaults');
       return DEFAULT_RELAYS;
     } catch (error) {
       console.error('Error loading relays from storage:', error);

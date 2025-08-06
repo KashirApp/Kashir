@@ -12,7 +12,6 @@ export type NostrStackParamList = {
   PostsMain: {
     userNpub: string;
     loginType: LoginType;
-    onLogout: () => void;
   };
   EventDetail: {
     event: CalendarEvent;
@@ -65,16 +64,16 @@ export function NostrNavigator({
         <>
           <Stack.Screen
             name="PostsMain"
-            component={PostsScreen}
             initialParams={{
               userNpub,
               loginType,
-              onLogout,
             }}
             options={{
               headerShown: false, // PostsScreen has its own header
             }}
-          />
+          >
+            {(props) => <PostsScreen {...props} onLogout={onLogout} />}
+          </Stack.Screen>
           <Stack.Screen
             name="EventDetail"
             component={EventDetail}

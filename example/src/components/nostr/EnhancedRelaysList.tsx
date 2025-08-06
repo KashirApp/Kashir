@@ -19,7 +19,7 @@ export function EnhancedRelaysList({
   hasUserRelayList, 
   isLoadingUserRelays, 
   onRemove, 
-  onAddRelay 
+  onAddRelay
 }: EnhancedRelaysListProps) {
   const relayListService = RelayListService.getInstance();
 
