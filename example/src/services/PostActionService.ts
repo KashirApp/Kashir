@@ -7,8 +7,6 @@ import {
   SecretKey,
   Kind,
   ZapRequestData,
-  nip57AnonymousZapRequest,
-  nip57PrivateZapRequest,
 } from 'kashir';
 import { NostrClientService, LoginType } from './NostrClient';
 import { SecureStorageService } from './SecureStorageService';
@@ -208,7 +206,9 @@ export class PostActionService {
         }
         const secretKey = SecretKey.parse(privateKeyHex);
         const keys = new Keys(secretKey);
-        zapRequestEvent = nip57PrivateZapRequest(zapRequestData, keys);
+        // Create a normal zap request event manually
+        const eventBuilder = EventBuilder.publicZapRequest(zapRequestData);
+        zapRequestEvent = await eventBuilder.sign(keys);
       } else {
         throw new Error('Unsupported login method for zaps');
       }
