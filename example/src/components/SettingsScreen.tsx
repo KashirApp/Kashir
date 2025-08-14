@@ -7,6 +7,7 @@ import {
   Alert,
   Clipboard,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MintsList, MintUrlModal, useWallet } from './wallet';
@@ -28,6 +29,8 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
   const [isLoadingUserRelays, setIsLoadingUserRelays] = useState(false);
   const [hasUserRelayList, setHasUserRelayList] = useState(false);
   const [lastRelayCheck, setLastRelayCheck] = useState<string>(''); // Track last relay state
+  const [zapAmount, setZapAmount] = useState<number>(21);
+  const [zapAmountInput, setZapAmountInput] = useState<string>('21');
 
   const {
     mintUrls,
@@ -87,10 +90,21 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       }
     };
 
+    const loadZapAmount = async () => {
+      try {
+        const amount = await StorageService.loadZapAmount();
+        setZapAmount(amount);
+        setZapAmountInput(amount.toString());
+      } catch (error) {
+        console.warn('Failed to load zap amount from storage:', error);
+      }
+    };
+
     // Load relays whenever screen becomes visible
     if (isVisible) {
       checkSeedPhrase();
       loadMintUrls();
+      loadZapAmount();
       loadRelaysForDisplay();
     }
   }, [isVisible]);
@@ -232,6 +246,30 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     }
   };
 
+  const handleZapAmountChange = (text: string) => {
+    setZapAmountInput(text);
+  };
+
+  const handleZapAmountSave = async () => {
+    try {
+      const amount = parseInt(zapAmountInput, 10);
+      if (isNaN(amount) || amount <= 0) {
+        Alert.alert('Invalid Amount', 'Please enter a valid positive number');
+        return;
+      }
+      if (amount > 1000000) {
+        Alert.alert('Amount Too Large', 'Please enter an amount less than 1,000,000 sats');
+        return;
+      }
+      
+      await StorageService.saveZapAmount(amount);
+      setZapAmount(amount);
+      Alert.alert('Success', `Default zap amount set to ${amount} sats`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save zap amount');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -266,6 +304,30 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
               onRemove={handleRemoveRelay}
               onAddRelay={() => setShowRelayModal(true)}
             />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Zap Settings</Text>
+          
+          <View style={styles.zapAmountContainer}>
+            <Text style={styles.zapAmountLabel}>Default Zap Amount (sats)</Text>
+            <View style={styles.zapAmountInputContainer}>
+              <TextInput
+                style={styles.zapAmountInput}
+                value={zapAmountInput}
+                onChangeText={handleZapAmountChange}
+                keyboardType="numeric"
+                placeholder="21"
+                placeholderTextColor="#666"
+              />
+              <TouchableOpacity 
+                style={styles.zapAmountSaveButton} 
+                onPress={handleZapAmountSave}
+              >
+                <Text style={styles.zapAmountSaveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -381,5 +443,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginBottom: 5,
+  },
+  zapAmountContainer: {
+    backgroundColor: '#2a2a2a',
+    padding: 20,
+    borderRadius: 8,
+  },
+  zapAmountLabel: {
+    fontSize: 16,
+    color: '#fff',
+    marginBottom: 10,
+    fontWeight: '500',
+  },
+  zapAmountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  zapAmountInput: {
+    flex: 1,
+    backgroundColor: '#333',
+    color: '#fff',
+    padding: 12,
+    borderRadius: 6,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#555',
+  },
+  zapAmountSaveButton: {
+    backgroundColor: '#81b0ff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  zapAmountSaveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  zapAmountDescription: {
+    fontSize: 14,
+    color: '#888',
+    fontStyle: 'italic',
   },
 });

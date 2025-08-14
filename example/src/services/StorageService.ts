@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const NPUB_STORAGE_KEY = '@npub_key';
 const NOSTR_RELAYS_KEY = '@nostr_relays';
+const ZAP_AMOUNT_KEY = '@zap_amount';
 
 // Default relays to use if none are configured
 const DEFAULT_RELAYS = ['wss://relay.damus.io'];
@@ -140,5 +141,34 @@ export class StorageService {
    */
   static getDefaultRelays(): string[] {
     return [...DEFAULT_RELAYS];
+  }
+
+  /**
+   * Save default zap amount to async storage
+   */
+  static async saveZapAmount(amount: number): Promise<void> {
+    try {
+      await AsyncStorage.setItem(ZAP_AMOUNT_KEY, amount.toString());
+    } catch (error) {
+      console.error('Error saving zap amount to storage:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load default zap amount from async storage
+   */
+  static async loadZapAmount(): Promise<number> {
+    try {
+      const amountString = await AsyncStorage.getItem(ZAP_AMOUNT_KEY);
+      if (amountString) {
+        const amount = parseInt(amountString, 10);
+        return isNaN(amount) ? 21 : amount; // Default to 21 if invalid
+      }
+      return 21; // Default zap amount
+    } catch (error) {
+      console.error('Error loading zap amount from storage:', error);
+      return 21; // Default zap amount on error
+    }
   }
 }

@@ -15,6 +15,9 @@ export { MintRecommendationsModal } from './components/MintRecommendationsModal'
 // Hooks
 export { useWallet } from './hooks/useWallet';
 
+// Context
+export { WalletProvider, useWalletContext } from './WalletProvider';
+
 // Utils
 export { getErrorMessage } from './utils/errorUtils';
 export { formatSats, getSatUnit } from './utils/formatUtils';

@@ -134,6 +134,53 @@ export class ProfileService {
     }
   }
 
+  async fetchLightningAddressForPubkey(
+    client: Client,
+    pubkey: PublicKeyInterface
+  ): Promise<string | null> {
+    try {
+      // Create filter for kind 0 (metadata/profile) events
+      const profileFilter = new Filter()
+        .author(pubkey)
+        .kinds([new Kind(0)])
+        .limit(1n);
+
+      const events = await client.fetchEvents(profileFilter, 10000 as any);
+      const eventArray = events.toVec();
+
+      if (eventArray.length > 0) {
+        const profileEvent = eventArray[0];
+        if (profileEvent) {
+          const content = profileEvent.content();
+
+          try {
+            const profileData = JSON.parse(content);
+            
+            // Check for Lightning address (lud16) or LNURL (lud06)
+            const lightningAddress = profileData.lud16;
+            const lnurl = profileData.lud06;
+            
+            // Prefer Lightning address over LNURL
+            if (lightningAddress) {
+              console.log('Found Lightning address:', lightningAddress);
+              return lightningAddress;
+            } else if (lnurl) {
+              console.log('Found LNURL:', lnurl);
+              return lnurl;
+            }
+          } catch (parseError) {
+            console.error('Error parsing profile JSON for Lightning info:', parseError);
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching Lightning address for pubkey:', error);
+      return null;
+    }
+  }
+
   getProfileCache(): Map<string, { name: string; loaded: boolean }> {
     return this.profileCache;
   }

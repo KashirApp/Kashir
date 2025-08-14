@@ -14,6 +14,7 @@ import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
 import { formatSats, getSatUnit } from '../utils/formatUtils';
 import { SecureStorageService } from '../../../services/SecureStorageService';
+import { walletManager } from '../../../services/WalletManager';
 import {
   getMintDbPath,
   clearWalletCache,
@@ -27,19 +28,12 @@ const MINT_URLS_STORAGE_KEY = '@cashu_mint_urls';
 const ACTIVE_MINT_URL_STORAGE_KEY = '@cashu_active_mint_url';
 
 export function useWallet() {
-  const [balance, setBalance] = useState<bigint>(BigInt(0));
+  // Get wallet data from WalletManager
+  const [managerState, setManagerState] = useState(walletManager.getState());
+  
+  // UI-only state (not shared across components)
   const [moduleStatus, setModuleStatus] = useState<string>('Loading...');
   const [cdkModule, setCdkModule] = useState<any>(null);
-  const [wallet, setWallet] = useState<any>(null);
-  const [mintUrls, setMintUrls] = useState<string[]>([]);
-  const [activeMintUrl, setActiveMintUrl] = useState<string>('');
-  // Track current mint URL to ensure synchronous updates
-  const currentMintUrlRef = useRef<string>('');
-
-  const setCurrentMintUrlRef = (value: string) => {
-    currentMintUrlRef.current = value;
-  };
-  const [isLoadingWallet, setIsLoadingWallet] = useState(true);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveAmount, setReceiveAmount] = useState('');
   const [invoice, setInvoice] = useState('');
@@ -68,11 +62,30 @@ export function useWallet() {
   const [showRecoveryLoader, setShowRecoveryLoader] = useState(false);
   const [showRecoveryConfetti, setShowRecoveryConfetti] = useState(false);
 
+  // Track current mint URL to ensure synchronous updates
+  const currentMintUrlRef = useRef<string>('');
+
+  const setCurrentMintUrlRef = (value: string) => {
+    currentMintUrlRef.current = value;
+  };
+
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Ref to prevent duplicate payment calls
   const isProcessingPayment = useRef(false);
+
+  // Subscribe to WalletManager state changes
+  useEffect(() => {
+    const unsubscribe = walletManager.subscribe(() => {
+      setManagerState(walletManager.getState());
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Extract values from WalletManager
+  const { wallet, balance, mintUrls, activeMintUrl, isLoadingWallet } = managerState;
 
   // Function to load mint URLs from storage
   const loadMintUrlsFromStorage = async () => {
@@ -80,10 +93,11 @@ export function useWallet() {
       const savedMintUrls = await AsyncStorage.getItem(MINT_URLS_STORAGE_KEY);
       if (savedMintUrls) {
         const parsedUrls = JSON.parse(savedMintUrls);
-        setMintUrls(parsedUrls);
+        walletManager.setMintUrls(parsedUrls);
+        
         // Set the first URL as active if no active URL is set
-        if (parsedUrls.length > 0 && !activeMintUrl) {
-          setActiveMintUrl(parsedUrls[0]);
+        if (parsedUrls.length > 0 && !walletManager.getActiveMintUrl()) {
+          walletManager.setActiveMintUrl(parsedUrls[0]);
         }
         return true;
       }
@@ -131,7 +145,7 @@ export function useWallet() {
       const newUrls = [...mintUrls];
       if (!newUrls.includes(url)) {
         newUrls.push(url);
-        setMintUrls(newUrls);
+        walletManager.setMintUrls(newUrls);
         await saveMintUrlsToStorage(newUrls);
 
         // Create/restore wallet instance for the new mint
@@ -158,7 +172,7 @@ export function useWallet() {
 
         // Set as active if it's the first one
         if (newUrls.length === 1) {
-          setActiveMintUrl(url);
+          walletManager.setActiveMintUrl(url);
           await saveActiveMintUrlToStorage(url);
           if (!currentMintUrlRef.current) {
             setCurrentMintUrlRef(url);
@@ -173,12 +187,12 @@ export function useWallet() {
   // Function to set active mint URL
   const setActiveMint = async (url: string) => {
     try {
-      if (mintUrls.includes(url)) {
-        const previousMintUrl = activeMintUrl;
+      if (walletManager.getMintUrls().includes(url)) {
+        const previousMintUrl = walletManager.getActiveMintUrl();
 
         setCurrentMintUrlRef(url);
         await saveActiveMintUrlToStorage(url);
-        setWallet(null);
+        walletManager.setWallet(null);
         clearWalletCache();
 
         setModuleStatus(`Switching to mint: ${url}...`);
@@ -213,7 +227,7 @@ export function useWallet() {
       }
 
       const newUrls = mintUrls.filter((mintUrl) => mintUrl !== url);
-      setMintUrls(newUrls);
+      walletManager.setMintUrls(newUrls);
       await saveMintUrlsToStorage(newUrls);
       return true;
     } catch (error) {
@@ -226,8 +240,8 @@ export function useWallet() {
   const clearMintUrlsFromStorage = async () => {
     try {
       await AsyncStorage.removeItem(MINT_URLS_STORAGE_KEY);
-      setMintUrls([]);
-      setActiveMintUrl('');
+      walletManager.setMintUrls([]);
+      walletManager.setActiveMintUrl('');
       setModuleStatus('Ready - Set mint URL to begin');
     } catch (error) {
       console.error('Failed to clear mint URLs from storage:', error);
@@ -302,7 +316,8 @@ export function useWallet() {
       try {
         // Try to get balance to verify wallet works
         const walletBalance = walletInstance.balance();
-        setWallet(walletInstance);
+        walletManager.setWallet(walletInstance);
+        walletManager.setBalance(walletBalance.value);
 
         // Update cached balance for this mint
         await updateCachedMintBalance(urlToUse, walletBalance.value);
@@ -311,14 +326,15 @@ export function useWallet() {
         await updateTotalBalance();
 
         // Update activeMintUrl to match the restored wallet
-        setActiveMintUrl(urlToUse);
+        walletManager.setActiveMintUrl(urlToUse);
         setCurrentMintUrlRef(urlToUse);
 
         setModuleStatus(`Wallet restored! Total balance updated`);
         return true;
       } catch (balanceError) {
         // Wallet exists but might be empty, still consider it restored
-        setWallet(walletInstance);
+        walletManager.setWallet(walletInstance);
+        walletManager.setBalance(BigInt(0));
 
         // Update cached balance for this mint (0 for empty wallet)
         await updateCachedMintBalance(urlToUse, BigInt(0));
@@ -327,7 +343,7 @@ export function useWallet() {
         await updateTotalBalance();
 
         // Update activeMintUrl to match the restored wallet
-        setActiveMintUrl(urlToUse);
+        walletManager.setActiveMintUrl(urlToUse);
         setCurrentMintUrlRef(urlToUse);
 
         setModuleStatus('Wallet restored successfully!');
@@ -349,12 +365,12 @@ export function useWallet() {
   // Function to handle mint URL submission
   const handleMintUrlSubmit = async (url: string) => {
     await addMintUrl(url);
-    setActiveMintUrl(url);
+    walletManager.setActiveMintUrl(url);
     setShowMintUrlModal(false);
 
     // If we should create wallet after setting mint, set loading state
     if (shouldCreateWalletAfterMint) {
-      setIsLoadingWallet(true);
+      walletManager.setLoadingWallet(true);
       setModuleStatus('Mint URL set. Creating wallet...');
     } else if (shouldShowRecoverAfterMint) {
       setModuleStatus('Mint URL set. Ready to recover wallet.');
@@ -404,7 +420,7 @@ export function useWallet() {
       } catch (error) {
         console.error('CDK loading error:', error);
         setModuleStatus(`CDK loading failed: ${getErrorMessage(error)}`);
-        setIsLoadingWallet(false);
+        walletManager.setLoadingWallet(false);
       }
     };
 
@@ -424,13 +440,13 @@ export function useWallet() {
 
           if (!savedMintUrls) {
             setModuleStatus('Ready - Set mint URL to begin');
-            setIsLoadingWallet(false);
+            walletManager.setLoadingWallet(false);
             return;
           }
 
           // Set the mint URLs in state
           const parsedUrls = JSON.parse(savedMintUrls);
-          setMintUrls(parsedUrls);
+          walletManager.setMintUrls(parsedUrls);
 
           // Load the active mint URL from storage (not just the first one)
           const savedActiveMintUrl = await loadActiveMintUrlFromStorage();
@@ -440,7 +456,7 @@ export function useWallet() {
               : parsedUrls[0]; // Fallback to first mint if no saved active mint
 
           if (activeMintToUse) {
-            setActiveMintUrl(activeMintToUse);
+            walletManager.setActiveMintUrl(activeMintToUse);
             if (!currentMintUrlRef.current) {
               setCurrentMintUrlRef(activeMintToUse);
             }
@@ -466,13 +482,13 @@ export function useWallet() {
           }
 
           // Set loading to false after wallet restoration is complete
-          setIsLoadingWallet(false);
+          walletManager.setLoadingWallet(false);
         } catch (error) {
           console.error('Error during wallet initialization:', error);
           setModuleStatus(
             'Error during initialization. Ready to create wallet.'
           );
-          setIsLoadingWallet(false);
+          walletManager.setLoadingWallet(false);
         }
       };
 
@@ -482,7 +498,7 @@ export function useWallet() {
 
     // Safety timeout to ensure loading doesn't hang forever
     const safetyTimeout = setTimeout(() => {
-      setIsLoadingWallet(false);
+      walletManager.setLoadingWallet(false);
       setModuleStatus('Loading timeout. Please try again.');
     }, 10000); // 10 seconds timeout
 
@@ -582,7 +598,7 @@ export function useWallet() {
                   'There was an error creating your wallet. Please check your mint URL and try again.',
                   [{ text: 'OK' }]
                 );
-                setIsLoadingWallet(false);
+                walletManager.setLoadingWallet(false);
                 return;
               }
 
@@ -606,23 +622,23 @@ export function useWallet() {
                 // Expected for new wallets, continue
               }
 
-              setWallet(walletInstance);
+              walletManager.setWallet(walletInstance);
 
               // Try to get balance
               try {
                 const walletBalance = walletInstance.balance();
-                setBalance(walletBalance.value);
+                walletManager.setBalance(walletBalance.value);
                 setModuleStatus('Wallet created successfully!');
               } catch (balanceError) {
                 console.warn(
                   'Balance retrieval failed, setting to 0:',
                   balanceError
                 );
-                setBalance(BigInt(0));
+                walletManager.setBalance(BigInt(0));
                 setModuleStatus('Wallet created successfully!');
               }
 
-              setIsLoadingWallet(false);
+              walletManager.setLoadingWallet(false);
             } catch (error) {
               console.error('Error in wallet creation callback:', error);
               Alert.alert(
@@ -630,7 +646,7 @@ export function useWallet() {
                 'An unexpected error occurred during wallet creation. Please try again.',
                 [{ text: 'OK' }]
               );
-              setIsLoadingWallet(false);
+              walletManager.setLoadingWallet(false);
             }
           });
 
@@ -643,7 +659,7 @@ export function useWallet() {
           console.error('Wallet creation error:', error);
           setModuleStatus(`Wallet creation failed: ${getErrorMessage(error)}`);
           setShouldCreateWalletAfterMint(false); // Reset flag on error
-          setIsLoadingWallet(false);
+          walletManager.setLoadingWallet(false);
         }
       };
 
@@ -666,7 +682,7 @@ export function useWallet() {
     }
 
     // Set loading state for wallet creation
-    setIsLoadingWallet(true);
+    walletManager.setLoadingWallet(true);
 
     // Check if wallet already exists
     const walletExists = await checkWalletExists(activeMintUrl);
@@ -674,7 +690,7 @@ export function useWallet() {
       // Try to restore existing wallet instead of creating new one
       const restored = await restoreExistingWallet(activeMintUrl);
       if (restored) {
-        setIsLoadingWallet(false);
+        walletManager.setLoadingWallet(false);
         return; // Successfully restored existing wallet
       }
       // If restoration failed, continue with creating new wallet
@@ -747,7 +763,7 @@ export function useWallet() {
               'There was an error creating your wallet. Please check your mint URL and try again.',
               [{ text: 'OK' }]
             );
-            setIsLoadingWallet(false);
+            walletManager.setLoadingWallet(false);
             return;
           }
 
@@ -771,23 +787,23 @@ export function useWallet() {
             // Expected for new wallets, continue
           }
 
-          setWallet(walletInstance);
+          walletManager.setWallet(walletInstance);
 
           // Try to get balance
           try {
             const walletBalance = walletInstance.balance();
-            setBalance(walletBalance.value);
+            walletManager.setBalance(walletBalance.value);
             setModuleStatus('Wallet created successfully!');
           } catch (balanceError) {
             console.warn(
               'Balance retrieval failed, setting to 0:',
               balanceError
             );
-            setBalance(BigInt(0));
+            walletManager.setBalance(BigInt(0));
             setModuleStatus('Wallet created successfully!');
           }
 
-          setIsLoadingWallet(false);
+          walletManager.setLoadingWallet(false);
         } catch (error) {
           console.error('Error in wallet creation callback:', error);
           Alert.alert(
@@ -795,7 +811,7 @@ export function useWallet() {
             'An unexpected error occurred during wallet creation. Please try again.',
             [{ text: 'OK' }]
           );
-          setIsLoadingWallet(false);
+          walletManager.setLoadingWallet(false);
         }
       });
 
@@ -807,7 +823,7 @@ export function useWallet() {
     } catch (error) {
       console.error('Wallet creation error:', error);
       setModuleStatus(`Wallet creation failed: ${getErrorMessage(error)}`);
-      setIsLoadingWallet(false);
+      walletManager.setLoadingWallet(false);
     }
   };
 
@@ -861,7 +877,7 @@ export function useWallet() {
   // Function to update total balance display
   const updateTotalBalance = async () => {
     const total = await calculateTotalBalance();
-    setBalance(total);
+    walletManager.setBalance(total);
   };
 
   // Get the current active mint URL directly from storage (bypass React state)
@@ -1232,7 +1248,7 @@ export function useWallet() {
 
       // Update balance
       const newBalance = wallet.balance();
-      setBalance(newBalance.value);
+      walletManager.setBalance(newBalance.value);
 
       return cashuToken;
     } catch (error) {
@@ -1408,7 +1424,7 @@ export function useWallet() {
       return;
     }
 
-    setIsLoadingWallet(true);
+    walletManager.setLoadingWallet(true);
     setShowRecoverModal(false);
     setShowRecoveryLoader(true); // Show recovery loading indicator
 
@@ -1439,7 +1455,7 @@ export function useWallet() {
           setModuleStatus(
             `CDK storage failed: ${getErrorMessage(storeError)}. Fallback failed: ${fallbackErrorMsg}`
           );
-          setIsLoadingWallet(false);
+          walletManager.setLoadingWallet(false);
           setShowRecoveryLoader(false);
           return;
         }
@@ -1448,7 +1464,7 @@ export function useWallet() {
       if (!localStore) {
         console.error('LocalStore is undefined, cannot recover wallet');
         Alert.alert('Error', 'Failed to initialize wallet storage');
-        setIsLoadingWallet(false);
+        walletManager.setLoadingWallet(false);
         setShowRecoveryLoader(false);
         return;
       }
@@ -1461,7 +1477,7 @@ export function useWallet() {
         mnemonic
       );
 
-      setWallet(walletInstance);
+      walletManager.setWallet(walletInstance);
 
       try {
         const walletBalance = walletInstance.balance();
@@ -1483,7 +1499,7 @@ export function useWallet() {
         setModuleStatus('Wallet recovered successfully!');
       }
 
-      setIsLoadingWallet(false);
+      walletManager.setLoadingWallet(false);
       setShowRecoveryLoader(false); // Hide recovery loading indicator
 
       // Show recovery confetti animation
@@ -1496,7 +1512,7 @@ export function useWallet() {
       const errorMsg = getErrorMessage(error);
       setModuleStatus(`Wallet recovery failed: ${errorMsg}`);
       Alert.alert('Recovery Failed', `Failed to recover wallet: ${errorMsg}`);
-      setIsLoadingWallet(false);
+      walletManager.setLoadingWallet(false);
       setShowRecoveryLoader(false); // Hide recovery loading indicator on error
     }
   };
