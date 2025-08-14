@@ -126,11 +126,11 @@ export class WalletManager {
       
       // Update balance after successful payment
       const newBalance = currentBalance.value - totalAmount;
-      this.setBalance(newBalance);
+      this.setBalance(BigInt(newBalance));
       
       // Also update the cached mint balance to sync with settings screen
       if (this.activeMintUrl) {
-        await updateCachedMintBalance(this.activeMintUrl, newBalance);
+        await updateCachedMintBalance(this.activeMintUrl, BigInt(newBalance));
       }
     } catch (error) {
       console.error('Lightning payment failed:', error);

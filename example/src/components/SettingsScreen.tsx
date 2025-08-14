@@ -124,7 +124,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
 
   // Monitor for session state changes when visible (reduced frequency)
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible) return undefined;
     
     // Much less aggressive polling to avoid log spam
     const interval = setInterval(() => {

@@ -159,12 +159,12 @@ export class PostActionService {
       ];
 
       // Step 2: Create zap request data  
-      let zapRequestData = new ZapRequestData(authorPubkey, relays);
-      zapRequestData = zapRequestData.amount(BigInt(amount * 1000)); // Convert sats to millisats
-      zapRequestData = zapRequestData.eventId(originalEvent.id());
+      const zapRequestData = new ZapRequestData(authorPubkey, relays);
+      zapRequestData.amount(BigInt(amount * 1000)); // Convert sats to millisats
+      zapRequestData.eventId(originalEvent.id());
 
       if (message) {
-        zapRequestData = zapRequestData.message(message);
+        zapRequestData.message(message);
       }
 
       // Step 3: Create and sign the zap request event
