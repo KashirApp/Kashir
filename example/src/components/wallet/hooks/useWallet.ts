@@ -30,7 +30,7 @@ const ACTIVE_MINT_URL_STORAGE_KEY = '@cashu_active_mint_url';
 export function useWallet() {
   // Get wallet data from WalletManager
   const [managerState, setManagerState] = useState(walletManager.getState());
-  
+
   // UI-only state (not shared across components)
   const [moduleStatus, setModuleStatus] = useState<string>('Loading...');
   const [cdkModule, setCdkModule] = useState<any>(null);
@@ -85,7 +85,8 @@ export function useWallet() {
   }, []);
 
   // Extract values from WalletManager
-  const { wallet, balance, mintUrls, activeMintUrl, isLoadingWallet } = managerState;
+  const { wallet, balance, mintUrls, activeMintUrl, isLoadingWallet } =
+    managerState;
 
   // Function to load mint URLs from storage
   const loadMintUrlsFromStorage = async () => {
@@ -94,7 +95,7 @@ export function useWallet() {
       if (savedMintUrls) {
         const parsedUrls = JSON.parse(savedMintUrls);
         walletManager.setMintUrls(parsedUrls);
-        
+
         // Set the first URL as active if no active URL is set
         if (parsedUrls.length > 0 && !walletManager.getActiveMintUrl()) {
           walletManager.setActiveMintUrl(parsedUrls[0]);

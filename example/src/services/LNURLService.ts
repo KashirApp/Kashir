@@ -12,7 +12,6 @@ interface LNURLPayInvoiceResponse {
 }
 
 export class LNURLService {
-  
   /**
    * Converts a Lightning address to LNURL if needed
    */
@@ -20,13 +19,13 @@ export class LNURLService {
     if (lightningAddress.startsWith('lnurl')) {
       return lightningAddress;
     }
-    
+
     // Lightning address format: user@domain.com
     const [username, domain] = lightningAddress.split('@');
     if (!username || !domain) {
       throw new Error('Invalid Lightning address format');
     }
-    
+
     // Convert to LNURL callback URL
     const url = `https://${domain}/.well-known/lnurlp/${username}`;
     return url;
@@ -35,36 +34,42 @@ export class LNURLService {
   /**
    * Gets the LNURL-pay callback information
    */
-  async getLNURLPayInfo(lightningAddressOrLNURL: string): Promise<LNURLPayResponse> {
+  async getLNURLPayInfo(
+    lightningAddressOrLNURL: string
+  ): Promise<LNURLPayResponse> {
     try {
       let url: string;
-      
+
       if (lightningAddressOrLNURL.startsWith('lnurl')) {
         // Decode LNURL
         // For now, we'll assume it's already a URL - full LNURL decoding would need bech32
-        throw new Error('Raw LNURL decoding not implemented yet. Please use Lightning address format (user@domain.com)');
+        throw new Error(
+          'Raw LNURL decoding not implemented yet. Please use Lightning address format (user@domain.com)'
+        );
       } else {
         // Lightning address
         url = this.lightningAddressToLNURL(lightningAddressOrLNURL);
       }
 
       console.log('Fetching LNURL-pay info from:', url);
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
       if (!response.ok) {
-        throw new Error(`LNURL-pay request failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `LNURL-pay request failed: ${response.status} ${response.statusText}`
+        );
       }
 
       const data: LNURLPayResponse = await response.json();
-      
+
       console.log('LNURL-pay info response:', JSON.stringify(data, null, 2));
-      
+
       if (data.tag !== 'payRequest') {
         throw new Error('Invalid LNURL-pay response: tag is not payRequest');
       }
@@ -89,7 +94,7 @@ export class LNURLService {
       let url = callbackUrl;
       const separator = callbackUrl.includes('?') ? '&' : '?';
       url += `${separator}amount=${amountMillisats}`;
-      
+
       if (zapRequest) {
         // URL encode the zap request JSON
         const encodedZapRequest = encodeURIComponent(zapRequest);
@@ -101,7 +106,7 @@ export class LNURLService {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
@@ -118,7 +123,7 @@ export class LNURLService {
       }
 
       const data: LNURLPayInvoiceResponse = await response.json();
-      
+
       if (!data.pr) {
         throw new Error('Invalid invoice response: missing payment request');
       }
@@ -141,17 +146,21 @@ export class LNURLService {
     try {
       // Step 1: Get LNURL-pay info
       const payInfo = await this.getLNURLPayInfo(lightningAddressOrLNURL);
-      
+
       // Convert sats to millisats
       const amountMillisats = amountSats * 1000;
-      
+
       // Check amount limits
       if (amountMillisats < payInfo.minSendable) {
-        throw new Error(`Amount too small. Minimum: ${payInfo.minSendable / 1000} sats`);
+        throw new Error(
+          `Amount too small. Minimum: ${payInfo.minSendable / 1000} sats`
+        );
       }
-      
+
       if (amountMillisats > payInfo.maxSendable) {
-        throw new Error(`Amount too large. Maximum: ${payInfo.maxSendable / 1000} sats`);
+        throw new Error(
+          `Amount too large. Maximum: ${payInfo.maxSendable / 1000} sats`
+        );
       }
 
       // Step 2: Request invoice with zap request

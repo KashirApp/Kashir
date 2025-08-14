@@ -276,7 +276,10 @@ export class AmberSigner implements CustomNostrSigner {
             try {
               return tag.asVec();
             } catch (e) {
-              console.log('AmberSigner: Error converting tag to vec:', e.message);
+              console.log(
+                'AmberSigner: Error converting tag to vec:',
+                e.message
+              );
               return [];
             }
           });

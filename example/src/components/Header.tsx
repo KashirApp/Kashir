@@ -26,7 +26,7 @@ export function Header({
   onShowUserPosts,
 }: HeaderProps) {
   const insets = useSafeAreaInsets();
-  
+
   const handleUserNamePress = () => {
     onShowUserPosts();
   };

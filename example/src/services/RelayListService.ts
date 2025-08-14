@@ -1,4 +1,11 @@
-import { Client, Filter, Kind, PublicKey, extractRelayList, RelayMetadata } from 'kashir';
+import {
+  Client,
+  Filter,
+  Kind,
+  PublicKey,
+  extractRelayList,
+  RelayMetadata,
+} from 'kashir';
 
 export interface UserRelayInfo {
   url: string;
@@ -20,21 +27,26 @@ export class RelayListService {
   /**
    * Fetch user's NIP-65 relay list from the network
    */
-  async fetchUserRelayList(client: Client, npub: string): Promise<UserRelayInfo[]> {
+  async fetchUserRelayList(
+    client: Client,
+    npub: string
+  ): Promise<UserRelayInfo[]> {
     try {
       console.log('RelayListService: Creating public key from npub:', npub);
-      
+
       const publicKey = PublicKey.parse(npub);
       console.log('RelayListService: Successfully created PublicKey');
-      
+
       // Create filter for NIP-65 relay list metadata (kind 10002)
       const filter = new Filter()
         .author(publicKey)
         .kind(new Kind(10002))
         .limit(1n);
 
-      console.log('RelayListService: Created filter for relay list, fetching events...');
-      
+      console.log(
+        'RelayListService: Created filter for relay list, fetching events...'
+      );
+
       // Query relays for the user's relay list
       const events = await client.fetchEvents(filter, 10000 as any); // 10 second timeout
       const eventArray = events.toVec();
@@ -52,29 +64,40 @@ export class RelayListService {
         console.log('RelayListService: No valid relay list event found');
         return [];
       }
-      
-      console.log('RelayListService: Found relay list event:', relayListEvent.id().toHex());
-      
+
+      console.log(
+        'RelayListService: Found relay list event:',
+        relayListEvent.id().toHex()
+      );
+
       // Extract relay information using the NIP-65 function
       console.log('RelayListService: Extracting relay information...');
       const relayMap = extractRelayList(relayListEvent);
-      
+
       console.log('RelayListService: Relay map size:', relayMap.size);
-      
+
       // Convert to our format
       const userRelays: UserRelayInfo[] = [];
       relayMap.forEach((metadata, url) => {
-        console.log(`RelayListService: Found relay ${url} with metadata:`, metadata);
+        console.log(
+          `RelayListService: Found relay ${url} with metadata:`,
+          metadata
+        );
         userRelays.push({
           url,
           metadata,
         });
       });
 
-      console.log(`RelayListService: Extracted ${userRelays.length} relays from user's relay list`);
+      console.log(
+        `RelayListService: Extracted ${userRelays.length} relays from user's relay list`
+      );
       return userRelays;
     } catch (error) {
-      console.error('RelayListService: Failed to fetch user relay list:', error);
+      console.error(
+        'RelayListService: Failed to fetch user relay list:',
+        error
+      );
       return [];
     }
   }
@@ -83,7 +106,7 @@ export class RelayListService {
    * Convert user relay info to simple URL array for the existing storage system
    */
   relayInfoToUrls(relayInfo: UserRelayInfo[]): string[] {
-    return relayInfo.map(info => info.url);
+    return relayInfo.map((info) => info.url);
   }
 
   /**
@@ -98,7 +121,7 @@ export class RelayListService {
     const read: UserRelayInfo[] = [];
     const write: UserRelayInfo[] = [];
 
-    relayInfo.forEach(info => {
+    relayInfo.forEach((info) => {
       if (!info.metadata) {
         // No metadata means read/write
         readWrite.push(info);
@@ -124,7 +147,7 @@ export class RelayListService {
    */
   getMetadataDisplayName(metadata?: RelayMetadata): string {
     if (!metadata) return 'Read/Write';
-    
+
     // Convert to string to safely compare
     const metadataStr = String(metadata);
     if (metadataStr.includes('Read') || metadataStr === '0') {

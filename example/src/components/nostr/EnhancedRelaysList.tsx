@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { RelayItem } from './RelayItem';
 import { RelayListService } from '../../services';
 import type { UserRelayInfo } from '../../services';
@@ -13,13 +19,13 @@ interface EnhancedRelaysListProps {
   onAddRelay: () => void;
 }
 
-export function EnhancedRelaysList({ 
-  relays, 
-  userRelayInfo, 
-  hasUserRelayList, 
-  isLoadingUserRelays, 
-  onRemove, 
-  onAddRelay
+export function EnhancedRelaysList({
+  relays,
+  userRelayInfo,
+  hasUserRelayList,
+  isLoadingUserRelays,
+  onRemove,
+  onAddRelay,
 }: EnhancedRelaysListProps) {
   const relayListService = RelayListService.getInstance();
 
@@ -45,14 +51,17 @@ export function EnhancedRelaysList({
 
   const getRelayMetadata = (url: string) => {
     if (!hasUserRelayList || userRelayInfo.length === 0) return undefined;
-    return userRelayInfo.find(info => info.url === url)?.metadata;
+    return userRelayInfo.find((info) => info.url === url)?.metadata;
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.sectionTitle}>
-          {hasUserRelayList ? '📡 Your Relay List (NIP-65)' : 'Connected Relays'} ({relays.length})
+          {hasUserRelayList
+            ? '📡 Your Relay List (NIP-65)'
+            : 'Connected Relays'}{' '}
+          ({relays.length})
         </Text>
         {hasUserRelayList && (
           <Text style={styles.subtitleText}>

@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import {
-  View,
-  Button,
-  Alert,
-  TouchableOpacity,
-  Text,
-} from 'react-native';
+import { View, Button, Alert, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService, LoginType } from '../services/NostrClient';
@@ -48,7 +42,7 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
   const profileService = useMemo(() => new ProfileService(), []);
-  
+
   // Get client from service but only use it when ready
   const [client, setClient] = useState<Client | null>(null);
 

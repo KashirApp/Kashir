@@ -155,11 +155,11 @@ export class ProfileService {
 
           try {
             const profileData = JSON.parse(content);
-            
+
             // Check for Lightning address (lud16) or LNURL (lud06)
             const lightningAddress = profileData.lud16;
             const lnurl = profileData.lud06;
-            
+
             // Prefer Lightning address over LNURL
             if (lightningAddress) {
               console.log('Found Lightning address:', lightningAddress);
@@ -169,7 +169,10 @@ export class ProfileService {
               return lnurl;
             }
           } catch (parseError) {
-            console.error('Error parsing profile JSON for Lightning info:', parseError);
+            console.error(
+              'Error parsing profile JSON for Lightning info:',
+              parseError
+            );
           }
         }
       }

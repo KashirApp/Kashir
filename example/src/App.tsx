@@ -78,37 +78,51 @@ export default function App() {
           console.log('App: Loading user relay list for stored session...');
           try {
             const userRelays = await nostrClient.loadAndApplyUserRelays();
-            console.log(`App: Loaded ${userRelays.length} user relays for stored session`);
-            
+            console.log(
+              `App: Loaded ${userRelays.length} user relays for stored session`
+            );
+
             // Initialize the client with user's relays
             await nostrClient.initialize(userRelays);
-            
+
             // Wait for client to be ready before marking as logged in
             const isReady = await nostrClient.waitForReady(10000); // 10 second timeout
             if (isReady) {
               console.log('App: Client ready, marking user as logged in');
               setIsLoggedIn(true);
             } else {
-              console.error('App: Client not ready after timeout, login failed');
+              console.error(
+                'App: Client not ready after timeout, login failed'
+              );
               setUserNpub('');
               setLoginType(LoginType.Amber);
             }
           } catch (relayError) {
-            console.error('App: Failed to load user relays for stored session, using default:', relayError);
+            console.error(
+              'App: Failed to load user relays for stored session, using default:',
+              relayError
+            );
             try {
               // Fallback to default initialization
               await nostrClient.initialize();
               const isReady = await nostrClient.waitForReady(10000);
               if (isReady) {
-                console.log('App: Client ready with default relays, marking user as logged in');
+                console.log(
+                  'App: Client ready with default relays, marking user as logged in'
+                );
                 setIsLoggedIn(true);
               } else {
-                console.error('App: Client not ready with default relays, login failed');
+                console.error(
+                  'App: Client not ready with default relays, login failed'
+                );
                 setUserNpub('');
                 setLoginType(LoginType.Amber);
               }
             } catch (fallbackError) {
-              console.error('App: Fallback client initialization failed:', fallbackError);
+              console.error(
+                'App: Fallback client initialization failed:',
+                fallbackError
+              );
               setUserNpub('');
               setLoginType(LoginType.Amber);
             }
@@ -135,15 +149,19 @@ export default function App() {
       const nostrClient = NostrClientService.getInstance();
       try {
         const userRelays = await nostrClient.loadAndApplyUserRelays();
-        console.log(`App: Loaded ${userRelays.length} user relays, reinitializing client...`);
-        
+        console.log(
+          `App: Loaded ${userRelays.length} user relays, reinitializing client...`
+        );
+
         // Reinitialize client with user's relays
         await nostrClient.reconnectWithNewRelays(userRelays);
-        
+
         // Wait for client to be ready before marking as logged in
         const isReady = await nostrClient.waitForReady(10000); // 10 second timeout
         if (isReady) {
-          console.log('App: Client ready after login, marking user as logged in');
+          console.log(
+            'App: Client ready after login, marking user as logged in'
+          );
           setIsLoggedIn(true);
         } else {
           console.error('App: Client not ready after login timeout');
@@ -152,7 +170,10 @@ export default function App() {
           throw new Error('Client failed to connect to relays');
         }
       } catch (relayError) {
-        console.error('App: Failed to load user relays, continuing with default relays:', relayError);
+        console.error(
+          'App: Failed to load user relays, continuing with default relays:',
+          relayError
+        );
         // Try to continue with login using default relays
         try {
           await nostrClient.initialize();
@@ -161,7 +182,9 @@ export default function App() {
             console.log('App: Client ready with default relays after login');
             setIsLoggedIn(true);
           } else {
-            throw new Error('Client failed to connect even with default relays');
+            throw new Error(
+              'Client failed to connect even with default relays'
+            );
           }
         } catch (fallbackError) {
           console.error('App: Fallback initialization failed:', fallbackError);
@@ -180,20 +203,20 @@ export default function App() {
     try {
       console.log('App: Starting logout process');
       const nostrClient = NostrClientService.getInstance();
-      
+
       // Use the new async logout method that restores default relays
       await nostrClient.logout();
-      
+
       console.log('App: User logged out and default relays restored');
-      
+
       // Update UI state
       setIsLoggedIn(false);
       setUserNpub('');
       setLoginType(LoginType.Amber);
-      
+
       // Small delay to ensure storage operations are complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       console.log('App: Logout complete, UI updated');
     } catch (error) {
       console.error('Error during logout:', error);

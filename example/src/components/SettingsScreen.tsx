@@ -12,7 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MintsList, MintUrlModal, useWallet } from './wallet';
 import { EnhancedRelaysList, RelayUrlModal } from './nostr';
-import { SecureStorageService, StorageService, RelayListService } from '../services';
+import {
+  SecureStorageService,
+  StorageService,
+  RelayListService,
+} from '../services';
 import type { UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
 import packageInfo from '../../package.json';
@@ -51,12 +55,12 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       // Always load from storage - the main app manages what goes in storage
       const storedRelays = await StorageService.loadRelays();
       const relayHash = JSON.stringify(storedRelays.sort()); // Create hash to detect changes
-      
+
       // Only update if relays actually changed
       if (relayHash !== lastRelayCheck) {
         setRelays(storedRelays);
         setLastRelayCheck(relayHash);
-        
+
         // Reset NIP-65 specific state since we're not fetching that here
         setHasUserRelayList(false);
         setUserRelayInfo([]);
@@ -116,7 +120,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       const timer = setTimeout(() => {
         loadRelaysForDisplay();
       }, 200);
-      
+
       return () => clearTimeout(timer);
     }
     return undefined;
@@ -125,12 +129,12 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
   // Monitor for session state changes when visible (reduced frequency)
   useEffect(() => {
     if (!isVisible) return undefined;
-    
+
     // Much less aggressive polling to avoid log spam
     const interval = setInterval(() => {
       loadRelaysForDisplay();
     }, 10000); // Check every 10 seconds
-    
+
     return () => {
       clearInterval(interval);
     };
@@ -207,7 +211,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       const updatedRelays = await StorageService.loadRelays();
       setRelays(updatedRelays);
       setShowRelayModal(false);
-      
+
       // Clear user relay list since we're now using custom relays
       if (hasUserRelayList) {
         setHasUserRelayList(false);
@@ -229,7 +233,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     if (success) {
       const updatedRelays = await StorageService.loadRelays();
       setRelays(updatedRelays);
-      
+
       // Clear user relay list since we're now using custom relays
       if (hasUserRelayList) {
         setHasUserRelayList(false);
@@ -258,10 +262,13 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
         return;
       }
       if (amount > 1000000) {
-        Alert.alert('Amount Too Large', 'Please enter an amount less than 1,000,000 sats');
+        Alert.alert(
+          'Amount Too Large',
+          'Please enter an amount less than 1,000,000 sats'
+        );
         return;
       }
-      
+
       await StorageService.saveZapAmount(amount);
       setZapAmount(amount);
       Alert.alert('Success', `Default zap amount set to ${amount} sats`);
@@ -309,7 +316,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Zap Settings</Text>
-          
+
           <View style={styles.zapAmountContainer}>
             <Text style={styles.zapAmountLabel}>Default Zap Amount (sats)</Text>
             <View style={styles.zapAmountInputContainer}>
@@ -321,8 +328,8 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
                 placeholder="21"
                 placeholderTextColor="#666"
               />
-              <TouchableOpacity 
-                style={styles.zapAmountSaveButton} 
+              <TouchableOpacity
+                style={styles.zapAmountSaveButton}
                 onPress={handleZapAmountSave}
               >
                 <Text style={styles.zapAmountSaveButtonText}>Save</Text>

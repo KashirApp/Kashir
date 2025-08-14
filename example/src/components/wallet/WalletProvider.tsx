@@ -10,7 +10,7 @@ interface WalletProviderProps {
 
 export function WalletProvider({ children }: WalletProviderProps) {
   const walletState = useWallet();
-  
+
   return (
     <WalletContext.Provider value={walletState}>
       {children}

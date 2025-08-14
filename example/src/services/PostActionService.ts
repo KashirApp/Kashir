@@ -1,4 +1,15 @@
-import { EventBuilder, EventId, PublicKey, Tag, Keys, SecretKey, Kind, ZapRequestData, nip57AnonymousZapRequest, nip57PrivateZapRequest } from 'kashir';
+import {
+  EventBuilder,
+  EventId,
+  PublicKey,
+  Tag,
+  Keys,
+  SecretKey,
+  Kind,
+  ZapRequestData,
+  nip57AnonymousZapRequest,
+  nip57PrivateZapRequest,
+} from 'kashir';
 import { NostrClientService, LoginType } from './NostrClient';
 import { SecureStorageService } from './SecureStorageService';
 import { ProfileService } from './ProfileService';
@@ -19,7 +30,11 @@ export class PostActionService {
     return PostActionService.instance;
   }
 
-  private async publishReactionEvent(client: any, signedEvent: any, postId: string): Promise<void> {
+  private async publishReactionEvent(
+    client: any,
+    signedEvent: any,
+    postId: string
+  ): Promise<void> {
     await client.sendEvent(signedEvent);
     console.log(`Successfully liked post: ${postId}`);
   }
@@ -41,10 +56,10 @@ export class PostActionService {
       // Create reaction event with proper NIP-25 tags
       const eventId = originalEvent.id().toHex();
       const authorPubkey = originalEvent.author().toHex();
-      
+
       const eventTag = Tag.parse(['e', eventId]);
       const pubkeyTag = Tag.parse(['p', authorPubkey]);
-      
+
       const reactionKind = new Kind(7); // Kind 7 for reactions
       const eventBuilder = new EventBuilder(reactionKind, '+')
         .tags([eventTag, pubkeyTag])
@@ -76,7 +91,10 @@ export class PostActionService {
     }
   }
 
-  async repostPost(postId: string, originalEvent: EventInterface): Promise<void> {
+  async repostPost(
+    postId: string,
+    originalEvent: EventInterface
+  ): Promise<void> {
     try {
       const clientService = NostrClientService.getInstance();
       const client = clientService.getClient();
@@ -120,9 +138,9 @@ export class PostActionService {
   }
 
   async zapPost(
-    postId: string, 
-    originalEvent: EventInterface, 
-    amount: number = 10, 
+    postId: string,
+    originalEvent: EventInterface,
+    amount: number = 10,
     message?: string,
     sendPaymentCallback?: (invoice: string) => Promise<boolean>
   ): Promise<void> {
@@ -141,24 +159,30 @@ export class PostActionService {
 
       // Get the author's public key from the original event
       const authorPubkey = originalEvent.author();
-      
+
       // Step 1: Get the recipient's Lightning address from their profile
-      const lightningAddress = await this.profileService.fetchLightningAddressForPubkey(client, authorPubkey);
-      
+      const lightningAddress =
+        await this.profileService.fetchLightningAddressForPubkey(
+          client,
+          authorPubkey
+        );
+
       if (!lightningAddress) {
-        throw new Error('Recipient does not have a Lightning address set in their profile');
+        throw new Error(
+          'Recipient does not have a Lightning address set in their profile'
+        );
       }
 
       console.log('Found Lightning address for recipient:', lightningAddress);
-      
+
       // TODO: Get relays from user preferences or use default relays
       const relays = [
         'wss://relay.damus.io',
         'wss://nostr.wine',
-        'wss://relay.nostr.band'
+        'wss://relay.nostr.band',
       ];
 
-      // Step 2: Create zap request data  
+      // Step 2: Create zap request data
       const zapRequestData = new ZapRequestData(authorPubkey, relays);
       zapRequestData.amount(BigInt(amount * 1000)); // Convert sats to millisats
       zapRequestData.eventId(originalEvent.id());
@@ -191,16 +215,19 @@ export class PostActionService {
 
       // Step 4: Create Lightning invoice via LNURL-pay
       console.log('Creating Lightning invoice for zap...');
-      
+
       // Convert the zap request event to JSON for the LNURL request
       const zapRequestJson = JSON.stringify({
         id: zapRequestEvent.id().toHex(),
         pubkey: zapRequestEvent.author().toHex(),
         created_at: Number(zapRequestEvent.createdAt().asSecs()),
         kind: zapRequestEvent.kind().asU16(),
-        tags: zapRequestEvent.tags().toVec().map(tag => tag.asVec()),
+        tags: zapRequestEvent
+          .tags()
+          .toVec()
+          .map((tag) => tag.asVec()),
         content: zapRequestEvent.content(),
-        sig: zapRequestEvent.signature()
+        sig: zapRequestEvent.signature(),
       });
 
       const invoice = await this.lnurlService.createZapInvoice(
@@ -215,7 +242,7 @@ export class PostActionService {
       if (sendPaymentCallback) {
         console.log('Sending payment via wallet...');
         const paymentSuccess = await sendPaymentCallback(invoice);
-        
+
         if (paymentSuccess) {
           console.log(`Successfully zapped ${amount} sats to post: ${postId}`);
           // Note: The zap receipt will be published by the Lightning service
@@ -227,11 +254,14 @@ export class PostActionService {
         }
       } else {
         // Fallback: just publish the zap request without payment
-        console.log('No payment callback provided, publishing zap request only...');
+        console.log(
+          'No payment callback provided, publishing zap request only...'
+        );
         await client.sendEvent(zapRequestEvent);
-        console.log(`Successfully created zap request for post: ${postId} with amount: ${amount} sats`);
+        console.log(
+          `Successfully created zap request for post: ${postId} with amount: ${amount} sats`
+        );
       }
-      
     } catch (error) {
       console.error('Failed to zap post:', error);
       throw error;

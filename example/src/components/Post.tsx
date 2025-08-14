@@ -32,7 +32,7 @@ export function Post({
   const [isZapping, setIsZapping] = useState(false);
   const [zapAmount, setZapAmount] = useState(21);
   const postActionService = PostActionService.getInstance();
-  
+
   // Access wallet functionality for payments via WalletManager
   const [walletState, setWalletState] = useState(walletManager.getState());
 
@@ -60,7 +60,7 @@ export function Post({
 
   const handleLike = async () => {
     if (isLiking) return;
-    
+
     setIsLiking(true);
     try {
       await postActionService.likePost(postId, post);
@@ -75,7 +75,7 @@ export function Post({
 
   const handleRepost = async () => {
     if (isReposting) return;
-    
+
     setIsReposting(true);
     try {
       await postActionService.repostPost(postId, post);
@@ -90,7 +90,7 @@ export function Post({
 
   const handleZap = async () => {
     if (isZapping) return;
-    
+
     setIsZapping(true);
     try {
       // Create a payment callback that uses WalletManager
@@ -98,7 +98,7 @@ export function Post({
         try {
           // Use WalletManager to send payment
           await walletManager.sendPayment(invoice);
-          
+
           return true; // Payment was successful
         } catch (error) {
           console.error('WalletManager payment failed:', error);
@@ -107,23 +107,33 @@ export function Post({
       };
 
       // Use configurable zap amount
-      await postActionService.zapPost(postId, post, zapAmount, undefined, sendPaymentCallback);
-      Alert.alert('Zap Sent! ⚡', `Successfully zapped ${zapAmount} sats to this post!`);
+      await postActionService.zapPost(
+        postId,
+        post,
+        zapAmount,
+        undefined,
+        sendPaymentCallback
+      );
+      Alert.alert(
+        'Zap Sent! ⚡',
+        `Successfully zapped ${zapAmount} sats to this post!`
+      );
     } catch (error) {
       console.error('Failed to zap post:', error);
-      
+
       // Provide user-friendly error messages
       let errorMessage = 'Failed to zap post. Please try again.';
       if (error instanceof Error) {
         if (error.message.includes('Lightning address')) {
-          errorMessage = 'This user does not have a Lightning address for receiving zaps.';
+          errorMessage =
+            'This user does not have a Lightning address for receiving zaps.';
         } else if (error.message.includes('Insufficient')) {
           errorMessage = 'Insufficient balance to send this zap.';
         } else if (error.message.includes('Wallet not available')) {
           errorMessage = 'Please create a wallet first in the Wallet tab.';
         }
       }
-      
+
       Alert.alert('Zap Failed', errorMessage);
     } finally {
       setIsZapping(false);
@@ -137,10 +147,10 @@ export function Post({
       )}
       <Text style={styles.postDate}>{formatTimestamp(post.createdAt())}</Text>
       <Text style={styles.postContent}>{post.content()}</Text>
-      
+
       <View style={styles.postActions}>
-        <TouchableOpacity 
-          style={[styles.actionButton, { opacity: isLiking ? 0.5 : 1 }]} 
+        <TouchableOpacity
+          style={[styles.actionButton, { opacity: isLiking ? 0.5 : 1 }]}
           onPress={handleLike}
           disabled={isLiking}
         >
@@ -148,8 +158,8 @@ export function Post({
             {isLiking ? '⏳ Liking...' : '👍 Like'}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.actionButton, { opacity: isReposting ? 0.5 : 1 }]} 
+        <TouchableOpacity
+          style={[styles.actionButton, { opacity: isReposting ? 0.5 : 1 }]}
           onPress={handleRepost}
           disabled={isReposting}
         >
@@ -157,8 +167,8 @@ export function Post({
             {isReposting ? '⏳ Reposting...' : '🔄 Repost'}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.actionButton, { opacity: isZapping ? 0.5 : 1 }]} 
+        <TouchableOpacity
+          style={[styles.actionButton, { opacity: isZapping ? 0.5 : 1 }]}
           onPress={handleZap}
           disabled={isZapping}
         >
@@ -167,7 +177,7 @@ export function Post({
           </Text>
         </TouchableOpacity>
       </View>
-      
+
       {index < totalPosts - 1 && <View style={styles.separator} />}
     </View>
   );

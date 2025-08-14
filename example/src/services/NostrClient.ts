@@ -40,16 +40,21 @@ class NostrClientService {
     return NostrClientService.instance;
   }
 
-  async initialize(customRelays?: string[], retryCount: number = 0): Promise<Client> {
+  async initialize(
+    customRelays?: string[],
+    retryCount: number = 0
+  ): Promise<Client> {
     const maxRetries = 2;
-    
+
     if (this.client && this.connectionState === ConnectionState.Connected) {
       return this.client;
     }
 
     this.connectionState = ConnectionState.Connecting;
     this.connectionStartTime = Date.now();
-    console.log(`NostrClientService: Starting client initialization (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+    console.log(
+      `NostrClientService: Starting client initialization (attempt ${retryCount + 1}/${maxRetries + 1})...`
+    );
 
     try {
       // Create signer based on session type
@@ -66,9 +71,12 @@ class NostrClientService {
       const newClient = signer ? new Client(signer) : new Client();
 
       // Load relays - use custom relays if provided, otherwise load from storage
-      const relays = customRelays || await StorageService.loadRelays();
+      const relays = customRelays || (await StorageService.loadRelays());
 
-      console.log(`NostrClientService: Initializing with ${relays.length} relays:`, relays);
+      console.log(
+        `NostrClientService: Initializing with ${relays.length} relays:`,
+        relays
+      );
 
       // Add relays with individual error handling
       let successfulRelays = 0;
@@ -85,44 +93,53 @@ class NostrClientService {
         throw new Error('Failed to add any relays to the client');
       }
 
-      console.log(`NostrClientService: Added ${successfulRelays}/${relays.length} relays, connecting...`);
+      console.log(
+        `NostrClientService: Added ${successfulRelays}/${relays.length} relays, connecting...`
+      );
 
       // Connect to relays with timeout
-      const connectTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Connection timeout')), 15000) // 15 second timeout
+      const connectTimeout = new Promise(
+        (_, reject) =>
+          setTimeout(() => reject(new Error('Connection timeout')), 15000) // 15 second timeout
       );
-      
-      await Promise.race([
-        newClient.connect(),
-        connectTimeout
-      ]);
-      
+
+      await Promise.race([newClient.connect(), connectTimeout]);
+
       console.log('NostrClientService: Client connected to relays');
 
       // Wait for connections to stabilize
-      const stabilizeTimeout = Math.min(3000 + (successfulRelays * 200), 8000); // Dynamic timeout based on relay count
-      console.log(`NostrClientService: Waiting ${stabilizeTimeout}ms for connections to stabilize...`);
+      const stabilizeTimeout = Math.min(3000 + successfulRelays * 200, 8000); // Dynamic timeout based on relay count
+      console.log(
+        `NostrClientService: Waiting ${stabilizeTimeout}ms for connections to stabilize...`
+      );
       await new Promise((resolve) => setTimeout(resolve, stabilizeTimeout));
-      
+
       this.client = newClient;
       this.connectionState = ConnectionState.Connected;
       const totalTime = Date.now() - this.connectionStartTime;
-      console.log(`NostrClientService: Client ready (${successfulRelays} relays, took ${totalTime}ms)`);
-      
+      console.log(
+        `NostrClientService: Client ready (${successfulRelays} relays, took ${totalTime}ms)`
+      );
+
       return newClient;
     } catch (error) {
-      console.error(`Failed to initialize client (attempt ${retryCount + 1}):`, error);
+      console.error(
+        `Failed to initialize client (attempt ${retryCount + 1}):`,
+        error
+      );
       this.connectionState = ConnectionState.Error;
-      
+
       // Retry logic
       if (retryCount < maxRetries) {
         const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
         console.log(`NostrClientService: Retrying in ${retryDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
         return this.initialize(customRelays, retryCount + 1);
       }
-      
-      throw new Error(`Failed to connect to Nostr relays after ${maxRetries + 1} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+      throw new Error(
+        `Failed to connect to Nostr relays after ${maxRetries + 1} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -221,25 +238,27 @@ class NostrClientService {
   }
 
   isReady(): boolean {
-    return this.connectionState === ConnectionState.Connected && this.client !== null;
+    return (
+      this.connectionState === ConnectionState.Connected && this.client !== null
+    );
   }
 
   async waitForReady(timeoutMs: number = 30000): Promise<boolean> {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < timeoutMs) {
       if (this.isReady()) {
         return true;
       }
-      
+
       if (this.connectionState === ConnectionState.Error) {
         return false;
       }
-      
+
       // Wait a bit before checking again
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    
+
     console.warn('NostrClientService: Timeout waiting for client to be ready');
     return false;
   }
@@ -254,7 +273,7 @@ class NostrClientService {
 
   async logout(): Promise<void> {
     console.log('NostrClientService: Logging out user');
-    
+
     if (this.amberSigner) {
       this.amberSigner.disconnect();
       this.amberSigner = null;
@@ -272,14 +291,17 @@ class NostrClientService {
     try {
       console.log('NostrClientService: Restoring default relays after logout');
       const defaultRelays = StorageService.getDefaultRelays();
-      
+
       // Force overwrite stored relays with defaults
       await StorageService.saveRelays(defaultRelays);
-      
+
       // Initialize client with default relays (no user session)
       await this.initialize(defaultRelays);
     } catch (error) {
-      console.error('NostrClientService: Failed to restore default relays after logout:', error);
+      console.error(
+        'NostrClientService: Failed to restore default relays after logout:',
+        error
+      );
       // Even if reconnection fails, ensure we've cleared the session
     }
   }
@@ -296,7 +318,7 @@ class NostrClientService {
   async loadAndApplyUserRelays(): Promise<string[]> {
     try {
       console.log('NostrClientService: Loading user relay list...');
-      
+
       // Get the current npub
       const npub = await StorageService.loadNpub();
       if (!npub) {
@@ -310,15 +332,19 @@ class NostrClientService {
       try {
         // First, try to use the existing main client if it's ready
         if (this.client && this.connectionState === ConnectionState.Connected) {
-          console.log('NostrClientService: Using existing connected client for relay list fetch');
+          console.log(
+            'NostrClientService: Using existing connected client for relay list fetch'
+          );
           clientToUse = this.client;
         } else {
           // Create a temporary client with stored relays for fetching relay list
-          console.log('NostrClientService: Creating temporary client for relay list fetch');
+          console.log(
+            'NostrClientService: Creating temporary client for relay list fetch'
+          );
           const storedRelays = await StorageService.loadRelays();
           clientToUse = new Client();
           shouldDisconnectAfter = true;
-          
+
           for (const relay of storedRelays) {
             try {
               await clientToUse.addRelay(relay);
@@ -326,27 +352,36 @@ class NostrClientService {
               console.error(`Failed to add temp relay ${relay}:`, error);
             }
           }
-          
+
           await clientToUse.connect();
-          console.log('NostrClientService: Temporary client connected for relay list fetch');
+          console.log(
+            'NostrClientService: Temporary client connected for relay list fetch'
+          );
           // Shorter wait time for temporary client
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
 
         // Fetch user's relay list
         const relayListService = RelayListService.getInstance();
-        const userRelayInfo = await relayListService.fetchUserRelayList(clientToUse, npub);
-        
+        const userRelayInfo = await relayListService.fetchUserRelayList(
+          clientToUse,
+          npub
+        );
+
         if (userRelayInfo.length > 0) {
-          console.log(`NostrClientService: Found ${userRelayInfo.length} relays in user's NIP-65 relay list`);
+          console.log(
+            `NostrClientService: Found ${userRelayInfo.length} relays in user's NIP-65 relay list`
+          );
           const userRelays = relayListService.relayInfoToUrls(userRelayInfo);
-          
+
           // Store the user's relay list for future use
           await StorageService.saveRelays(userRelays);
-          
+
           return userRelays;
         } else {
-          console.log('NostrClientService: No user relay list found, using stored relays');
+          console.log(
+            'NostrClientService: No user relay list found, using stored relays'
+          );
           return StorageService.loadRelays();
         }
       } finally {
@@ -357,7 +392,10 @@ class NostrClientService {
         }
       }
     } catch (error) {
-      console.error('NostrClientService: Failed to load user relay list:', error);
+      console.error(
+        'NostrClientService: Failed to load user relay list:',
+        error
+      );
       // Fallback to stored relays
       return StorageService.loadRelays();
     }
