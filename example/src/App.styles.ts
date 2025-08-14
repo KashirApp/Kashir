@@ -349,4 +349,26 @@ export const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '500',
   },
+  // Post action styles
+  postActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#444',
+  },
+  actionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    backgroundColor: '#333',
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '500',
+  },
 });

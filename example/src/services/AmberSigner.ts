@@ -267,10 +267,29 @@ export class AmberSigner implements CustomNostrSigner {
         kind = 1;
       }
 
+      // Convert Tags FFI object to JavaScript array for Amber
+      let tagsArray = [];
+      try {
+        if (eventData.tags && typeof eventData.tags.toVec === 'function') {
+          const tagsVec = eventData.tags.toVec();
+          tagsArray = tagsVec.map((tag: any) => {
+            try {
+              return tag.asVec();
+            } catch (e) {
+              console.log('AmberSigner: Error converting tag to vec:', e.message);
+              return [];
+            }
+          });
+        }
+      } catch (e) {
+        console.log('AmberSigner: Error processing tags:', e.message);
+        tagsArray = [];
+      }
+
       const eventJson = JSON.stringify({
         created_at: timestamp,
         kind: kind,
-        tags: Array.isArray(eventData.tags) ? eventData.tags : [],
+        tags: tagsArray,
         content: eventData.content,
         pubkey: eventData.pubkey,
       });
@@ -278,8 +297,7 @@ export class AmberSigner implements CustomNostrSigner {
       const result = await AmberService.signEvent(eventJson, this.currentUser);
 
       if (result) {
-        const signedEventData = JSON.parse(result);
-        return Event.fromJson(JSON.stringify(signedEventData));
+        return Event.fromJson(result);
       }
     } catch (error) {
       throw new Error(createAmberErrorMessage('sign event with Amber', error));
