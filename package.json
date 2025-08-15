@@ -93,6 +93,11 @@
     "react": "*",
     "react-native": "*"
   },
+  "resolutions": {
+    "@typescript-eslint/eslint-plugin": "8.39.0",
+    "@typescript-eslint/parser": "8.39.0",
+    "@typescript-eslint/typescript-estree": "8.39.0"
+  },
   "workspaces": [
     "example"
   ],

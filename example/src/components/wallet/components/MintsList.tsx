@@ -119,7 +119,7 @@ export function MintsList({
       if (onUpdateTotalBalance) {
         await onUpdateTotalBalance();
       }
-    } catch (error) {
+    } catch {
       // Silently handle errors - balance will remain unchanged
     }
   };

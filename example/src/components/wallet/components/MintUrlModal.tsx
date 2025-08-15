@@ -118,7 +118,7 @@ export function MintUrlModal({
           [{ text: 'OK' }]
         );
       }
-    } catch (error) {
+    } catch {
       Alert.alert(
         'Validation Error',
         'Failed to validate mint. Please check your internet connection and try again.',

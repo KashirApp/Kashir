@@ -1,13 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  Alert,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Dimensions } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import MapView, { Marker, Callout, PROVIDER_DEFAULT } from 'react-native-maps';
 import type { CalendarEvent } from '../hooks/useEvents';
@@ -22,7 +14,7 @@ type EventMapScreenProps = NativeStackScreenProps<
   'EventMap'
 >;
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface EventMarker {
   event: CalendarEvent;
@@ -32,8 +24,11 @@ interface EventMarker {
   };
 }
 
-export function EventMapScreen({ route, navigation }: EventMapScreenProps) {
-  const { userNpub, onEventSelect } = route.params;
+export function EventMapScreen({
+  route,
+  navigation: _navigation,
+}: EventMapScreenProps) {
+  const { onEventSelect } = route.params;
 
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
@@ -47,7 +42,7 @@ export function EventMapScreen({ route, navigation }: EventMapScreenProps) {
   } = useEvents(client, profileService);
   const [eventMarkers, setEventMarkers] = useState<EventMarker[]>([]);
   const [processingEvents, setProcessingEvents] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
+  const [_mapReady, setMapReady] = useState(false);
   const mapRef = useRef<MapView>(null);
 
   // Initialize client on mount
@@ -154,21 +149,18 @@ export function EventMapScreen({ route, navigation }: EventMapScreenProps) {
     if (!event.startDate) return 'Date TBD';
 
     try {
-      let eventTime: number;
       let displayDate: string;
 
       if (event.kind === 31922) {
         const date = new Date(event.startDate + 'T12:00:00Z');
-        eventTime = date.getTime();
         displayDate = date.toLocaleDateString();
       } else {
         const date = new Date(parseInt(event.startDate, 10) * 1000);
-        eventTime = date.getTime();
         displayDate = date.toLocaleString();
       }
 
       return displayDate;
-    } catch (error) {
+    } catch {
       return 'Invalid Date';
     }
   };

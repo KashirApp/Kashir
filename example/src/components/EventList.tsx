@@ -83,7 +83,7 @@ export function EventList({
       }
 
       return displayDate;
-    } catch (error) {
+    } catch {
       return 'Invalid Date';
     }
   };
@@ -124,7 +124,7 @@ export function EventList({
           return styles.eventDatePast; // Past event
         }
       }
-    } catch (error) {
+    } catch {
       return styles.eventDate;
     }
   };
@@ -213,7 +213,7 @@ export function EventList({
       const location = await locationService.getCurrentLocation();
       setUserLocation(location);
       setSortOption('distance');
-    } catch (error) {
+    } catch {
       Alert.alert(
         'Location Error',
         'Unable to get your current location. Please check your location settings.'

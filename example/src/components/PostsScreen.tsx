@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Button, Alert, TouchableOpacity, Text } from 'react-native';
+import { View, Button, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { NostrClientService, LoginType } from '../services/NostrClient';
+import { NostrClientService } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
 import { usePosts } from '../hooks/usePosts';
@@ -47,26 +47,23 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
   const [client, setClient] = useState<Client | null>(null);
 
   // Custom hooks - only pass client when it's ready
-  const { posts, loading, fetchPosts } = usePosts(client);
+  // Note: Not using posts/loading/fetchPosts from usePosts hook
+  usePosts(client);
   const {
     followingPosts,
     followingList,
     followingLoading,
-    profilesLoading,
-    fetchFollowingList,
     fetchFollowingPosts,
   } = useFollowing(client, profileService);
   const {
     trendingPosts,
     trendingEventIds,
     trendingLoading,
-    profilesLoading: trendingProfilesLoading,
     fetchTrendingPosts,
   } = useTrending(client, profileService);
   const {
     events,
     loading: eventsLoading,
-    profilesLoading: eventsProfilesLoading,
     fetchEvents,
   } = useEvents(client, profileService);
 
@@ -225,15 +222,6 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
       event,
       userNpub,
     });
-  };
-
-  const handleEventRSVP = async (
-    status: 'accepted' | 'declined' | 'tentative'
-  ) => {
-    // TODO: Implement RSVP functionality with Nostr
-    console.log('RSVP submitted:', status);
-    // For now, just show success
-    return Promise.resolve();
   };
 
   const currentPosts =

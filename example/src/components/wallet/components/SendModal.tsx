@@ -43,7 +43,7 @@ export function SendModal({
   const [isGeneratingToken, setIsGeneratingToken] = useState(false);
 
   const handleSendCashuToken = async () => {
-    if (!cashuAmount || parseInt(cashuAmount) <= 0) {
+    if (!cashuAmount || parseInt(cashuAmount, 10) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
     }

@@ -55,10 +55,10 @@ export function useFollowing(
 
                     try {
                       pubkey = PublicKey.parse(hexPubkey);
-                    } catch (e1) {
+                    } catch {
                       try {
                         pubkey = PublicKey.parse('hex:' + hexPubkey);
-                      } catch (e2) {
+                      } catch {
                         // Could not parse hex pubkey directly
                       }
                     }
@@ -153,7 +153,7 @@ export function useFollowing(
                 return eventArray
                   .find((e) => e.author().toHex() === hex)
                   ?.author();
-              } catch (e) {
+              } catch {
                 return null;
               }
             })

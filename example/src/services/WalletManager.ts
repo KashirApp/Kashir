@@ -131,7 +131,7 @@ export class WalletManager {
       }
 
       // Execute the payment
-      const sendResult = await this.wallet.melt(meltQuote.id);
+      await this.wallet.melt(meltQuote.id);
 
       // Update balance after successful payment
       const newBalance = currentBalance.value - totalAmount;

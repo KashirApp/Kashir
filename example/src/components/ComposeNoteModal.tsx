@@ -136,7 +136,9 @@ export function ComposeNoteModal({
               style={[
                 styles.modalButton,
                 styles.postButton,
-                { opacity: isPosting || !noteContent.trim() ? 0.5 : 1 },
+                isPosting || !noteContent.trim()
+                  ? styles.disabledButton
+                  : styles.enabledButton,
               ]}
               onPress={handlePost}
               disabled={isPosting || !noteContent.trim()}

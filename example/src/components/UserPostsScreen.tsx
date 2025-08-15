@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Button,
-  SafeAreaView,
-  Text,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Button, SafeAreaView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
@@ -20,8 +14,8 @@ type UserPostsScreenProps = NativeStackScreenProps<
 >;
 
 export function UserPostsScreen({ route }: UserPostsScreenProps) {
-  const { userNpub, userName } = route.params;
-  const [client, setClient] = useState(
+  const { userNpub } = route.params;
+  const [client, _setClient] = useState(
     NostrClientService.getInstance().getClient()
   );
 

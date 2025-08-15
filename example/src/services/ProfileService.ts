@@ -1,6 +1,5 @@
 import { Client, PublicKey, Filter, Kind } from 'kashir';
 import type { PublicKeyInterface } from 'kashir';
-import type { ProfileCache } from '../types';
 
 export class ProfileService {
   private profileCache: Map<string, { name: string; loaded: boolean }> =

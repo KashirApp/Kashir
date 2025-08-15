@@ -78,7 +78,7 @@ class ReactNativeAmberService implements AmberServiceInterface {
             throw new Error('Signing was rejected by Amber');
           }
         }
-      } catch (contentError) {
+      } catch {
         // Fall back to UI launcher if content resolver fails
       }
 

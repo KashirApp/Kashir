@@ -130,7 +130,7 @@ export class SecureStorageService {
     try {
       const biometryType = await Keychain.getSupportedBiometryType();
       return biometryType !== null;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

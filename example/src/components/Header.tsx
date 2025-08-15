@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, Button, Alert } from 'react-native';
+import { View, Text, Button } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Clipboard from '@react-native-clipboard/clipboard';
 import { styles } from '../App.styles';
 
 interface HeaderProps {
@@ -17,12 +16,12 @@ interface HeaderProps {
 
 export function Header({
   userName,
-  userNpub,
+  userNpub: _userNpub,
   profileLoading,
   isClientReady,
-  currentLoading,
+  currentLoading: _currentLoading,
   onLogout,
-  onRefresh,
+  onRefresh: _onRefresh,
   onShowUserPosts,
 }: HeaderProps) {
   const insets = useSafeAreaInsets();

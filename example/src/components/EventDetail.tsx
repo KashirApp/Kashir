@@ -23,21 +23,25 @@ interface EventDetailProps extends EventDetailScreenProps {
   onRSVP?: (status: 'accepted' | 'declined' | 'tentative') => void;
 }
 
-export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
-  const { event, userNpub } = route.params;
+export function EventDetail({
+  route,
+  navigation: _navigation,
+  onRSVP,
+}: EventDetailProps) {
+  const { event } = route.params;
   const profileService = useMemo(() => new ProfileService(), []);
   const [selectedRSVPStatus, setSelectedRSVPStatus] = useState<
     'accepted' | 'declined' | 'tentative'
   >('accepted');
   const [isSubmittingRSVP, setIsSubmittingRSVP] = useState(false);
 
-  const formatEventDate = (event: CalendarEvent) => {
-    if (!event.startDate) return 'Date TBD';
+  const formatEventDate = (eventData: CalendarEvent) => {
+    if (!eventData.startDate) return 'Date TBD';
 
     try {
-      if (event.kind === 31922) {
+      if (eventData.kind === 31922) {
         // Date-based event: startDate is in YYYY-MM-DD format
-        const date = new Date(event.startDate + 'T12:00:00Z');
+        const date = new Date(eventData.startDate + 'T12:00:00Z');
         return date.toLocaleDateString(undefined, {
           weekday: 'long',
           year: 'numeric',
@@ -46,10 +50,10 @@ export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
         });
       } else {
         // Time-based event: startDate is Unix timestamp
-        const startDate = new Date(parseInt(event.startDate, 10) * 1000);
+        const startDate = new Date(parseInt(eventData.startDate, 10) * 1000);
 
-        if (event.endDate) {
-          const endDate = new Date(parseInt(event.endDate, 10) * 1000);
+        if (eventData.endDate) {
+          const endDate = new Date(parseInt(eventData.endDate, 10) * 1000);
 
           // Check if same day
           if (startDate.toDateString() === endDate.toDateString()) {
@@ -79,7 +83,7 @@ export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
           minute: '2-digit',
         });
       }
-    } catch (error) {
+    } catch {
       return 'Invalid Date';
     }
   };
@@ -94,8 +98,8 @@ export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
   };
 
   const handleLocationPress = () => {
-    if (event.location) {
-      const encodedLocation = encodeURIComponent(event.location);
+    if (eventData.location) {
+      const encodedLocation = encodeURIComponent(eventData.location);
       const url = `https://maps.google.com/?q=${encodedLocation}`;
       Linking.openURL(url).catch(() => {
         Alert.alert('Error', 'Could not open location in maps');
@@ -110,7 +114,7 @@ export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
     try {
       await onRSVP(selectedRSVPStatus);
       Alert.alert('Success', `RSVP submitted as ${selectedRSVPStatus}!`);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to submit RSVP');
     } finally {
       setIsSubmittingRSVP(false);
@@ -152,10 +156,10 @@ export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
         {/* Event Title */}
         <View style={styles.section}>
           <Text style={styles.eventTitle}>
-            {event.title || 'Untitled Event'}
+            {eventData.title || 'Untitled Event'}
           </Text>
           <Text style={styles.eventType}>
-            {getEventTypeDisplay(event.kind)}
+            {getEventTypeDisplay(eventData.kind)}
           </Text>
         </View>
 
@@ -166,30 +170,30 @@ export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
         </View>
 
         {/* Location */}
-        {event.location && (
+        {eventData.location && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📍 Location</Text>
             <TouchableOpacity onPress={handleLocationPress} activeOpacity={0.7}>
-              <Text style={styles.eventLocation}>{event.location}</Text>
+              <Text style={styles.eventLocation}>{eventData.location}</Text>
               <Text style={styles.locationHint}>Tap to open in maps</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {/* Description */}
-        {event.description && (
+        {eventData.description && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📝 Description</Text>
-            <Text style={styles.eventDescription}>{event.description}</Text>
+            <Text style={styles.eventDescription}>{eventData.description}</Text>
           </View>
         )}
 
         {/* Categories */}
-        {event.categories && event.categories.length > 0 && (
+        {eventData.categories && eventData.categories.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>🏷️ Categories</Text>
             <View style={styles.categoriesContainer}>
-              {event.categories.map((category, index) => (
+              {eventData.categories.map((category, index) => (
                 <Text key={index} style={styles.categoryTag}>
                   #{category}
                 </Text>
@@ -201,8 +205,10 @@ export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
         {/* Organizer */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>👤 Organizer</Text>
-          <Text style={styles.organizer}>{getOrganizerName(event.pubkey)}</Text>
-          <Text style={styles.organizerPubkey}>{event.pubkey}</Text>
+          <Text style={styles.organizer}>
+            {getOrganizerName(eventData.pubkey)}
+          </Text>
+          <Text style={styles.organizerPubkey}>{eventData.pubkey}</Text>
         </View>
 
         {/* RSVP Section */}
@@ -261,10 +267,10 @@ export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
         {/* Event Metadata */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ℹ️ Event Info</Text>
-          <Text style={styles.metadata}>Event ID: {event.id}</Text>
-          <Text style={styles.metadata}>Event Kind: {event.kind}</Text>
+          <Text style={styles.metadata}>Event ID: {eventData.id}</Text>
+          <Text style={styles.metadata}>Event Kind: {eventData.kind}</Text>
           <Text style={styles.metadata}>
-            Created: {new Date(event.created_at * 1000).toLocaleString()}
+            Created: {new Date(eventData.created_at * 1000).toLocaleString()}
           </Text>
         </View>
       </ScrollView>

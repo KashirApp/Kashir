@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { EventInterface, Client, Keys, PublicKey } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
@@ -20,10 +20,10 @@ export function useTrending(
   const [trendingLoading, setTrendingLoading] = useState(false);
   const [profilesLoading, setProfilesLoading] = useState(false);
 
-  const dvmService = new DVMService();
+  const dvmService = useMemo(() => new DVMService(), []);
 
   const fetchTrendingPosts = useCallback(
-    async (keys: Keys | null) => {
+    async (_keys: Keys | null) => {
       if (!client) {
         console.log('Client not available for trending posts');
         return;
@@ -65,7 +65,7 @@ export function useTrending(
                   return events
                     .find((e) => e.author().toHex() === hex)
                     ?.author();
-                } catch (e) {
+                } catch {
                   return null;
                 }
               })
@@ -78,7 +78,7 @@ export function useTrending(
                 .then(() => {
                   setProfilesLoading(false);
                 })
-                .catch((err) => {
+                .catch((_err) => {
                   setProfilesLoading(false);
                 });
             } else {

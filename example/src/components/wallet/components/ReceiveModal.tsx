@@ -68,7 +68,7 @@ export function ReceiveModal({
       } else {
         Alert.alert('Clipboard Empty', 'No content found in clipboard');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to read from clipboard');
     }
   };

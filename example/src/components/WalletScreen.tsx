@@ -101,17 +101,17 @@ export function WalletScreen() {
 
   const handleScanResult = (data: string) => {
     // Extract Lightning invoice from QR code data - same logic as before
-    let invoice = data;
+    let extractedInvoice = data;
     if (data.toLowerCase().startsWith('lightning:')) {
-      invoice = data.substring(10);
+      extractedInvoice = data.substring(10);
     }
 
     // Set the invoice and close scanner - same as before
-    setLightningInvoice(invoice);
+    setLightningInvoice(extractedInvoice);
     setShowQRScanner(false);
 
     // Trigger payment confirmation directly with the scanned invoice - same as before
-    sendPayment(invoice);
+    sendPayment(extractedInvoice);
   };
 
   return (

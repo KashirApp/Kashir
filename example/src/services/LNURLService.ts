@@ -116,7 +116,7 @@ export class LNURLService {
           const errorBody = await response.text();
           console.log('Error response body:', errorBody);
           errorDetails += ` - ${errorBody}`;
-        } catch (e) {
+        } catch {
           // Ignore error reading response body
         }
         throw new Error(`Invoice request failed: ${errorDetails}`);

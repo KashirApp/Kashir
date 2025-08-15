@@ -21,7 +21,7 @@ export class EventLocationParser {
               longitude: decoded.longitude,
             };
           }
-        } catch (error) {
+        } catch {
           // Silently handle geohash decode errors
         }
       }

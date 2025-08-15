@@ -1,7 +1,5 @@
 import {
   EventBuilder,
-  EventId,
-  PublicKey,
   Tag,
   Keys,
   SecretKey,

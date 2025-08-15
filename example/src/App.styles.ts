@@ -371,4 +371,23 @@ export const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '500',
   },
+  // Additional layout styles
+  fullContainer: {
+    flex: 1,
+  },
+  tabContent: {
+    flex: 1,
+    display: 'flex',
+  },
+  hiddenTabContent: {
+    flex: 1,
+    display: 'none',
+  },
+  // Button state styles
+  disabledButton: {
+    opacity: 0.5,
+  },
+  enabledButton: {
+    opacity: 1,
+  },
 });

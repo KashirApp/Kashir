@@ -34,7 +34,7 @@ export function Post({
   const postActionService = PostActionService.getInstance();
 
   // Access wallet functionality for payments via WalletManager
-  const [walletState, setWalletState] = useState(walletManager.getState());
+  const [_walletState, setWalletState] = useState(walletManager.getState());
 
   // Subscribe to WalletManager state changes
   useEffect(() => {
@@ -150,7 +150,10 @@ export function Post({
 
       <View style={styles.postActions}>
         <TouchableOpacity
-          style={[styles.actionButton, { opacity: isLiking ? 0.5 : 1 }]}
+          style={[
+            styles.actionButton,
+            isLiking ? styles.disabledButton : styles.enabledButton,
+          ]}
           onPress={handleLike}
           disabled={isLiking}
         >
@@ -159,7 +162,10 @@ export function Post({
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, { opacity: isReposting ? 0.5 : 1 }]}
+          style={[
+            styles.actionButton,
+            isReposting ? styles.disabledButton : styles.enabledButton,
+          ]}
           onPress={handleRepost}
           disabled={isReposting}
         >
@@ -168,7 +174,10 @@ export function Post({
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, { opacity: isZapping ? 0.5 : 1 }]}
+          style={[
+            styles.actionButton,
+            isZapping ? styles.disabledButton : styles.enabledButton,
+          ]}
           onPress={handleZap}
           disabled={isZapping}
         >

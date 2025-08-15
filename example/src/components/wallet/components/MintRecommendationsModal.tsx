@@ -81,7 +81,7 @@ export function MintRecommendationsModal({
             </View>
           ) : recommendations.length > 0 ? (
             <View style={styles.recommendationsList}>
-              {recommendations.map((rec, index) => (
+              {recommendations.map((rec, _index) => (
                 <TouchableOpacity
                   key={rec.url}
                   style={styles.recommendationItem}

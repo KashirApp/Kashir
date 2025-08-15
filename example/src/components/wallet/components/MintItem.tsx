@@ -55,7 +55,7 @@ export function MintItem({
     setIsRefreshing(true);
     try {
       await onRefresh(mintUrl);
-    } catch (error) {
+    } catch {
       // Silently handle errors - balance will remain unchanged
     } finally {
       setIsRefreshing(false);

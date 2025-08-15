@@ -111,7 +111,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       await StorageService.saveNpub(npub);
 
       await onLogin(npub, LoginType.PrivateKey);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Invalid private key. Please check and try again.');
     } finally {
       setLoading(false);

@@ -171,7 +171,7 @@ class NostrClientService {
       this.amberSigner = new AmberSigner(npub);
 
       // Create signer for current session only
-      const signer = NostrSigner.custom(this.amberSigner);
+      NostrSigner.custom(this.amberSigner);
 
       // Reinitialize client with the new signer
       this.disconnect();

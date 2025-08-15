@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Linking } from 'react-native';
+import { View, Linking, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import {
-  NavigationContainer,
-  DefaultTheme,
-  DarkTheme,
-} from '@react-navigation/native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { NostrNavigator } from './components/NostrNavigator';
 import { WalletScreen } from './components/WalletScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { BottomTabNavigation } from './components/BottomTabNavigation';
-import { StorageService } from './services/StorageService';
 import { NostrClientService, LoginType } from './services/NostrClient';
 import { PublicKey } from 'kashir';
 import type { MainTabType } from './types';
@@ -138,11 +133,11 @@ export default function App() {
     checkStoredSession();
   }, []);
 
-  const handleLogin = async (npub: string, loginType: LoginType) => {
+  const handleLogin = async (npub: string, type: LoginType) => {
     try {
       // Set user data but don't mark as logged in until client is ready
       setUserNpub(npub);
-      setLoginType(loginType);
+      setLoginType(type);
 
       // Load and apply user's relay list after successful login
       console.log('App: Loading user relay list after login...');
@@ -233,30 +228,34 @@ export default function App() {
 
   // Show loading state while checking for stored session
   if (isLoadingStoredSession) {
-    return <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />;
+    return <View style={styles.container} />;
   }
 
   return (
     <NavigationContainer theme={customDarkTheme}>
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
-          <View style={{ flex: 1 }}>
+        <View style={styles.container}>
+          <View style={styles.fullContainer}>
             {/* Keep WalletScreen always mounted to preserve state */}
             <View
-              style={{
-                flex: 1,
-                display: activeMainTab === 'wallet' ? 'flex' : 'none',
-              }}
+              style={[
+                styles.fullContainer,
+                activeMainTab === 'wallet'
+                  ? styles.tabContent
+                  : styles.hiddenTabContent,
+              ]}
             >
               <WalletScreen />
             </View>
 
             {/* Nostr content - show based on login state */}
             <View
-              style={{
-                flex: 1,
-                display: activeMainTab === 'nostr' ? 'flex' : 'none',
-              }}
+              style={[
+                styles.fullContainer,
+                activeMainTab === 'nostr'
+                  ? styles.tabContent
+                  : styles.hiddenTabContent,
+              ]}
             >
               <NostrNavigator
                 isLoggedIn={isLoggedIn}
@@ -269,10 +268,12 @@ export default function App() {
 
             {/* Settings Screen */}
             <View
-              style={{
-                flex: 1,
-                display: activeMainTab === 'settings' ? 'flex' : 'none',
-              }}
+              style={[
+                styles.fullContainer,
+                activeMainTab === 'settings'
+                  ? styles.tabContent
+                  : styles.hiddenTabContent,
+              ]}
             >
               <SettingsScreen isVisible={activeMainTab === 'settings'} />
             </View>
@@ -287,3 +288,21 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
+  fullContainer: {
+    flex: 1,
+  },
+  tabContent: {
+    flex: 1,
+  },
+  hiddenTabContent: {
+    position: 'absolute',
+    left: -10000,
+    top: -10000,
+  },
+});

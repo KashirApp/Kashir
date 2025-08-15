@@ -12,11 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MintsList, MintUrlModal, useWallet } from './wallet';
 import { EnhancedRelaysList, RelayUrlModal } from './nostr';
-import {
-  SecureStorageService,
-  StorageService,
-  RelayListService,
-} from '../services';
+import { SecureStorageService, StorageService } from '../services';
 import type { UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
 import packageInfo from '../../package.json';
@@ -30,10 +26,10 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
   const [relays, setRelays] = useState<string[]>([]);
   const [showRelayModal, setShowRelayModal] = useState(false);
   const [userRelayInfo, setUserRelayInfo] = useState<UserRelayInfo[]>([]);
-  const [isLoadingUserRelays, setIsLoadingUserRelays] = useState(false);
+  const [isLoadingUserRelays, _setIsLoadingUserRelays] = useState(false);
   const [hasUserRelayList, setHasUserRelayList] = useState(false);
   const [lastRelayCheck, setLastRelayCheck] = useState<string>(''); // Track last relay state
-  const [zapAmount, setZapAmount] = useState<number>(21);
+  const [_zapAmount, setZapAmount] = useState<number>(21);
   const [zapAmountInput, setZapAmountInput] = useState<string>('21');
 
   const {
@@ -111,7 +107,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       loadZapAmount();
       loadRelaysForDisplay();
     }
-  }, [isVisible]);
+  }, [isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Also refresh when login state might have changed
   useEffect(() => {
@@ -124,7 +120,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [isVisible]); // This will trigger when user logs in/out
+  }, [isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Monitor for session state changes when visible (reduced frequency)
   useEffect(() => {
@@ -138,7 +134,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     return () => {
       clearInterval(interval);
     };
-  }, [isVisible]);
+  }, [isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Removed automatic session checking - let the main app handle relay management
   // SettingsScreen only loads relays for display when explicitly requested
@@ -167,7 +163,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       } else {
         Alert.alert('No Seed Phrase', 'No seed phrase found in secure storage');
       }
-    } catch (error) {
+    } catch {
       Alert.alert(
         'Error',
         'Failed to retrieve seed phrase. Authentication may have been cancelled.'
@@ -196,7 +192,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
               } else {
                 Alert.alert('Error', 'Failed to remove seed phrase');
               }
-            } catch (error) {
+            } catch {
               Alert.alert('Error', 'Failed to remove seed phrase');
             }
           },
@@ -223,7 +219,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       await clientService.reconnectWithNewRelays();
 
       Alert.alert('Success', 'Relay added successfully');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to add relay');
     }
   };
@@ -272,7 +268,7 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       await StorageService.saveZapAmount(amount);
       setZapAmount(amount);
       Alert.alert('Success', `Default zap amount set to ${amount} sats`);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to save zap amount');
     }
   };

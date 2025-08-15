@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { formatSats } from '../utils';
 
 interface WalletBalanceProps {
@@ -7,7 +7,10 @@ interface WalletBalanceProps {
   wallet: any;
 }
 
-export function WalletBalance({ balance, wallet }: WalletBalanceProps) {
+export function WalletBalance({
+  balance,
+  wallet: _wallet,
+}: WalletBalanceProps) {
   return (
     <View style={styles.balanceContainer}>
       <Text style={styles.balanceLabel}>Total Balance</Text>

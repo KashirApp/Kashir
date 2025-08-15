@@ -29,7 +29,7 @@ export class DVMService {
       if (responseEvents) {
         try {
           eventsArray = responseEvents.toVec();
-        } catch (e) {
+        } catch {
           eventsArray = [];
         }
       }
@@ -63,7 +63,7 @@ export class DVMService {
                     createdAt: Number(response.createdAt().asSecs()),
                   };
                 }
-              } catch (parseError) {
+              } catch {
                 // Failed to parse JSON content, continue
               }
             }
@@ -159,7 +159,7 @@ export class DVMService {
           if (foundEvent) {
             allFetchedEvents.push(foundEvent);
           }
-        } catch (eventError) {
+        } catch {
           // Event fetch failed, continue
         }
 

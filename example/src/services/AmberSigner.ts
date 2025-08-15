@@ -177,7 +177,7 @@ export class AmberSigner implements CustomNostrSigner {
             this.currentUser = result;
             return PublicKey.parse(result);
           }
-        } catch (error) {
+        } catch {
           // Fallback to URL approach
         }
       }
@@ -250,7 +250,7 @@ export class AmberSigner implements CustomNostrSigner {
             : eventData.created_at
               ? Number(eventData.created_at)
               : Math.floor(Date.now() / 1000);
-      } catch (e) {
+      } catch {
         timestamp = Math.floor(Date.now() / 1000);
       }
 
@@ -263,7 +263,7 @@ export class AmberSigner implements CustomNostrSigner {
             : eventData.kind
               ? Number(eventData.kind)
               : 1;
-      } catch (e) {
+      } catch {
         kind = 1;
       }
 

@@ -1,5 +1,3 @@
-import type { PublicKey } from 'kashir';
-
 export type TabType = 'following' | 'trending' | 'events';
 export type MainTabType = 'nostr' | 'wallet' | 'settings';
 
