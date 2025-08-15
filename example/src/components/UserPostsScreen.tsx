@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Button, SafeAreaView } from 'react-native';
+import { SafeAreaView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
@@ -32,16 +32,8 @@ export function UserPostsScreen({ route }: UserPostsScreenProps) {
     }
   }, [client, userNpub, fetchPosts]);
 
-  const handleRefresh = () => {
-    fetchPosts(userNpub);
-  };
-
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerButtons}>
-        <Button title="Refresh" onPress={handleRefresh} disabled={loading} />
-      </View>
-
       <PostList
         posts={posts}
         loading={loading}

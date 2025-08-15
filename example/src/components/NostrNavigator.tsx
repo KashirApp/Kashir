@@ -4,7 +4,6 @@ import { PostsScreen } from './PostsScreen';
 import { EventDetail } from './EventDetail';
 import { EventMapScreen } from './EventMapScreen';
 import { LoginScreen } from './LoginScreen';
-import { UserPostsScreen } from './UserPostsScreen';
 import { LoginType } from '../services/NostrClient';
 import type { CalendarEvent } from '../hooks/useEvents';
 
@@ -20,10 +19,6 @@ export type NostrStackParamList = {
   EventMap: {
     userNpub: string;
     onEventSelect: (event: CalendarEvent) => void;
-  };
-  UserPosts: {
-    userNpub: string;
-    userName: string;
   };
   Login: undefined;
 };
@@ -86,13 +81,6 @@ export function NostrNavigator({
             component={EventMapScreen}
             options={{
               title: 'Event Map',
-            }}
-          />
-          <Stack.Screen
-            name="UserPosts"
-            component={UserPostsScreen}
-            options={{
-              title: 'User Posts',
             }}
           />
         </>

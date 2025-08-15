@@ -101,7 +101,9 @@ export const styles = StyleSheet.create({
   },
   // Header Styles
   headerContainer: {
-    padding: 20,
+    paddingTop: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 5,
     backgroundColor: '#2a2a2a',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -110,10 +112,9 @@ export const styles = StyleSheet.create({
     elevation: 3,
   },
   headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 0,
   },
   userActions: {
     alignItems: 'center',
@@ -206,8 +207,8 @@ export const styles = StyleSheet.create({
   // Tab Navigation Styles
   tabContainer: {
     flexDirection: 'row',
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 0,
+    marginBottom: 0,
     backgroundColor: '#333',
     borderRadius: 8,
     padding: 4,

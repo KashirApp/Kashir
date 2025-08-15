@@ -2,13 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { View, Linking, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NostrNavigator } from './components/NostrNavigator';
 import { WalletScreen } from './components/WalletScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { BottomTabNavigation } from './components/BottomTabNavigation';
+import { UserPostsScreen } from './components/UserPostsScreen';
 import { NostrClientService, LoginType } from './services/NostrClient';
 import { PublicKey } from 'kashir';
 import type { MainTabType } from './types';
+
+// Root stack for the entire app
+export type RootStackParamList = {
+  MainApp: undefined;
+  UserPosts: {
+    userNpub: string;
+    userName: string;
+  };
+};
+
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -222,6 +235,7 @@ export default function App() {
     }
   };
 
+
   const handleMainTabChange = (tab: MainTabType) => {
     setActiveMainTab(tab);
   };
@@ -231,57 +245,84 @@ export default function App() {
     return <View style={styles.container} />;
   }
 
+  const MainAppScreen = () => (
+    <View style={styles.container}>
+      <View style={styles.tabContainer}>
+        {/* Keep WalletScreen always mounted to preserve state */}
+        <View
+          style={[
+            styles.fullContainer,
+            activeMainTab === 'wallet'
+              ? styles.activeTab
+              : styles.hiddenTab,
+          ]}
+        >
+          <WalletScreen />
+        </View>
+
+        {/* Nostr content - show based on login state */}
+        <View
+          style={[
+            styles.fullContainer,
+            activeMainTab === 'nostr' ? styles.activeTab : styles.hiddenTab,
+          ]}
+        >
+          <NostrNavigator
+            isLoggedIn={isLoggedIn}
+            userNpub={userNpub}
+            loginType={loginType}
+            onLogin={handleLogin}
+            onLogout={handleLogout}
+          />
+        </View>
+
+        {/* Settings Screen */}
+        <View
+          style={[
+            styles.fullContainer,
+            activeMainTab === 'settings'
+              ? styles.activeTab
+              : styles.hiddenTab,
+          ]}
+        >
+          <SettingsScreen 
+            isVisible={activeMainTab === 'settings'}
+            userNpub={userNpub}
+            profileLoading={false}
+            onLogout={isLoggedIn ? handleLogout : undefined}
+          />
+        </View>
+      </View>
+
+      <BottomTabNavigation
+        activeTab={activeMainTab}
+        onTabChange={handleMainTabChange}
+      />
+    </View>
+  );
+
   return (
     <NavigationContainer theme={customDarkTheme}>
       <SafeAreaProvider>
-        <View style={styles.container}>
-          <View style={styles.tabContainer}>
-            {/* Keep WalletScreen always mounted to preserve state */}
-            <View
-              style={[
-                styles.fullContainer,
-                activeMainTab === 'wallet'
-                  ? styles.activeTab
-                  : styles.hiddenTab,
-              ]}
-            >
-              <WalletScreen />
-            </View>
-
-            {/* Nostr content - show based on login state */}
-            <View
-              style={[
-                styles.fullContainer,
-                activeMainTab === 'nostr' ? styles.activeTab : styles.hiddenTab,
-              ]}
-            >
-              <NostrNavigator
-                isLoggedIn={isLoggedIn}
-                userNpub={userNpub}
-                loginType={loginType}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-            </View>
-
-            {/* Settings Screen */}
-            <View
-              style={[
-                styles.fullContainer,
-                activeMainTab === 'settings'
-                  ? styles.activeTab
-                  : styles.hiddenTab,
-              ]}
-            >
-              <SettingsScreen isVisible={activeMainTab === 'settings'} />
-            </View>
-          </View>
-
-          <BottomTabNavigation
-            activeTab={activeMainTab}
-            onTabChange={handleMainTabChange}
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="MainApp" component={MainAppScreen} />
+          <RootStack.Screen 
+            name="UserPosts" 
+            component={UserPostsScreen}
+            options={{
+              headerShown: true,
+              title: 'User Posts',
+              headerStyle: {
+                backgroundColor: '#2a2a2a',
+              },
+              headerTintColor: '#81b0ff',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: '#ffffff',
+              },
+            }}
           />
-        </View>
+        </RootStack.Navigator>
       </SafeAreaProvider>
     </NavigationContainer>
   );

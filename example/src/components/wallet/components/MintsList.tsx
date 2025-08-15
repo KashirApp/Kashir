@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -66,32 +66,35 @@ export function MintsList({
     loadBalances();
   }, [memoizedMintUrls]);
 
+  // Stable callback for balance updates
+  const handleBalanceUpdate = useCallback((updatedBalances: MintBalance[]) => {
+    if (!updatedBalances || !Array.isArray(updatedBalances)) {
+      return;
+    }
+
+    setMintBalances((prev) => {
+      const newBalances = [...prev];
+      updatedBalances.forEach((updated) => {
+        if (updated && updated.mintUrl) {
+          const index = newBalances.findIndex(
+            (b) => b && b.mintUrl === updated.mintUrl
+          );
+          if (index >= 0) {
+            newBalances[index] = updated;
+          } else {
+            newBalances.push(updated);
+          }
+        }
+      });
+      return newBalances;
+    });
+  }, []);
+
   // Set up callback for balance updates from main wallet
   useEffect(() => {
-    setBalanceUpdateCallback((updatedBalances) => {
-      if (!updatedBalances || !Array.isArray(updatedBalances)) {
-        return;
-      }
-
-      setMintBalances((prev) => {
-        const newBalances = [...prev];
-        updatedBalances.forEach((updated) => {
-          if (updated && updated.mintUrl) {
-            const index = newBalances.findIndex(
-              (b) => b && b.mintUrl === updated.mintUrl
-            );
-            if (index >= 0) {
-              newBalances[index] = updated;
-            } else {
-              newBalances.push(updated);
-            }
-          }
-        });
-        return newBalances;
-      });
-    });
+    setBalanceUpdateCallback(handleBalanceUpdate);
     return () => setBalanceUpdateCallback(() => {});
-  }, []);
+  }, [handleBalanceUpdate]);
 
   // Helper function to get balance for a specific mint
   const getMintBalance = (mintUrl: string): MintBalance | undefined => {

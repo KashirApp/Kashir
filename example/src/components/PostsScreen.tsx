@@ -69,12 +69,20 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
 
   // Monitor client readiness instead of initializing our own client
   useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
     const checkClientReadiness = () => {
       if (clientService.isReady()) {
         const readyClient = clientService.getClient();
         console.log('PostsScreen: Client is ready, updating state');
         setClient(readyClient);
         setIsClientReady(true);
+        
+        // Clear interval once client is ready
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
       } else {
         console.log('PostsScreen: Client not ready yet');
         setClient(null);
@@ -85,12 +93,16 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
     // Check immediately
     checkClientReadiness();
 
-    // Set up an interval to check client readiness
-    const interval = setInterval(checkClientReadiness, 500); // Check every 500ms
+    // Only set interval if client is not ready yet
+    if (!clientService.isReady()) {
+      interval = setInterval(checkClientReadiness, 500); // Check every 500ms
+    }
 
-    // Clear interval when component unmounts or client becomes ready
+    // Clear interval when component unmounts
     return () => {
-      clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+      }
     };
   }, [clientService]);
 
@@ -203,13 +215,6 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
     handleRefresh();
   };
 
-  const handleShowUserPosts = () => {
-    navigation.navigate('UserPosts', {
-      userNpub,
-      userName,
-    });
-  };
-
   const handleShowEventMap = () => {
     navigation.navigate('EventMap', {
       userNpub,
@@ -239,14 +244,7 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header
-        userName={userName}
-        userNpub={userNpub}
-        profileLoading={profileLoading}
-        isClientReady={isClientReady}
-        onLogout={handleLogout}
-        onShowUserPosts={handleShowUserPosts}
-      />
+      <Header />
 
       <TabNavigation
         activeTab={activeTab}

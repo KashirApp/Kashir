@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,19 +10,33 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
+import type { RootStackParamList } from '../App';
 import { MintsList, MintUrlModal, useWallet } from './wallet';
 import { EnhancedRelaysList, RelayUrlModal } from './nostr';
 import { SecureStorageService, StorageService } from '../services';
 import type { UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
+import { ProfileService } from '../services/ProfileService';
 import packageInfo from '../../package.json';
 
 interface SettingsScreenProps {
   isVisible: boolean;
+  userNpub?: string;
+  profileLoading?: boolean;
+  onLogout?: () => Promise<void>;
 }
 
-export function SettingsScreen({ isVisible }: SettingsScreenProps) {
+export function SettingsScreen({ 
+  isVisible, 
+  userNpub, 
+  profileLoading: _externalProfileLoading, 
+  onLogout 
+}: SettingsScreenProps) {
   const [hasSeedPhrase, setHasSeedPhrase] = useState<boolean>(false);
+  const [internalUserName, setInternalUserName] = useState<string>('');
+  const [internalProfileLoading, setInternalProfileLoading] = useState<boolean>(false);
   const [relays, setRelays] = useState<string[]>([]);
   const [showRelayModal, setShowRelayModal] = useState(false);
   const [userRelayInfo, setUserRelayInfo] = useState<UserRelayInfo[]>([]);
@@ -44,6 +58,10 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
     removeMintUrl,
     updateTotalBalance,
   } = useWallet();
+
+  // Navigation and profile service
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const profileService = useMemo(() => new ProfileService(), []);
 
   // Load relays for display only (don't affect client initialization)
   const loadRelaysForDisplay = async () => {
@@ -69,6 +87,29 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
       setUserRelayInfo([]);
     }
   };
+
+  // Fetch user profile when needed
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!userNpub || !isVisible) return;
+      
+      setInternalProfileLoading(true);
+      try {
+        const clientService = NostrClientService.getInstance();
+        if (clientService.isReady()) {
+          const client = clientService.getClient();
+          const name = await profileService.fetchUserProfile(client, userNpub);
+          setInternalUserName(name);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch user profile in settings:', error);
+      } finally {
+        setInternalProfileLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [userNpub, isVisible, profileService]);
 
   // Check if seed phrase exists and wallet database exists when component becomes visible
   useEffect(() => {
@@ -359,6 +400,35 @@ export function SettingsScreen({ isVisible }: SettingsScreenProps) {
             <Text style={styles.noSeedPhraseText}>No seed phrase stored</Text>
           )}
         </View>
+
+        {userNpub && onLogout && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Profile</Text>
+            
+            <TouchableOpacity
+              style={styles.settingButton}
+              onPress={() => navigation.navigate('UserPosts', {
+                userNpub,
+                userName: internalUserName || 'Loading...'
+              })}
+              disabled={internalProfileLoading}
+            >
+              <Text style={styles.settingButtonText}>
+                {internalProfileLoading ? 'Loading...' : 
+                 internalUserName || 'View Profile'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingButton}
+              onPress={onLogout}
+            >
+              <Text style={[styles.settingButtonText, styles.dangerText]}>
+                Logout
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
