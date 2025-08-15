@@ -6,7 +6,5 @@ import { styles } from '../App.styles';
 export function Header() {
   const insets = useSafeAreaInsets();
 
-  return (
-    <View style={[styles.headerContainer, { paddingTop: insets.top }]} />
-  );
+  return <View style={[styles.headerContainer, { paddingTop: insets.top }]} />;
 }

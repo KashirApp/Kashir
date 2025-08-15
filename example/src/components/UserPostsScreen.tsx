@@ -6,10 +6,10 @@ import { ProfileService } from '../services/ProfileService';
 import { usePosts } from '../hooks/usePosts';
 import { PostList } from './PostList';
 import { styles } from '../App.styles';
-import type { NostrStackParamList } from './NostrNavigator';
+import type { RootStackParamList } from '../App';
 
 type UserPostsScreenProps = NativeStackScreenProps<
-  NostrStackParamList,
+  RootStackParamList,
   'UserPosts'
 >;
 

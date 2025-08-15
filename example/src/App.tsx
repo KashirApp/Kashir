@@ -23,14 +23,14 @@ export type RootStackParamList = {
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
-function MainAppScreen({ 
-  activeMainTab, 
-  isLoggedIn, 
-  userNpub, 
-  loginType, 
-  handleLogin, 
-  handleLogout, 
-  handleMainTabChange 
+function MainAppScreen({
+  activeMainTab,
+  isLoggedIn,
+  userNpub,
+  loginType,
+  handleLogin,
+  handleLogout,
+  handleMainTabChange,
 }: {
   activeMainTab: MainTabType;
   isLoggedIn: boolean;
@@ -47,9 +47,7 @@ function MainAppScreen({
         <View
           style={[
             styles.fullContainer,
-            activeMainTab === 'wallet'
-              ? styles.activeTab
-              : styles.hiddenTab,
+            activeMainTab === 'wallet' ? styles.activeTab : styles.hiddenTab,
           ]}
         >
           <WalletScreen />
@@ -75,12 +73,10 @@ function MainAppScreen({
         <View
           style={[
             styles.fullContainer,
-            activeMainTab === 'settings'
-              ? styles.activeTab
-              : styles.hiddenTab,
+            activeMainTab === 'settings' ? styles.activeTab : styles.hiddenTab,
           ]}
         >
-          <SettingsScreen 
+          <SettingsScreen
             isVisible={activeMainTab === 'settings'}
             userNpub={userNpub}
             profileLoading={false}
@@ -309,7 +305,6 @@ export default function App() {
     }
   };
 
-
   const handleMainTabChange = (tab: MainTabType) => {
     setActiveMainTab(tab);
   };
@@ -322,7 +317,10 @@ export default function App() {
   return (
     <NavigationContainer theme={customDarkTheme}>
       <SafeAreaProvider>
-        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        <RootStack.Navigator
+          id={undefined}
+          screenOptions={{ headerShown: false }}
+        >
           <RootStack.Screen name="MainApp">
             {() => (
               <MainAppScreen
@@ -336,8 +334,8 @@ export default function App() {
               />
             )}
           </RootStack.Screen>
-          <RootStack.Screen 
-            name="UserPosts" 
+          <RootStack.Screen
+            name="UserPosts"
             component={UserPostsScreen}
             options={{
               headerShown: true,

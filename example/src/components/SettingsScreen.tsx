@@ -28,15 +28,16 @@ interface SettingsScreenProps {
   onLogout?: () => Promise<void>;
 }
 
-export function SettingsScreen({ 
-  isVisible, 
-  userNpub, 
-  profileLoading: _externalProfileLoading, 
-  onLogout 
+export function SettingsScreen({
+  isVisible,
+  userNpub,
+  profileLoading: _externalProfileLoading,
+  onLogout,
 }: SettingsScreenProps) {
   const [hasSeedPhrase, setHasSeedPhrase] = useState<boolean>(false);
   const [internalUserName, setInternalUserName] = useState<string>('');
-  const [internalProfileLoading, setInternalProfileLoading] = useState<boolean>(false);
+  const [internalProfileLoading, setInternalProfileLoading] =
+    useState<boolean>(false);
   const [relays, setRelays] = useState<string[]>([]);
   const [showRelayModal, setShowRelayModal] = useState(false);
   const [userRelayInfo, setUserRelayInfo] = useState<UserRelayInfo[]>([]);
@@ -92,7 +93,7 @@ export function SettingsScreen({
   useEffect(() => {
     const fetchProfile = async () => {
       if (!userNpub || !isVisible) return;
-      
+
       setInternalProfileLoading(true);
       try {
         const clientService = NostrClientService.getInstance();
@@ -404,25 +405,25 @@ export function SettingsScreen({
         {userNpub && onLogout && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Profile</Text>
-            
-            <TouchableOpacity
-              style={styles.settingButton}
-              onPress={() => navigation.navigate('UserPosts', {
-                userNpub,
-                userName: internalUserName || 'Loading...'
-              })}
-              disabled={internalProfileLoading}
-            >
-              <Text style={styles.settingButtonText}>
-                {internalProfileLoading ? 'Loading...' : 
-                 internalUserName || 'View Profile'}
-              </Text>
-            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.settingButton}
-              onPress={onLogout}
+              onPress={() =>
+                navigation.navigate('UserPosts', {
+                  userNpub,
+                  userName: internalUserName || 'Loading...',
+                })
+              }
+              disabled={internalProfileLoading}
             >
+              <Text style={styles.settingButtonText}>
+                {internalProfileLoading
+                  ? 'Loading...'
+                  : internalUserName || 'View Profile'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingButton} onPress={onLogout}>
               <Text style={[styles.settingButtonText, styles.dangerText]}>
                 Logout
               </Text>

@@ -12,6 +12,7 @@ interface PostListProps {
   profileService: ProfileService;
   title: string;
   onProfileFetch?: (pubkey: any) => void;
+  hidePostCount?: boolean;
 }
 
 export function PostList({
@@ -20,6 +21,7 @@ export function PostList({
   showAuthor,
   profileService,
   title,
+  hidePostCount = false,
 }: PostListProps) {
   const getAuthorName = (post: EventInterface): string => {
     if (!showAuthor) return '';
@@ -48,7 +50,7 @@ export function PostList({
 
   return (
     <ScrollView style={styles.postsContainer}>
-      {posts.length > 0 && (
+      {posts.length > 0 && !hidePostCount && (
         <Text style={styles.postCount}>Found {posts.length} posts</Text>
       )}
       {posts.map((post, index) => (

@@ -27,11 +27,15 @@ type PostsScreenProps = NativeStackScreenProps<
   onLogout: () => void;
 };
 
-export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
+export function PostsScreen({
+  route,
+  navigation,
+  onLogout: _onLogout,
+}: PostsScreenProps) {
   const { userNpub, loginType } = route.params;
   const [isClientReady, setIsClientReady] = useState(false);
-  const [userName, setUserName] = useState<string>('');
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [_userName, setUserName] = useState<string>('');
+  const [_profileLoading, setProfileLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [userKeys, setUserKeys] = useState<Keys | null>(null);
   const [isComposeModalVisible, setIsComposeModalVisible] = useState(false);
@@ -77,7 +81,7 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
         console.log('PostsScreen: Client is ready, updating state');
         setClient(readyClient);
         setIsClientReady(true);
-        
+
         // Clear interval once client is ready
         if (interval) {
           clearInterval(interval);
@@ -201,11 +205,6 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
     }
   };
 
-  const handleLogout = async () => {
-    clientService.disconnect();
-    await onLogout();
-  };
-
   const handleComposeNote = () => {
     setIsComposeModalVisible(true);
   };
@@ -251,6 +250,7 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
         onTabChange={handleTabChange}
         followingCount={followingList.length}
         eventsCount={events.length}
+        trendingCount={trendingPosts.length}
       />
 
       {/* Simplified rendering - show events or posts based on active tab */}
@@ -278,6 +278,7 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
                 ? 'Trending posts'
                 : 'Fetching trending posts...'
           }
+          hidePostCount={activeTab === 'trending'}
         />
       )}
 
