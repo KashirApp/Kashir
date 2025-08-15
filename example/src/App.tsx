@@ -23,6 +23,80 @@ export type RootStackParamList = {
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
+function MainAppScreen({ 
+  activeMainTab, 
+  isLoggedIn, 
+  userNpub, 
+  loginType, 
+  handleLogin, 
+  handleLogout, 
+  handleMainTabChange 
+}: {
+  activeMainTab: MainTabType;
+  isLoggedIn: boolean;
+  userNpub: string;
+  loginType: LoginType;
+  handleLogin: (npub: string, loginType: LoginType) => Promise<void>;
+  handleLogout: () => Promise<void>;
+  handleMainTabChange: (tab: MainTabType) => void;
+}) {
+  return (
+    <View style={styles.container}>
+      <View style={styles.tabContainer}>
+        {/* Keep WalletScreen always mounted to preserve state */}
+        <View
+          style={[
+            styles.fullContainer,
+            activeMainTab === 'wallet'
+              ? styles.activeTab
+              : styles.hiddenTab,
+          ]}
+        >
+          <WalletScreen />
+        </View>
+
+        {/* Nostr content - show based on login state */}
+        <View
+          style={[
+            styles.fullContainer,
+            activeMainTab === 'nostr' ? styles.activeTab : styles.hiddenTab,
+          ]}
+        >
+          <NostrNavigator
+            isLoggedIn={isLoggedIn}
+            userNpub={userNpub}
+            loginType={loginType}
+            onLogin={handleLogin}
+            onLogout={handleLogout}
+          />
+        </View>
+
+        {/* Settings Screen */}
+        <View
+          style={[
+            styles.fullContainer,
+            activeMainTab === 'settings'
+              ? styles.activeTab
+              : styles.hiddenTab,
+          ]}
+        >
+          <SettingsScreen 
+            isVisible={activeMainTab === 'settings'}
+            userNpub={userNpub}
+            profileLoading={false}
+            onLogout={isLoggedIn ? handleLogout : undefined}
+          />
+        </View>
+      </View>
+
+      <BottomTabNavigation
+        activeTab={activeMainTab}
+        onTabChange={handleMainTabChange}
+      />
+    </View>
+  );
+}
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userNpub, setUserNpub] = useState('');
@@ -245,67 +319,23 @@ export default function App() {
     return <View style={styles.container} />;
   }
 
-  const MainAppScreen = () => (
-    <View style={styles.container}>
-      <View style={styles.tabContainer}>
-        {/* Keep WalletScreen always mounted to preserve state */}
-        <View
-          style={[
-            styles.fullContainer,
-            activeMainTab === 'wallet'
-              ? styles.activeTab
-              : styles.hiddenTab,
-          ]}
-        >
-          <WalletScreen />
-        </View>
-
-        {/* Nostr content - show based on login state */}
-        <View
-          style={[
-            styles.fullContainer,
-            activeMainTab === 'nostr' ? styles.activeTab : styles.hiddenTab,
-          ]}
-        >
-          <NostrNavigator
-            isLoggedIn={isLoggedIn}
-            userNpub={userNpub}
-            loginType={loginType}
-            onLogin={handleLogin}
-            onLogout={handleLogout}
-          />
-        </View>
-
-        {/* Settings Screen */}
-        <View
-          style={[
-            styles.fullContainer,
-            activeMainTab === 'settings'
-              ? styles.activeTab
-              : styles.hiddenTab,
-          ]}
-        >
-          <SettingsScreen 
-            isVisible={activeMainTab === 'settings'}
-            userNpub={userNpub}
-            profileLoading={false}
-            onLogout={isLoggedIn ? handleLogout : undefined}
-          />
-        </View>
-      </View>
-
-      <BottomTabNavigation
-        activeTab={activeMainTab}
-        onTabChange={handleMainTabChange}
-      />
-    </View>
-  );
-
   return (
     <NavigationContainer theme={customDarkTheme}>
       <SafeAreaProvider>
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
-          <RootStack.Screen name="MainApp" component={MainAppScreen} />
+          <RootStack.Screen name="MainApp">
+            {() => (
+              <MainAppScreen
+                activeMainTab={activeMainTab}
+                isLoggedIn={isLoggedIn}
+                userNpub={userNpub}
+                loginType={loginType}
+                handleLogin={handleLogin}
+                handleLogout={handleLogout}
+                handleMainTabChange={handleMainTabChange}
+              />
+            )}
+          </RootStack.Screen>
           <RootStack.Screen 
             name="UserPosts" 
             component={UserPostsScreen}
