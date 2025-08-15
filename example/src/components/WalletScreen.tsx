@@ -48,6 +48,7 @@ export function WalletScreen() {
     balance,
     wallet,
     isLoadingWallet,
+    isInitializing,
     showReceiveModal,
     receiveAmount,
     invoice,
@@ -117,16 +118,28 @@ export function WalletScreen() {
   return (
     <>
       <SafeAreaView style={styles.container}>
-        <WalletBalance balance={balance} wallet={wallet} />
+        {isInitializing ? (
+          <View style={styles.initializingContainer}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.initializingText}>Initializing Wallet...</Text>
+            <Text style={styles.initializingSubtext}>
+              Please wait while we set up your wallet
+            </Text>
+          </View>
+        ) : (
+          <>
+            <WalletBalance balance={balance} wallet={wallet} />
 
-        <WalletActions
-          wallet={wallet}
-          isLoadingWallet={isLoadingWallet}
-          onCreateWallet={testWalletCreation}
-          onRecoverWallet={handleRecoverWallet}
-          onReceive={handleReceive}
-          onSend={handleSend}
-        />
+            <WalletActions
+              wallet={wallet}
+              isLoadingWallet={isLoadingWallet}
+              onCreateWallet={testWalletCreation}
+              onRecoverWallet={handleRecoverWallet}
+              onReceive={handleReceive}
+              onSend={handleSend}
+            />
+          </>
+        )}
 
         <ReceiveModal
           visible={showReceiveModal}
@@ -253,6 +266,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
+  },
+  initializingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  initializingText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  initializingSubtext: {
+    fontSize: 16,
+    color: '#cccccc',
+    textAlign: 'center',
+    lineHeight: 22,
   },
   confettiContainer: {
     position: 'absolute',

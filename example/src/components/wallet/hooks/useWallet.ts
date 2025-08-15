@@ -33,6 +33,7 @@ export function useWallet() {
   // UI-only state (not shared across components)
   const [moduleStatus, setModuleStatus] = useState<string>('Loading...');
   const [cdkModule, setCdkModule] = useState<any>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveAmount, setReceiveAmount] = useState('');
   const [invoice, setInvoice] = useState('');
@@ -331,6 +332,8 @@ export function useWallet() {
         setCurrentMintUrlRef(urlToUse);
 
         setModuleStatus(`Wallet restored! Total balance updated`);
+        walletManager.setLoadingWallet(false); // Set loading to false after successful restoration
+        setIsInitializing(false); // Initialization complete
         return true;
       } catch {
         // Wallet exists but might be empty, still consider it restored
@@ -348,6 +351,8 @@ export function useWallet() {
         setCurrentMintUrlRef(urlToUse);
 
         setModuleStatus('Wallet restored successfully!');
+        walletManager.setLoadingWallet(false); // Set loading to false after successful restoration
+        setIsInitializing(false); // Initialization complete
         return true;
       }
     } catch (error) {
@@ -422,6 +427,7 @@ export function useWallet() {
         console.error('CDK loading error:', error);
         setModuleStatus(`CDK loading failed: ${getErrorMessage(error)}`);
         walletManager.setLoadingWallet(false);
+        setIsInitializing(false); // Initialization complete even if CDK failed
       }
     };
 
@@ -442,6 +448,7 @@ export function useWallet() {
           if (!savedMintUrls) {
             setModuleStatus('Ready - Set mint URL to begin');
             walletManager.setLoadingWallet(false);
+            setIsInitializing(false); // Initialization complete
             return;
           }
 
@@ -474,22 +481,26 @@ export function useWallet() {
               setModuleStatus(
                 'Wallet database found but restoration failed. Ready to create new wallet.'
               );
+              // Only set loading to false if restoration failed
+              walletManager.setLoadingWallet(false);
+              setIsInitializing(false); // Initialization complete
             }
-            // If restored successfully, the status is set in restoreExistingWallet
+            // If restored successfully, loading is set to false in restoreExistingWallet
           } else {
             setModuleStatus(
               'Mint URL restored from storage. Ready to create wallet.'
             );
+            // Only set loading to false when we know no wallet exists
+            walletManager.setLoadingWallet(false);
+            setIsInitializing(false); // Initialization complete
           }
-
-          // Set loading to false after wallet restoration is complete
-          walletManager.setLoadingWallet(false);
         } catch (error) {
           console.error('Error during wallet initialization:', error);
           setModuleStatus(
             'Error during initialization. Ready to create wallet.'
           );
           walletManager.setLoadingWallet(false);
+          setIsInitializing(false); // Initialization complete even if there was an error
         }
       };
 
@@ -500,6 +511,7 @@ export function useWallet() {
     // Safety timeout to ensure loading doesn't hang forever
     const safetyTimeout = setTimeout(() => {
       walletManager.setLoadingWallet(false);
+      setIsInitializing(false); // Initialization complete due to timeout
       setModuleStatus('Loading timeout. Please try again.');
     }, 10000); // 10 seconds timeout
 
@@ -1526,6 +1538,7 @@ export function useWallet() {
     mintUrls,
     activeMintUrl,
     isLoadingWallet,
+    isInitializing,
     showReceiveModal,
     receiveAmount,
     invoice,
