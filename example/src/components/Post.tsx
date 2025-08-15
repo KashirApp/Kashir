@@ -158,7 +158,7 @@ export function Post({
           disabled={isLiking}
         >
           <Text style={styles.actionButtonText}>
-            {isLiking ? '⏳ Liking...' : '👍 Like'}
+            {isLiking ? '⏳' : '👍'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -170,7 +170,7 @@ export function Post({
           disabled={isReposting}
         >
           <Text style={styles.actionButtonText}>
-            {isReposting ? '⏳ Reposting...' : '🔄 Repost'}
+            {isReposting ? '⏳' : '🔄'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -182,7 +182,7 @@ export function Post({
           disabled={isZapping}
         >
           <Text style={styles.actionButtonText}>
-            {isZapping ? '⏳ Zapping...' : '⚡ Zap'}
+            {isZapping ? '⏳' : '⚡'}
           </Text>
         </TouchableOpacity>
       </View>
