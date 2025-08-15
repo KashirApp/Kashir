@@ -235,14 +235,14 @@ export default function App() {
     <NavigationContainer theme={customDarkTheme}>
       <SafeAreaProvider>
         <View style={styles.container}>
-          <View style={styles.fullContainer}>
+          <View style={styles.tabContainer}>
             {/* Keep WalletScreen always mounted to preserve state */}
             <View
               style={[
                 styles.fullContainer,
                 activeMainTab === 'wallet'
-                  ? styles.tabContent
-                  : styles.hiddenTabContent,
+                  ? styles.activeTab
+                  : styles.hiddenTab,
               ]}
             >
               <WalletScreen />
@@ -252,9 +252,7 @@ export default function App() {
             <View
               style={[
                 styles.fullContainer,
-                activeMainTab === 'nostr'
-                  ? styles.tabContent
-                  : styles.hiddenTabContent,
+                activeMainTab === 'nostr' ? styles.activeTab : styles.hiddenTab,
               ]}
             >
               <NostrNavigator
@@ -271,8 +269,8 @@ export default function App() {
               style={[
                 styles.fullContainer,
                 activeMainTab === 'settings'
-                  ? styles.tabContent
-                  : styles.hiddenTabContent,
+                  ? styles.activeTab
+                  : styles.hiddenTab,
               ]}
             >
               <SettingsScreen isVisible={activeMainTab === 'settings'} />
@@ -294,15 +292,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a1a',
   },
+  tabContainer: {
+    flex: 1,
+    position: 'relative',
+  },
   fullContainer: {
     flex: 1,
   },
-  tabContent: {
-    flex: 1,
+  activeTab: {
+    position: 'relative',
+    zIndex: 1,
   },
-  hiddenTabContent: {
+  hiddenTab: {
     position: 'absolute',
-    left: -10000,
-    top: -10000,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0,
+    pointerEvents: 'none',
   },
 });
