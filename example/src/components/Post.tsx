@@ -157,9 +157,7 @@ export function Post({
           onPress={handleLike}
           disabled={isLiking}
         >
-          <Text style={styles.actionButtonText}>
-            {isLiking ? '⏳' : '👍'}
-          </Text>
+          <Text style={styles.actionButtonText}>{isLiking ? '⏳' : '👍'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -181,9 +179,7 @@ export function Post({
           onPress={handleZap}
           disabled={isZapping}
         >
-          <Text style={styles.actionButtonText}>
-            {isZapping ? '⏳' : '⚡'}
-          </Text>
+          <Text style={styles.actionButtonText}>{isZapping ? '⏳' : '⚡'}</Text>
         </TouchableOpacity>
       </View>
 

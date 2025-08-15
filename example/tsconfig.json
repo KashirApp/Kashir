@@ -4,7 +4,10 @@
     "jsx": "react-native",
     "lib": ["es2017"],
     "target": "esnext",
-    "strict": false
+    "strict": false,
+    "paths": {
+      "kashir": ["../lib/commonjs/index"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "**/*.test.*"]

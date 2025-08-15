@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Button, TouchableOpacity, Text } from 'react-native';
+import { TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService } from '../services/NostrClient';
@@ -244,9 +244,7 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
         userNpub={userNpub}
         profileLoading={profileLoading}
         isClientReady={isClientReady}
-        currentLoading={currentLoading}
         onLogout={handleLogout}
-        onRefresh={handleRefresh}
         onShowUserPosts={handleShowUserPosts}
       />
 
@@ -256,14 +254,6 @@ export function PostsScreen({ route, navigation, onLogout }: PostsScreenProps) {
         followingCount={followingList.length}
         eventsCount={events.length}
       />
-
-      <View style={styles.headerButtons}>
-        <Button
-          title="Refresh"
-          onPress={handleRefresh}
-          disabled={currentLoading || !isClientReady}
-        />
-      </View>
 
       {/* Simplified rendering - show events or posts based on active tab */}
       {activeTab === 'events' ? (

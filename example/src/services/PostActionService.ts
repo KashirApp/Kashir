@@ -5,6 +5,7 @@ import {
   SecretKey,
   Kind,
   ZapRequestData,
+  NostrSigner,
 } from 'kashir';
 import { NostrClientService, LoginType } from './NostrClient';
 import { SecureStorageService } from './SecureStorageService';
@@ -204,9 +205,10 @@ export class PostActionService {
         }
         const secretKey = SecretKey.parse(privateKeyHex);
         const keys = new Keys(secretKey);
+        const signer = NostrSigner.keys(keys);
         // Create a normal zap request event manually
         const eventBuilder = EventBuilder.publicZapRequest(zapRequestData);
-        zapRequestEvent = await eventBuilder.sign(keys);
+        zapRequestEvent = await eventBuilder.sign(signer);
       } else {
         throw new Error('Unsupported login method for zaps');
       }

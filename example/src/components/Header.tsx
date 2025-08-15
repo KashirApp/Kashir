@@ -8,9 +8,7 @@ interface HeaderProps {
   userNpub: string;
   profileLoading: boolean;
   isClientReady: boolean;
-  currentLoading: boolean;
   onLogout: () => Promise<void>;
-  onRefresh: () => void;
   onShowUserPosts: () => void;
 }
 
@@ -19,9 +17,7 @@ export function Header({
   userNpub: _userNpub,
   profileLoading,
   isClientReady,
-  currentLoading: _currentLoading,
   onLogout,
-  onRefresh: _onRefresh,
   onShowUserPosts,
 }: HeaderProps) {
   const insets = useSafeAreaInsets();

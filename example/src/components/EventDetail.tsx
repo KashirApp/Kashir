@@ -98,8 +98,8 @@ export function EventDetail({
   };
 
   const handleLocationPress = () => {
-    if (eventData.location) {
-      const encodedLocation = encodeURIComponent(eventData.location);
+    if (event.location) {
+      const encodedLocation = encodeURIComponent(event.location);
       const url = `https://maps.google.com/?q=${encodedLocation}`;
       Linking.openURL(url).catch(() => {
         Alert.alert('Error', 'Could not open location in maps');
@@ -156,10 +156,10 @@ export function EventDetail({
         {/* Event Title */}
         <View style={styles.section}>
           <Text style={styles.eventTitle}>
-            {eventData.title || 'Untitled Event'}
+            {event.title || 'Untitled Event'}
           </Text>
           <Text style={styles.eventType}>
-            {getEventTypeDisplay(eventData.kind)}
+            {getEventTypeDisplay(event.kind)}
           </Text>
         </View>
 
@@ -170,30 +170,30 @@ export function EventDetail({
         </View>
 
         {/* Location */}
-        {eventData.location && (
+        {event.location && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📍 Location</Text>
             <TouchableOpacity onPress={handleLocationPress} activeOpacity={0.7}>
-              <Text style={styles.eventLocation}>{eventData.location}</Text>
+              <Text style={styles.eventLocation}>{event.location}</Text>
               <Text style={styles.locationHint}>Tap to open in maps</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {/* Description */}
-        {eventData.description && (
+        {event.description && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>📝 Description</Text>
-            <Text style={styles.eventDescription}>{eventData.description}</Text>
+            <Text style={styles.eventDescription}>{event.description}</Text>
           </View>
         )}
 
         {/* Categories */}
-        {eventData.categories && eventData.categories.length > 0 && (
+        {event.categories && event.categories.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>🏷️ Categories</Text>
             <View style={styles.categoriesContainer}>
-              {eventData.categories.map((category, index) => (
+              {event.categories.map((category, index) => (
                 <Text key={index} style={styles.categoryTag}>
                   #{category}
                 </Text>
@@ -205,10 +205,8 @@ export function EventDetail({
         {/* Organizer */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>👤 Organizer</Text>
-          <Text style={styles.organizer}>
-            {getOrganizerName(eventData.pubkey)}
-          </Text>
-          <Text style={styles.organizerPubkey}>{eventData.pubkey}</Text>
+          <Text style={styles.organizer}>{getOrganizerName(event.pubkey)}</Text>
+          <Text style={styles.organizerPubkey}>{event.pubkey}</Text>
         </View>
 
         {/* RSVP Section */}
@@ -267,10 +265,10 @@ export function EventDetail({
         {/* Event Metadata */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ℹ️ Event Info</Text>
-          <Text style={styles.metadata}>Event ID: {eventData.id}</Text>
-          <Text style={styles.metadata}>Event Kind: {eventData.kind}</Text>
+          <Text style={styles.metadata}>Event ID: {event.id}</Text>
+          <Text style={styles.metadata}>Event Kind: {event.kind}</Text>
           <Text style={styles.metadata}>
-            Created: {new Date(eventData.created_at * 1000).toLocaleString()}
+            Created: {new Date(event.created_at * 1000).toLocaleString()}
           </Text>
         </View>
       </ScrollView>
