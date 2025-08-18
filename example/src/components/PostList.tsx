@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
-import type { EventInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { Post } from './Post';
+import type { PostWithStats } from '../types/EventStats';
 import { styles } from '../App.styles';
 
 interface PostListProps {
-  posts: EventInterface[];
+  posts: PostWithStats[];
   loading: boolean;
   showAuthor: boolean;
   profileService: ProfileService;
@@ -23,19 +23,18 @@ export function PostList({
   title,
   hidePostCount = false,
 }: PostListProps) {
-  const getAuthorName = (post: EventInterface): string => {
+  const getAuthorName = (post: PostWithStats): string => {
     if (!showAuthor) return '';
 
-    const authorPubkey = post.author();
-    const hexKey = authorPubkey.toHex();
+    const pubkey = post.event.pubkey;
 
     // Get name from cache
-    const cached = profileService.getProfileCache().get(hexKey);
+    const cached = profileService.getProfileCache().get(pubkey);
     if (cached && cached.name) {
       return cached.name;
     } else {
       // Fallback to shortened hex if name not loaded yet
-      return hexKey.substring(0, 8) + '...';
+      return pubkey.substring(0, 8) + '...';
     }
   };
 
@@ -53,16 +52,20 @@ export function PostList({
       {posts.length > 0 && !hidePostCount && (
         <Text style={styles.postCount}>Found {posts.length} posts</Text>
       )}
-      {posts.map((post, index) => (
-        <Post
-          key={post.id().toHex()}
-          post={post}
-          index={index}
-          totalPosts={posts.length}
-          authorName={getAuthorName(post)}
-          showAuthor={showAuthor}
-        />
-      ))}
+      {posts.map((post, index) => {
+        const postKey = post.event.id;
+
+        return (
+          <Post
+            key={postKey}
+            post={post}
+            index={index}
+            totalPosts={posts.length}
+            authorName={getAuthorName(post)}
+            showAuthor={showAuthor}
+          />
+        );
+      })}
     </ScrollView>
   );
 }

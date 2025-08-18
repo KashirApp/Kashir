@@ -5,7 +5,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
-import { usePosts } from '../hooks/usePosts';
 import { useFollowing } from '../hooks/useFollowing';
 import { useTrending } from '../hooks/useTrending';
 import { useEvents } from '../hooks/useEvents';
@@ -51,8 +50,6 @@ export function PostsScreen({
   const [client, setClient] = useState<Client | null>(null);
 
   // Custom hooks - only pass client when it's ready
-  // Note: Not using posts/loading/fetchPosts from usePosts hook
-  usePosts(client);
   const {
     followingPosts,
     followingList,
@@ -154,7 +151,7 @@ export function PostsScreen({
     fetchProfile();
   }, [client, isClientReady, userNpub, profileService]);
 
-  // Auto-fetch trending data when client is ready (only once)
+  // Auto-fetch trending DVM data when client is ready (only once)
   useEffect(() => {
     if (isClientReady && userNpub && !hasInitialFetchStarted.current) {
       hasInitialFetchStarted.current = true;

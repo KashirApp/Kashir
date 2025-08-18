@@ -5,9 +5,10 @@ import { styles } from '../App.styles';
 import { PostActionService } from '../services/PostActionService';
 import { StorageService } from '../services/StorageService';
 import { walletManager } from '../services/WalletManager';
+import type { PostWithStats } from '../types/EventStats';
 
 interface PostProps {
-  post: EventInterface;
+  post: PostWithStats;
   index: number;
   totalPosts: number;
   authorName?: string;
@@ -26,7 +27,15 @@ export function Post({
   authorName,
   showAuthor = false,
 }: PostProps) {
-  const postId = post.id().toHex();
+  // All posts are PostWithStats with originalEvent for actions
+  const eventData = post.event;
+  const stats = post.stats;
+  const originalEvent = (post as any).originalEvent as EventInterface;
+
+  const postId = eventData.id;
+  const postContent = eventData.content;
+  const postTimestamp = originalEvent.createdAt();
+
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
@@ -63,7 +72,7 @@ export function Post({
 
     setIsLiking(true);
     try {
-      await postActionService.likePost(postId, post);
+      await postActionService.likePost(postId, originalEvent);
       Alert.alert('Success', 'Post liked successfully!');
     } catch (error) {
       console.error('Failed to like post:', error);
@@ -78,7 +87,7 @@ export function Post({
 
     setIsReposting(true);
     try {
-      await postActionService.repostPost(postId, post);
+      await postActionService.repostPost(postId, originalEvent);
       Alert.alert('Success', 'Post reposted successfully!');
     } catch (error) {
       console.error('Failed to repost post:', error);
@@ -98,7 +107,6 @@ export function Post({
         try {
           // Use WalletManager to send payment
           await walletManager.sendPayment(invoice);
-
           return true; // Payment was successful
         } catch (error) {
           console.error('WalletManager payment failed:', error);
@@ -109,7 +117,7 @@ export function Post({
       // Use configurable zap amount
       await postActionService.zapPost(
         postId,
-        post,
+        originalEvent,
         zapAmount,
         undefined,
         sendPaymentCallback
@@ -145,10 +153,19 @@ export function Post({
       {showAuthor && authorName && (
         <Text style={styles.postAuthor}>@{authorName}</Text>
       )}
-      <Text style={styles.postDate}>{formatTimestamp(post.createdAt())}</Text>
-      <Text style={styles.postContent}>{post.content()}</Text>
+      <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
+      <Text style={styles.postContent}>{postContent}</Text>
 
       <View style={styles.postActions}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.enabledButton]}
+          disabled={true}
+        >
+          <Text style={styles.actionButtonText}>
+            💬
+            {stats && stats.replies > 0 && ` ${stats.replies.toLocaleString()}`}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.actionButton,
@@ -157,7 +174,10 @@ export function Post({
           onPress={handleLike}
           disabled={isLiking}
         >
-          <Text style={styles.actionButtonText}>{isLiking ? '⏳' : '👍'}</Text>
+          <Text style={styles.actionButtonText}>
+            {isLiking ? '⏳' : '👍'}
+            {stats && stats.likes > 0 && ` ${stats.likes.toLocaleString()}`}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -169,6 +189,7 @@ export function Post({
         >
           <Text style={styles.actionButtonText}>
             {isReposting ? '⏳' : '🔄'}
+            {stats && stats.reposts > 0 && ` ${stats.reposts.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -179,7 +200,12 @@ export function Post({
           onPress={handleZap}
           disabled={isZapping}
         >
-          <Text style={styles.actionButtonText}>{isZapping ? '⏳' : '⚡'}</Text>
+          <Text style={styles.actionButtonText}>
+            {isZapping ? '⏳' : '⚡'}
+            {stats &&
+              stats.satszapped > 0 &&
+              ` ${stats.satszapped.toLocaleString()}`}
+          </Text>
         </TouchableOpacity>
       </View>
 

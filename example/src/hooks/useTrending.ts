@@ -1,10 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { EventInterface, Client, Keys, PublicKey } from 'kashir';
+import type { Client, Keys, PublicKey } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
+import { CacheService } from '../services/CacheService';
+import type { PostWithStats } from '../types/EventStats';
 
 interface UseTrendingResult {
-  trendingPosts: EventInterface[];
+  trendingPosts: PostWithStats[];
   trendingEventIds: string[];
   trendingLoading: boolean;
   profilesLoading: boolean;
@@ -15,12 +17,13 @@ export function useTrending(
   client: Client | null,
   profileService: ProfileService
 ): UseTrendingResult {
-  const [trendingPosts, setTrendingPosts] = useState<EventInterface[]>([]);
+  const [trendingPosts, setTrendingPosts] = useState<PostWithStats[]>([]);
   const [trendingEventIds, setTrendingEventIds] = useState<string[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
   const [profilesLoading, setProfilesLoading] = useState(false);
 
   const dvmService = useMemo(() => new DVMService(), []);
+  const cacheService = CacheService.getInstance();
 
   const fetchTrendingPosts = useCallback(
     async (_keys: Keys | null) => {
@@ -49,8 +52,42 @@ export function useTrending(
           );
 
           if (events.length > 0) {
-            // Keep DVM trending order (don't sort by time)
-            setTrendingPosts(events);
+            // Enhance posts with engagement statistics
+            try {
+              console.log(
+                `Enhancing ${events.length} trending posts with stats...`
+              );
+              const eventIds = events.map((event) => event.id().toHex());
+              const eventStats = await cacheService.fetchEventStats(eventIds);
+
+              const enhancedPosts = cacheService.enhanceEventsWithStats(
+                events,
+                eventStats
+              );
+              console.log(
+                `Successfully enhanced ${eventStats.length}/${events.length} trending posts`
+              );
+
+              // Keep DVM trending order (don't sort by time)
+              setTrendingPosts(enhancedPosts);
+            } catch (error) {
+              console.warn(
+                'Failed to enhance trending posts with stats:',
+                error
+              );
+              // Fallback to posts without stats (convert EventInterface to PostWithStats format)
+              const fallbackPosts = events.map((event) => ({
+                event: {
+                  id: event.id().toHex(),
+                  pubkey: event.author().toHex(),
+                  content: event.content(),
+                  created_at: Number(event.createdAt().asSecs()),
+                },
+                originalEvent: event,
+                stats: undefined,
+              }));
+              setTrendingPosts(fallbackPosts);
+            }
 
             // Fetch profiles in background - don't block the UI
             setProfilesLoading(true);
@@ -99,7 +136,7 @@ export function useTrending(
         setTrendingLoading(false);
       }
     },
-    [client, dvmService, profileService]
+    [client, dvmService, profileService, cacheService]
   );
 
   return {

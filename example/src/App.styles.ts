@@ -353,24 +353,27 @@ export const styles = StyleSheet.create({
   // Post action styles
   postActions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#444',
+    paddingHorizontal: 4,
   },
   actionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     borderRadius: 6,
     backgroundColor: '#333',
-    minWidth: 80,
     alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 1,
   },
   actionButtonText: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#fff',
     fontWeight: '500',
+    textAlign: 'center',
   },
   // Additional layout styles
   fullContainer: {
