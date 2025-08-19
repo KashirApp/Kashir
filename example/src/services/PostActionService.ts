@@ -134,6 +134,64 @@ export class PostActionService {
     }
   }
 
+  async submitRSVP(
+    eventId: string,
+    eventCoordinates: string,
+    organizerPubkey: string,
+    status: 'accepted' | 'declined' | 'tentative',
+    message?: string
+  ): Promise<void> {
+    try {
+      const clientService = NostrClientService.getInstance();
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+
+      if (!client) {
+        throw new Error('Client not available');
+      }
+
+      if (!session) {
+        throw new Error('User not logged in');
+      }
+
+      // Create RSVP event tags according to NIP-52
+      const aTag = Tag.parse(['a', eventCoordinates]); // Required: event coordinates
+      const eTag = Tag.parse(['e', eventId]); // Optional: specific event revision
+      const pTag = Tag.parse(['p', organizerPubkey]); // Optional: organizer pubkey
+      const statusTag = Tag.parse(['status', status]); // Required: RSVP status
+
+      const rsvpKind = new Kind(31925); // Kind 31925 for RSVP events
+      const eventBuilder = new EventBuilder(rsvpKind, message || '')
+        .tags([aTag, eTag, pTag, statusTag])
+        .allowSelfTagging();
+
+      let signedEvent;
+      if (session.type === LoginType.Amber) {
+        const signer = await client.signer();
+        if (!signer) {
+          throw new Error('Amber signer not available');
+        }
+        signedEvent = await eventBuilder.sign(signer);
+      } else if (session.type === LoginType.PrivateKey) {
+        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
+        if (!privateKeyHex) {
+          throw new Error('Private key not found in secure storage');
+        }
+        const secretKey = SecretKey.parse(privateKeyHex);
+        const keys = new Keys(secretKey);
+        signedEvent = eventBuilder.signWithKeys(keys);
+      } else {
+        throw new Error('No signing method available');
+      }
+
+      await client.sendEvent(signedEvent);
+      console.log(`Successfully submitted RSVP with status: ${status} for event: ${eventId}`);
+    } catch (error) {
+      console.error('Failed to submit RSVP:', error);
+      throw error;
+    }
+  }
+
   async zapPost(
     postId: string,
     originalEvent: EventInterface,

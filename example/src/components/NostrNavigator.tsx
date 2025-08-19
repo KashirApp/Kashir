@@ -5,6 +5,7 @@ import { EventDetail } from './EventDetail';
 import { EventMapScreen } from './EventMapScreen';
 import { LoginScreen } from './LoginScreen';
 import { LoginType } from '../services/NostrClient';
+import { PostActionService } from '../services/PostActionService';
 import type { CalendarEvent } from '../hooks/useEvents';
 
 export type NostrStackParamList = {
@@ -79,8 +80,25 @@ export function NostrNavigator({
               <EventDetail
                 {...props}
                 onRSVP={async (status) => {
-                  // TODO: Implement RSVP logic to publish nostr event
-                  console.log(`RSVP status: ${status} for event ${props.route.params.event.id}`);
+                  try {
+                    const postActionService = PostActionService.getInstance();
+                    const event = props.route.params.event;
+                    
+                    // Create event coordinates for NIP-52: kind:pubkey:d-tag
+                    // For calendar events, we use the event ID as d-tag
+                    const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] || event.id;
+                    const eventCoordinates = `${event.kind}:${event.pubkey}:${dTag}`;
+                    
+                    await postActionService.submitRSVP(
+                      event.id,
+                      eventCoordinates,
+                      event.pubkey,
+                      status
+                    );
+                  } catch (error) {
+                    console.error('RSVP submission failed:', error);
+                    throw error; // Re-throw so EventDetail can show error alert
+                  }
                 }}
               />
             )}
