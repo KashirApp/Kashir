@@ -1,11 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { Client, PublicKey, Filter, Kind } from 'kashir';
 import type { EventInterface } from 'kashir';
+import { CacheService } from '../services/CacheService';
+import type { PostWithStats } from '../types/EventStats';
 
 export function usePosts(client: Client | null) {
-  const [posts, setPosts] = useState<EventInterface[]>([]);
+  const [posts, setPosts] = useState<PostWithStats[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const cacheService = CacheService.getInstance();
 
   const fetchPosts = useCallback(
     async (userNpub: string) => {
@@ -65,7 +69,43 @@ export function usePosts(client: Client | null) {
             return Number(timeB - timeA);
           });
 
-          setPosts(allEvents);
+          // Convert EventInterface to PostWithStats format
+          const postsWithStats: PostWithStats[] = allEvents.map((event) => ({
+            event: {
+              id: event.id().toHex(),
+              pubkey: event.author().toHex(),
+              content: event.content(),
+              created_at: Number(event.createdAt().asSecs()),
+            },
+            originalEvent: event,
+            stats: undefined,
+          }));
+
+          // Enhance posts with engagement statistics
+          try {
+            console.log(
+              `Enhancing ${postsWithStats.length} user posts with stats...`
+            );
+            const eventIds = postsWithStats.map((post) => post.event.id);
+            const eventStats = await cacheService.fetchEventStats(eventIds);
+
+            const enhancedPosts = cacheService.enhanceEventsWithStats(
+              allEvents,
+              eventStats
+            );
+            console.log(
+              `Successfully enhanced ${eventStats.length}/${postsWithStats.length} user posts`
+            );
+
+            setPosts(enhancedPosts);
+          } catch (error) {
+            console.warn(
+              'Failed to enhance user posts with stats:',
+              error
+            );
+            // Fallback to posts without stats
+            setPosts(postsWithStats);
+          }
         } else {
           Alert.alert(
             'No posts found',
@@ -86,7 +126,7 @@ export function usePosts(client: Client | null) {
         setLoading(false);
       }
     },
-    [client]
+    [client, cacheService]
   );
 
   return {
