@@ -71,11 +71,20 @@ export function NostrNavigator({
           </Stack.Screen>
           <Stack.Screen
             name="EventDetail"
-            component={EventDetail}
             options={{
               title: 'Event Details',
             }}
-          />
+          >
+            {(props) => (
+              <EventDetail
+                {...props}
+                onRSVP={async (status) => {
+                  // TODO: Implement RSVP logic to publish nostr event
+                  console.log(`RSVP status: ${status} for event ${props.route.params.event.id}`);
+                }}
+              />
+            )}
+          </Stack.Screen>
           <Stack.Screen
             name="EventMap"
             component={EventMapScreen}
