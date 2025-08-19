@@ -119,14 +119,6 @@ export class CacheService {
 
       // Send request
       this.wsClient.send(JSON.stringify(request));
-
-      // Timeout after 15 seconds
-      setTimeout(() => {
-        if (!eoseReceived) {
-          this.wsClient?.removeEventListener('message', messageHandler);
-          reject(new Error('Cache request timeout'));
-        }
-      }, 15000);
     });
   }
 

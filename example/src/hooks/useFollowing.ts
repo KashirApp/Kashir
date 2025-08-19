@@ -1,18 +1,22 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { Client, PublicKey, Filter, Kind } from 'kashir';
 import type { EventInterface, PublicKeyInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { tagsToArray } from '../services/NostrUtils';
+import { CacheService } from '../services/CacheService';
+import type { PostWithStats } from '../types/EventStats';
 
 export function useFollowing(
   client: Client | null,
   profileService: ProfileService
 ) {
-  const [followingPosts, setFollowingPosts] = useState<EventInterface[]>([]);
+  const [followingPosts, setFollowingPosts] = useState<PostWithStats[]>([]);
   const [followingList, setFollowingList] = useState<PublicKeyInterface[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
   const [profilesLoading, setProfilesLoading] = useState(false);
+
+  const cacheService = CacheService.getInstance();
 
   const fetchFollowingList = useCallback(
     async (userNpub: string) => {
@@ -138,7 +142,43 @@ export function useFollowing(
             return Number(timeB - timeA);
           });
 
-          setFollowingPosts(eventArray);
+          // Convert EventInterface to PostWithStats format
+          const postsWithStats: PostWithStats[] = eventArray.map((event) => ({
+            event: {
+              id: event.id().toHex(),
+              pubkey: event.author().toHex(),
+              content: event.content(),
+              created_at: Number(event.createdAt().asSecs()),
+            },
+            originalEvent: event,
+            stats: undefined,
+          }));
+
+          // Enhance posts with engagement statistics
+          try {
+            console.log(
+              `Enhancing ${postsWithStats.length} following posts with stats...`
+            );
+            const eventIds = postsWithStats.map((post) => post.event.id);
+            const eventStats = await cacheService.fetchEventStats(eventIds);
+
+            const enhancedPosts = cacheService.enhanceEventsWithStats(
+              eventArray,
+              eventStats
+            );
+            console.log(
+              `Successfully enhanced ${eventStats.length}/${postsWithStats.length} following posts`
+            );
+
+            setFollowingPosts(enhancedPosts);
+          } catch (error) {
+            console.warn(
+              'Failed to enhance following posts with stats:',
+              error
+            );
+            // Fallback to posts without stats
+            setFollowingPosts(postsWithStats);
+          }
 
           // Fetch profiles in background - don't block the UI
           setProfilesLoading(true);
@@ -191,7 +231,7 @@ export function useFollowing(
         setFollowingLoading(false);
       }
     },
-    [client, followingList, fetchFollowingList, profileService]
+    [client, followingList, fetchFollowingList, profileService, cacheService]
   );
 
   return {
