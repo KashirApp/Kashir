@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Client, PublicKey, Filter, Kind } from 'kashir';
-import type { EventInterface, PublicKeyInterface } from 'kashir';
+import type { PublicKeyInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { tagsToArray } from '../services/NostrUtils';
 import { CacheService } from '../services/CacheService';

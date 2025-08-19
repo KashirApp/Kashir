@@ -7,12 +7,9 @@ import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
 import { useFollowing } from '../hooks/useFollowing';
 import { useTrending } from '../hooks/useTrending';
-import { useEvents } from '../hooks/useEvents';
-import type { CalendarEvent } from '../hooks/useEvents';
 import { Header } from './Header';
 import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
-import { EventList } from './EventList';
 import { ComposeNoteModal } from './ComposeNoteModal';
 import type { TabType } from '../types';
 import type { NostrStackParamList } from './NostrNavigator';
@@ -28,7 +25,7 @@ type PostsScreenProps = NativeStackScreenProps<
 
 export function PostsScreen({
   route,
-  navigation,
+  navigation: _navigation,
   onLogout: _onLogout,
 }: PostsScreenProps) {
   const { userNpub, loginType } = route.params;
@@ -62,11 +59,6 @@ export function PostsScreen({
     trendingLoading,
     fetchTrendingPosts,
   } = useTrending(client, profileService);
-  const {
-    events,
-    loading: eventsLoading,
-    fetchEvents,
-  } = useEvents(client, profileService);
 
   // Monitor client readiness instead of initializing our own client
   useEffect(() => {
@@ -187,8 +179,6 @@ export function PostsScreen({
     ) {
       // For trending, try with userKeys if available, otherwise null for Amber users
       fetchTrendingPosts(userKeys || null);
-    } else if (tab === 'events' && events.length === 0 && !eventsLoading) {
-      fetchEvents();
     }
   };
 
@@ -197,8 +187,6 @@ export function PostsScreen({
       fetchFollowingPosts(userNpub);
     } else if (activeTab === 'trending') {
       fetchTrendingPosts(userKeys || null);
-    } else if (activeTab === 'events') {
-      fetchEvents();
     }
   };
 
@@ -211,20 +199,6 @@ export function PostsScreen({
     handleRefresh();
   };
 
-  const handleShowEventMap = () => {
-    navigation.navigate('EventMap', {
-      userNpub,
-      onEventSelect: handleShowEventDetail,
-    });
-  };
-
-  const handleShowEventDetail = (event: CalendarEvent) => {
-    navigation.navigate('EventDetail', {
-      event,
-      userNpub,
-    });
-  };
-
   const currentPosts =
     activeTab === 'following'
       ? followingPosts
@@ -232,11 +206,7 @@ export function PostsScreen({
         ? trendingPosts
         : [];
   const currentLoading =
-    activeTab === 'following'
-      ? followingLoading
-      : activeTab === 'trending'
-        ? trendingLoading
-        : eventsLoading;
+    activeTab === 'following' ? followingLoading : trendingLoading;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -246,38 +216,24 @@ export function PostsScreen({
         activeTab={activeTab}
         onTabChange={handleTabChange}
         followingCount={followingList.length}
-        eventsCount={events.length}
         trendingCount={trendingPosts.length}
       />
 
-      {/* Simplified rendering - show events or posts based on active tab */}
-      {activeTab === 'events' ? (
-        <EventList
-          events={events}
-          loading={eventsLoading}
-          profileService={profileService}
-          title="Calendar Events"
-          onEventPress={(event) => {
-            handleShowEventDetail(event);
-          }}
-          onMapPress={handleShowEventMap}
-        />
-      ) : (
-        <PostList
-          posts={currentPosts}
-          loading={currentLoading}
-          showAuthor={activeTab === 'following' || activeTab === 'trending'}
-          profileService={profileService}
-          title={
-            activeTab === 'following'
-              ? 'Fetching posts from following...'
-              : activeTab === 'trending' && trendingPosts.length > 0
-                ? 'Trending posts'
-                : 'Fetching trending posts...'
-          }
-          hidePostCount={activeTab === 'trending'}
-        />
-      )}
+      {/* Show posts based on active tab */}
+      <PostList
+        posts={currentPosts}
+        loading={currentLoading}
+        showAuthor={activeTab === 'following' || activeTab === 'trending'}
+        profileService={profileService}
+        title={
+          activeTab === 'following'
+            ? 'Fetching posts from following...'
+            : activeTab === 'trending' && trendingPosts.length > 0
+              ? 'Trending posts'
+              : 'Fetching trending posts...'
+        }
+        hidePostCount={activeTab === 'trending'}
+      />
 
       {/* Floating Action Button */}
       <TouchableOpacity

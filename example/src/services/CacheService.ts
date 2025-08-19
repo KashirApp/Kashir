@@ -82,7 +82,6 @@ export class CacheService {
 
       const request = ['REQ', subscriptionId, filter];
       const events: any[] = [];
-      let eoseReceived = false;
 
       const messageHandler = (event: MessageEvent) => {
         try {
@@ -94,7 +93,6 @@ export class CacheService {
           if (type === 'EVENT') {
             events.push(data);
           } else if (type === 'EOSE') {
-            eoseReceived = true;
             this.wsClient?.removeEventListener('message', messageHandler);
             resolve(events);
           } else if (type === 'NOTICE') {

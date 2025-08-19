@@ -7,7 +7,6 @@ interface TabNavigationProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
   followingCount: number;
-  eventsCount?: number;
   trendingCount?: number;
 }
 
@@ -15,7 +14,6 @@ export function TabNavigation({
   activeTab,
   onTabChange,
   followingCount,
-  eventsCount = 0,
   trendingCount = 0,
 }: TabNavigationProps) {
   return (
@@ -45,19 +43,6 @@ export function TabNavigation({
           numberOfLines={1}
         >
           {trendingCount > 0 ? `Trend (${trendingCount})` : 'Trending'}
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.tab, activeTab === 'events' && styles.activeTab]}
-        onPress={() => onTabChange('events')}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            activeTab === 'events' && styles.activeTabText,
-          ]}
-        >
-          Events {eventsCount > 0 ? `(${eventsCount})` : ''}
         </Text>
       </TouchableOpacity>
     </View>

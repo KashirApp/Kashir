@@ -43,6 +43,19 @@ export function BottomTabNavigation({
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
+        style={[styles.tab, activeTab === 'events' && styles.activeTab]}
+        onPress={() => onTabChange('events')}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === 'events' && styles.activeTabText,
+          ]}
+        >
+          Events
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
         style={[styles.tab, activeTab === 'settings' && styles.activeTab]}
         onPress={() => onTabChange('settings')}
       >

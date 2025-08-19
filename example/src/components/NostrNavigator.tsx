@@ -16,6 +16,7 @@ export type NostrStackParamList = {
   EventDetail: {
     event: CalendarEvent;
     userNpub: string;
+    isLoggedIn: boolean;
   };
   EventMap: {
     userNpub: string;
@@ -79,27 +80,34 @@ export function NostrNavigator({
             {(props) => (
               <EventDetail
                 {...props}
-                onRSVP={async (status) => {
-                  try {
-                    const postActionService = PostActionService.getInstance();
-                    const event = props.route.params.event;
-                    
-                    // Create event coordinates for NIP-52: kind:pubkey:d-tag
-                    // For calendar events, we use the event ID as d-tag
-                    const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] || event.id;
-                    const eventCoordinates = `${event.kind}:${event.pubkey}:${dTag}`;
-                    
-                    await postActionService.submitRSVP(
-                      event.id,
-                      eventCoordinates,
-                      event.pubkey,
-                      status
-                    );
-                  } catch (error) {
-                    console.error('RSVP submission failed:', error);
-                    throw error; // Re-throw so EventDetail can show error alert
-                  }
-                }}
+                onRSVP={
+                  props.route.params.isLoggedIn
+                    ? async (status) => {
+                        try {
+                          const postActionService =
+                            PostActionService.getInstance();
+                          const event = props.route.params.event;
+
+                          // Create event coordinates for NIP-52: kind:pubkey:d-tag
+                          // For calendar events, we use the event ID as d-tag
+                          const dTag =
+                            event.tags.find((tag) => tag[0] === 'd')?.[1] ||
+                            event.id;
+                          const eventCoordinates = `${event.kind}:${event.pubkey}:${dTag}`;
+
+                          await postActionService.submitRSVP(
+                            event.id,
+                            eventCoordinates,
+                            event.pubkey,
+                            status
+                          );
+                        } catch (error) {
+                          console.error('RSVP submission failed:', error);
+                          throw error; // Re-throw so EventDetail can show error alert
+                        }
+                      }
+                    : undefined
+                }
               />
             )}
           </Stack.Screen>

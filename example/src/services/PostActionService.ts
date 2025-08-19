@@ -185,7 +185,9 @@ export class PostActionService {
       }
 
       await client.sendEvent(signedEvent);
-      console.log(`Successfully submitted RSVP with status: ${status} for event: ${eventId}`);
+      console.log(
+        `Successfully submitted RSVP with status: ${status} for event: ${eventId}`
+      );
     } catch (error) {
       console.error('Failed to submit RSVP:', error);
       throw error;

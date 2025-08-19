@@ -5,12 +5,17 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NostrNavigator } from './components/NostrNavigator';
 import { WalletScreen } from './components/WalletScreen';
+import { EventsScreen } from './components/EventsScreen';
+import { EventDetail } from './components/EventDetail';
+import { EventMapScreen } from './components/EventMapScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { BottomTabNavigation } from './components/BottomTabNavigation';
 import { UserPostsScreen } from './components/UserPostsScreen';
 import { NostrClientService, LoginType } from './services/NostrClient';
+import { PostActionService } from './services/PostActionService';
 import { PublicKey } from 'kashir';
 import type { MainTabType } from './types';
+import type { CalendarEvent } from './hooks/useEvents';
 
 // Root stack for the entire app
 export type RootStackParamList = {
@@ -18,6 +23,15 @@ export type RootStackParamList = {
   UserPosts: {
     userNpub: string;
     userName: string;
+  };
+  EventDetail: {
+    event: CalendarEvent;
+    userNpub: string;
+    isLoggedIn: boolean;
+  };
+  EventMap: {
+    userNpub: string;
+    onEventSelect: (event: CalendarEvent) => void;
   };
 };
 
@@ -31,6 +45,7 @@ function MainAppScreen({
   handleLogin,
   handleLogout,
   handleMainTabChange,
+  navigation,
 }: {
   activeMainTab: MainTabType;
   isLoggedIn: boolean;
@@ -39,6 +54,7 @@ function MainAppScreen({
   handleLogin: (npub: string, loginType: LoginType) => Promise<void>;
   handleLogout: () => Promise<void>;
   handleMainTabChange: (tab: MainTabType) => void;
+  navigation: any;
 }) {
   return (
     <View style={styles.container}>
@@ -66,6 +82,20 @@ function MainAppScreen({
             loginType={loginType}
             onLogin={handleLogin}
             onLogout={handleLogout}
+          />
+        </View>
+
+        {/* Events Screen */}
+        <View
+          style={[
+            styles.fullContainer,
+            activeMainTab === 'events' ? styles.activeTab : styles.hiddenTab,
+          ]}
+        >
+          <EventsScreen
+            isLoggedIn={isLoggedIn}
+            userNpub={userNpub}
+            navigation={navigation}
           />
         </View>
 
@@ -205,6 +235,20 @@ export default function App() {
               setLoginType(LoginType.Amber);
             }
           }
+        } else {
+          // No stored session - initialize client for anonymous browsing
+          console.log(
+            'App: No stored session, initializing client for anonymous browsing...'
+          );
+          try {
+            await nostrClient.initialize();
+            console.log('App: Client initialized for anonymous browsing');
+          } catch (error) {
+            console.error(
+              'App: Failed to initialize client for anonymous browsing:',
+              error
+            );
+          }
         }
       } catch (error) {
         console.error('Error loading stored session:', error);
@@ -322,7 +366,7 @@ export default function App() {
           screenOptions={{ headerShown: false }}
         >
           <RootStack.Screen name="MainApp">
-            {() => (
+            {({ navigation }) => (
               <MainAppScreen
                 activeMainTab={activeMainTab}
                 isLoggedIn={isLoggedIn}
@@ -331,6 +375,7 @@ export default function App() {
                 handleLogin={handleLogin}
                 handleLogout={handleLogout}
                 handleMainTabChange={handleMainTabChange}
+                navigation={navigation}
               />
             )}
           </RootStack.Screen>
@@ -340,6 +385,71 @@ export default function App() {
             options={{
               headerShown: true,
               title: 'User Posts',
+              headerStyle: {
+                backgroundColor: '#2a2a2a',
+              },
+              headerTintColor: '#81b0ff',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: '#ffffff',
+              },
+            }}
+          />
+          <RootStack.Screen
+            name="EventDetail"
+            options={{
+              headerShown: true,
+              title: 'Event Details',
+              headerStyle: {
+                backgroundColor: '#2a2a2a',
+              },
+              headerTintColor: '#81b0ff',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: '#ffffff',
+              },
+            }}
+          >
+            {(props) => (
+              <EventDetail
+                {...props}
+                onRSVP={
+                  props.route.params.isLoggedIn
+                    ? async (status) => {
+                        try {
+                          const postActionService =
+                            PostActionService.getInstance();
+                          const event = props.route.params.event;
+
+                          // Create event coordinates for NIP-52: kind:pubkey:d-tag
+                          // For calendar events, we use the event ID as d-tag
+                          const dTag =
+                            event.tags.find((tag) => tag[0] === 'd')?.[1] ||
+                            event.id;
+                          const eventCoordinates = `${event.kind}:${event.pubkey}:${dTag}`;
+
+                          await postActionService.submitRSVP(
+                            event.id,
+                            eventCoordinates,
+                            event.pubkey,
+                            status
+                          );
+                        } catch (error) {
+                          console.error('RSVP submission failed:', error);
+                          throw error; // Re-throw so EventDetail can show error alert
+                        }
+                      }
+                    : undefined
+                }
+              />
+            )}
+          </RootStack.Screen>
+          <RootStack.Screen
+            name="EventMap"
+            component={EventMapScreen}
+            options={{
+              headerShown: true,
+              title: 'Event Map',
               headerStyle: {
                 backgroundColor: '#2a2a2a',
               },

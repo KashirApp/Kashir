@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Client, PublicKey, Filter, Kind } from 'kashir';
 import type { EventInterface } from 'kashir';
@@ -99,10 +99,7 @@ export function usePosts(client: Client | null) {
 
             setPosts(enhancedPosts);
           } catch (error) {
-            console.warn(
-              'Failed to enhance user posts with stats:',
-              error
-            );
+            console.warn('Failed to enhance user posts with stats:', error);
             // Fallback to posts without stats
             setPosts(postsWithStats);
           }
