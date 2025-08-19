@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { NostrClientService } from '../services/NostrClient';
+import { TouchableOpacity, Text } from 'react-native';
+import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
+import { NostrClientService, LoginType } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
+import { SecureStorageService } from '../services/SecureStorageService';
 import { useEvents } from '../hooks/useEvents';
 import type { CalendarEvent } from '../hooks/useEvents';
 import { Header } from './Header';
 import { EventList } from './EventList';
+import { CreateEventModal } from './CreateEventModal';
 import { styles } from '../App.styles';
-import { Client } from 'kashir';
+import { Client, Keys, SecretKey } from 'kashir';
 
 interface EventsScreenProps {
   isLoggedIn: boolean;
@@ -22,10 +25,14 @@ export function EventsScreen({
 }: EventsScreenProps) {
   const [isClientReady, setIsClientReady] = useState(false);
   const [client, setClient] = useState<Client | null>(null);
+  const [isCreateEventModalVisible, setIsCreateEventModalVisible] =
+    useState(false);
+  const [_userKeys, setUserKeys] = useState<Keys | null>(null);
 
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
   const profileService = useMemo(() => new ProfileService(), []);
+  const session = clientService.getCurrentSession();
 
   // Use events hook
   const {
@@ -67,6 +74,26 @@ export function EventsScreen({
     };
   }, [clientService]);
 
+  // Load user keys for signing
+  useEffect(() => {
+    const loadKeys = async () => {
+      try {
+        const privateKey = await SecureStorageService.getNostrPrivateKey();
+        if (privateKey) {
+          const secretKey = SecretKey.parse(privateKey);
+          const keys = new Keys(secretKey);
+          setUserKeys(keys);
+        }
+      } catch (error) {
+        console.error('Failed to load user keys:', error);
+      }
+    };
+
+    if (isLoggedIn && session?.type === LoginType.PrivateKey) {
+      loadKeys();
+    }
+  }, [isLoggedIn, session?.type]);
+
   // Fetch events when client is ready
   useEffect(() => {
     if (isClientReady && events.length === 0 && !eventsLoading) {
@@ -89,8 +116,17 @@ export function EventsScreen({
     });
   };
 
+  const handleCreateEvent = () => {
+    setIsCreateEventModalVisible(true);
+  };
+
+  const handleEventCreated = () => {
+    // Refresh events list after creating a new event
+    fetchEvents();
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaViewContext style={styles.container}>
       <Header />
 
       <EventList
@@ -101,6 +137,25 @@ export function EventsScreen({
         onEventPress={handleEventPress}
         onMapPress={handleMapPress}
       />
-    </SafeAreaView>
+
+      {/* Floating Action Button - only show when logged in */}
+      {isLoggedIn && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={handleCreateEvent}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Create Event Modal */}
+      <CreateEventModal
+        visible={isCreateEventModalVisible}
+        onClose={() => setIsCreateEventModalVisible(false)}
+        onEventCreated={handleEventCreated}
+        isLoggedIn={isLoggedIn}
+      />
+    </SafeAreaViewContext>
   );
 }

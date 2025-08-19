@@ -394,4 +394,50 @@ export const styles = StyleSheet.create({
   enabledButton: {
     opacity: 1,
   },
+  // Event Modal Form Styles
+  eventModalContainer: {
+    maxHeight: '90%',
+  },
+  eventModalContent: {
+    maxHeight: 400,
+    paddingVertical: 10,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  formInput: {
+    borderWidth: 1,
+    borderColor: '#444',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#1a1a1a',
+    color: '#fff',
+  },
+  formTextArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  formDateButton: {
+    borderWidth: 1,
+    borderColor: '#444',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#1a1a1a',
+  },
+  formDateText: {
+    fontSize: 16,
+    color: '#fff',
+  },
+  formToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
 });

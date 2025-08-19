@@ -12,6 +12,7 @@ import { SecureStorageService } from './SecureStorageService';
 import { ProfileService } from './ProfileService';
 import { LNURLService } from './LNURLService';
 import type { EventInterface } from 'kashir';
+import type { CalendarEventData } from '../types';
 
 export class PostActionService {
   private static instance: PostActionService | null = null;
@@ -324,6 +325,107 @@ export class PostActionService {
       }
     } catch (error) {
       console.error('Failed to zap post:', error);
+      throw error;
+    }
+  }
+
+  async createCalendarEvent(eventData: CalendarEventData): Promise<void> {
+    try {
+      const clientService = NostrClientService.getInstance();
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+
+      if (!client) {
+        throw new Error('Client not available');
+      }
+
+      if (!session) {
+        throw new Error('User not logged in');
+      }
+
+      // Determine event kind based on event type
+      const eventKind = new Kind(eventData.isDateBased ? 31922 : 31923);
+
+      // Prepare event tags according to NIP-52
+      const tags: Tag[] = [];
+
+      // Title tag (required)
+      tags.push(Tag.parse(['title', eventData.title]));
+
+      // Summary tag (optional)
+      if (eventData.summary?.trim()) {
+        tags.push(Tag.parse(['summary', eventData.summary.trim()]));
+      }
+
+      // Location tag (optional)
+      if (eventData.location?.trim()) {
+        tags.push(Tag.parse(['location', eventData.location.trim()]));
+      }
+
+      // Image tag (optional)
+      if (eventData.imageUrl?.trim()) {
+        tags.push(Tag.parse(['image', eventData.imageUrl.trim()]));
+      }
+
+      // Start time tag (required)
+      if (eventData.isDateBased) {
+        // For date-based events, use YYYY-MM-DD format
+        const startDateString = eventData.startDate.toISOString().split('T')[0];
+        tags.push(Tag.parse(['start', startDateString]));
+      } else {
+        // For time-based events, use Unix timestamp
+        const startTimestamp = Math.floor(
+          eventData.startDate.getTime() / 1000
+        ).toString();
+        tags.push(Tag.parse(['start', startTimestamp]));
+      }
+
+      // End time tag (optional)
+      if (eventData.endDate) {
+        if (eventData.isDateBased) {
+          // For date-based events, use YYYY-MM-DD format
+          const endDateString = eventData.endDate.toISOString().split('T')[0];
+          tags.push(Tag.parse(['end', endDateString]));
+        } else {
+          // For time-based events, use Unix timestamp
+          const endTimestamp = Math.floor(
+            eventData.endDate.getTime() / 1000
+          ).toString();
+          tags.push(Tag.parse(['end', endTimestamp]));
+        }
+      }
+
+      // Create the event with description as content
+      const eventBuilder = new EventBuilder(
+        eventKind,
+        eventData.description || ''
+      )
+        .tags(tags)
+        .allowSelfTagging();
+
+      let signedEvent;
+      if (session.type === LoginType.Amber) {
+        const signer = await client.signer();
+        if (!signer) {
+          throw new Error('Amber signer not available');
+        }
+        signedEvent = await eventBuilder.sign(signer);
+      } else if (session.type === LoginType.PrivateKey) {
+        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
+        if (!privateKeyHex) {
+          throw new Error('Private key not found in secure storage');
+        }
+        const secretKey = SecretKey.parse(privateKeyHex);
+        const keys = new Keys(secretKey);
+        signedEvent = eventBuilder.signWithKeys(keys);
+      } else {
+        throw new Error('No signing method available');
+      }
+
+      await client.sendEvent(signedEvent);
+      console.log(`Successfully created calendar event: ${eventData.title}`);
+    } catch (error) {
+      console.error('Failed to create calendar event:', error);
       throw error;
     }
   }
