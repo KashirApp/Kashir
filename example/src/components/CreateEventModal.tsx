@@ -9,7 +9,9 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../App.styles';
 import { PostActionService } from '../services/PostActionService';
 import type { CalendarEventData } from '../types';
@@ -27,17 +29,34 @@ export function CreateEventModal({
   onEventCreated,
   isLoggedIn,
 }: CreateEventModalProps) {
+  // Helper function to get next rounded hour
+  const getNextRoundedHour = () => {
+    const now = new Date();
+    const nextHour = new Date(now);
+    nextHour.setHours(now.getHours() + 1, 0, 0, 0); // Set to next hour, 0 minutes, 0 seconds, 0 ms
+    return nextHour;
+  };
+
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [description, setDescription] = useState('');
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date(Date.now() + 60 * 60 * 1000)); // +1 hour
+  const [startDate, setStartDate] = useState(getNextRoundedHour());
+  const [endDate, setEndDate] = useState(() => {
+    const start = getNextRoundedHour();
+    return new Date(start.getTime() + 2 * 60 * 60 * 1000); // +2 hours from rounded start
+  });
   const [location, setLocation] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [isDateBased, setIsDateBased] = useState(false);
   const [hasEndDate, setHasEndDate] = useState(true);
 
   const [isCreating, setIsCreating] = useState(false);
+
+  // Date picker visibility state
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const handleClose = () => {
     if (isCreating) return;
@@ -49,8 +68,9 @@ export function CreateEventModal({
     setTitle('');
     setSummary('');
     setDescription('');
-    setStartDate(new Date());
-    setEndDate(new Date(Date.now() + 60 * 60 * 1000));
+    const nextHour = getNextRoundedHour();
+    setStartDate(nextHour);
+    setEndDate(new Date(nextHour.getTime() + 2 * 60 * 60 * 1000));
     setLocation('');
     setImageUrl('');
     setIsDateBased(false);
@@ -75,8 +95,8 @@ export function CreateEventModal({
 
   const isValidUrl = (string: string): boolean => {
     try {
-      new URL(string);
-      return true;
+      const url = new URL(string);
+      return Boolean(url);
     } catch {
       return false;
     }
@@ -128,18 +148,11 @@ export function CreateEventModal({
     }
   };
 
-  const formatDateForDisplay = (date: Date): string => {
-    if (isDateBased) {
-      return date.toDateString();
-    }
-    return date.toLocaleString();
-  };
-
   const handleStartDateInOneHour = () => {
     const newStart = new Date(Date.now() + 60 * 60 * 1000);
     setStartDate(newStart);
     if (hasEndDate && endDate <= newStart) {
-      setEndDate(new Date(newStart.getTime() + 60 * 60 * 1000));
+      setEndDate(new Date(newStart.getTime() + 2 * 60 * 60 * 1000));
     }
   };
 
@@ -156,7 +169,68 @@ export function CreateEventModal({
   };
 
   const handleEndDateOneHourLater = () => {
-    setEndDate(new Date(startDate.getTime() + 60 * 60 * 1000));
+    setEndDate(new Date(endDate.getTime() + 60 * 60 * 1000));
+  };
+
+  // Date picker handlers
+  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      const newStartDate = new Date(startDate);
+      newStartDate.setFullYear(selectedDate.getFullYear());
+      newStartDate.setMonth(selectedDate.getMonth());
+      newStartDate.setDate(selectedDate.getDate());
+      setStartDate(newStartDate);
+
+      // Auto-adjust end date if it's before the new start date
+      if (hasEndDate && endDate <= newStartDate) {
+        setEndDate(new Date(newStartDate.getTime() + 2 * 60 * 60 * 1000));
+      }
+    }
+  };
+
+  const handleStartTimeChange = (event: any, selectedDate?: Date) => {
+    setShowStartTimePicker(false);
+    if (selectedDate) {
+      const newStartDate = new Date(startDate);
+      newStartDate.setHours(selectedDate.getHours());
+      newStartDate.setMinutes(selectedDate.getMinutes());
+      setStartDate(newStartDate);
+
+      // Auto-adjust end date if it's before the new start date
+      if (hasEndDate && endDate <= newStartDate) {
+        setEndDate(new Date(newStartDate.getTime() + 2 * 60 * 60 * 1000));
+      }
+    }
+  };
+
+  const handleEndDateChange = (event: any, selectedDate?: Date) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      const newEndDate = new Date(endDate);
+      newEndDate.setFullYear(selectedDate.getFullYear());
+      newEndDate.setMonth(selectedDate.getMonth());
+      newEndDate.setDate(selectedDate.getDate());
+      setEndDate(newEndDate);
+    }
+  };
+
+  const handleEndTimeChange = (event: any, selectedDate?: Date) => {
+    setShowEndTimePicker(false);
+    if (selectedDate) {
+      const newEndDate = new Date(endDate);
+      newEndDate.setHours(selectedDate.getHours());
+      newEndDate.setMinutes(selectedDate.getMinutes());
+      setEndDate(newEndDate);
+    }
+  };
+
+  const handleSetStartToNow = () => {
+    const nextHour = getNextRoundedHour();
+    setStartDate(nextHour);
+    if (hasEndDate && endDate <= nextHour) {
+      setEndDate(new Date(nextHour.getTime() + 2 * 60 * 60 * 1000));
+    }
   };
 
   if (!visible) return null;
@@ -217,27 +291,53 @@ export function CreateEventModal({
               <Text style={styles.formLabel}>
                 Start {isDateBased ? 'Date' : 'Date & Time'} *
               </Text>
-              <View style={styles.formDateButton}>
+
+              {/* Date Selection */}
+              <TouchableOpacity
+                style={styles.formDateButton}
+                onPress={() => setShowStartDatePicker(true)}
+                disabled={isCreating}
+              >
                 <Text style={styles.formDateText}>
-                  {formatDateForDisplay(startDate)}
+                  📅 {startDate.toDateString()}
                 </Text>
-              </View>
-              <View style={{ flexDirection: 'row', marginTop: 8, gap: 8 }}>
+              </TouchableOpacity>
+
+              {/* Time Selection - only show for time-based events */}
+              {!isDateBased && (
                 <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    { flex: 1, backgroundColor: '#444' },
-                  ]}
+                  style={[styles.formDateButton, styles.formTimeButton]}
+                  onPress={() => setShowStartTimePicker(true)}
+                  disabled={isCreating}
+                >
+                  <Text style={styles.formDateText}>
+                    🕒{' '}
+                    {startDate.toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Quick Select Buttons */}
+              <View style={styles.quickSelectRow}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.quickSelectButton]}
+                  onPress={handleSetStartToNow}
+                  disabled={isCreating}
+                >
+                  <Text style={styles.modalButtonText}>Next hour</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.quickSelectButton]}
                   onPress={handleStartDateInOneHour}
                   disabled={isCreating}
                 >
                   <Text style={styles.modalButtonText}>In 1 hour</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    { flex: 1, backgroundColor: '#444' },
-                  ]}
+                  style={[styles.modalButton, styles.quickSelectButton]}
                   onPress={handleStartDateTomorrow}
                   disabled={isCreating}
                 >
@@ -268,17 +368,39 @@ export function CreateEventModal({
                 <Text style={styles.formLabel}>
                   End {isDateBased ? 'Date' : 'Date & Time'}
                 </Text>
-                <View style={styles.formDateButton}>
+
+                {/* Date Selection */}
+                <TouchableOpacity
+                  style={styles.formDateButton}
+                  onPress={() => setShowEndDatePicker(true)}
+                  disabled={isCreating}
+                >
                   <Text style={styles.formDateText}>
-                    {formatDateForDisplay(endDate)}
+                    📅 {endDate.toDateString()}
                   </Text>
-                </View>
-                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                </TouchableOpacity>
+
+                {/* Time Selection - only show for time-based events */}
+                {!isDateBased && (
                   <TouchableOpacity
-                    style={[
-                      styles.modalButton,
-                      { flex: 1, backgroundColor: '#444' },
-                    ]}
+                    style={[styles.formDateButton, styles.formTimeButton]}
+                    onPress={() => setShowEndTimePicker(true)}
+                    disabled={isCreating}
+                  >
+                    <Text style={styles.formDateText}>
+                      🕒{' '}
+                      {endDate.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Quick Select Button */}
+                <View style={styles.endDateQuickSelectRow}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.quickSelectButton]}
                     onPress={handleEndDateOneHourLater}
                     disabled={isCreating}
                   >
@@ -375,6 +497,44 @@ export function CreateEventModal({
           </View>
         </View>
       </View>
+
+      {/* Native DateTimePicker Components */}
+      {showStartDatePicker && (
+        <DateTimePicker
+          value={startDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleStartDateChange}
+        />
+      )}
+
+      {showStartTimePicker && (
+        <DateTimePicker
+          value={startDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleStartTimeChange}
+        />
+      )}
+
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={endDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleEndDateChange}
+          minimumDate={startDate}
+        />
+      )}
+
+      {showEndTimePicker && (
+        <DateTimePicker
+          value={endDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleEndTimeChange}
+        />
+      )}
     </Modal>
   );
 }

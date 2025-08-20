@@ -440,4 +440,26 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  // Event modal specific styles
+  formTimeButton: {
+    borderWidth: 1,
+    borderColor: '#444',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#1a1a1a',
+    marginTop: 8,
+  },
+  quickSelectRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 8,
+  },
+  quickSelectButton: {
+    flex: 1,
+    backgroundColor: '#444',
+  },
+  endDateQuickSelectRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
 });
