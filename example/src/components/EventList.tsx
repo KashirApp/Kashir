@@ -23,6 +23,8 @@ interface EventListProps {
   title?: string;
   onEventPress?: (event: CalendarEvent) => void;
   onMapPress?: () => void;
+  showMyEventsOnly?: boolean;
+  onMyEventsPress?: () => void;
 }
 
 export function EventList({
@@ -32,6 +34,8 @@ export function EventList({
   title = 'Calendar Events (by time)',
   onEventPress,
   onMapPress,
+  showMyEventsOnly = false,
+  onMyEventsPress,
 }: EventListProps) {
   const [sortOption, setSortOption] = React.useState<SortOption>('time');
   const [userLocation, setUserLocation] = React.useState<Coordinates | null>(
@@ -150,29 +154,60 @@ export function EventList({
       }
     };
 
-    // Filter out past events - only show future events
-    sorted = sorted.filter((event) => {
-      const eventTime = getEventTime(event);
-      return eventTime > now; // Only future events
-    });
+    // Filter out past events - only show future events (unless showing My Events)
+    if (!showMyEventsOnly) {
+      sorted = sorted.filter((event) => {
+        const eventTime = getEventTime(event);
+        return eventTime > now; // Only future events
+      });
+    }
 
     if (sortOption === 'time') {
-      // Sort future events by proximity to current time (closest upcoming first)
-      sorted.sort((a, b) => {
-        const aTime = getEventTime(a);
-        const bTime = getEventTime(b);
-        return aTime - bTime; // Chronological order for future events
-      });
+      if (showMyEventsOnly) {
+        // For My Events, show all events sorted by time (future first, then past in reverse order)
+        sorted.sort((a, b) => {
+          const aTime = getEventTime(a);
+          const bTime = getEventTime(b);
+
+          const aIsFuture = aTime > now;
+          const bIsFuture = bTime > now;
+
+          if (aIsFuture && !bIsFuture) return -1; // a is future, b is past
+          if (!aIsFuture && bIsFuture) return 1; // a is past, b is future
+
+          if (aIsFuture && bIsFuture) {
+            // Both future - sort chronologically (earliest first)
+            return aTime - bTime;
+          } else {
+            // Both past - sort reverse chronologically (most recent first)
+            return bTime - aTime;
+          }
+        });
+      } else {
+        // Sort future events by proximity to current time (closest upcoming first)
+        sorted.sort((a, b) => {
+          const aTime = getEventTime(a);
+          const bTime = getEventTime(b);
+          return aTime - bTime; // Chronological order for future events
+        });
+      }
     } else if (sortOption === 'distance' && userLocation) {
-      // Distance sorting for future events only
+      // Distance sorting
       // First filter out events without location
       sorted = sorted.filter((event) => {
         const coords = EventLocationParser.parseEventLocation(event);
         return coords !== null;
       });
 
+      // If not showing My Events, also filter out past events for distance sorting
+      if (!showMyEventsOnly) {
+        sorted = sorted.filter((event) => {
+          const eventTime = getEventTime(event);
+          return eventTime > now; // Only future events for regular distance sorting
+        });
+      }
+
       sorted.sort((a, b) => {
-        // All events are future at this point, just sort by distance
         const coordsA = EventLocationParser.parseEventLocation(a)!; // We know it exists from filter
         const coordsB = EventLocationParser.parseEventLocation(b)!; // We know it exists from filter
 
@@ -190,7 +225,7 @@ export function EventList({
     }
 
     setSortedEvents(sorted);
-  }, [events, sortOption, userLocation, locationService]);
+  }, [events, sortOption, userLocation, locationService, showMyEventsOnly]);
 
   const handleSortByDistance = async () => {
     if (sortOption === 'distance') {
@@ -256,6 +291,17 @@ export function EventList({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <View style={styles.leftButtons}>
+          {onMyEventsPress && (
+            <TouchableOpacity
+              style={styles.myEventsButton}
+              onPress={onMyEventsPress}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.myEventsButtonText}>My Events</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.headerText}>
           {getEventTypeIndicator(events[0]?.kind || 31922)}{' '}
           {sortOption === 'distance' ? 'Events by Distance' : title} (
@@ -392,6 +438,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  leftButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  myEventsButton: {
+    backgroundColor: '#333',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  myEventsButtonActive: {
+    backgroundColor: '#ff6b66',
+  },
+  myEventsButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  myEventsButtonTextActive: {
+    color: '#000',
+  },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -419,9 +487,10 @@ const styles = StyleSheet.create({
   },
   headerText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     flex: 1,
+    textAlign: 'center',
   },
   mapButton: {
     backgroundColor: '#81b0ff',

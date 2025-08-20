@@ -10,6 +10,7 @@ import { EventDetail } from './components/EventDetail';
 import { EventMapScreen } from './components/EventMapScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { BottomTabNavigation } from './components/BottomTabNavigation';
+import { MyEventsScreen } from './components/MyEventsScreen';
 import { UserPostsScreen } from './components/UserPostsScreen';
 import { NostrClientService, LoginType } from './services/NostrClient';
 import { PostActionService } from './services/PostActionService';
@@ -24,6 +25,10 @@ export type RootStackParamList = {
     userNpub: string;
     userName: string;
   };
+  MyEvents: {
+    userNpub: string;
+    isLoggedIn: boolean;
+  };
   EventDetail: {
     event: CalendarEvent;
     userNpub: string;
@@ -32,6 +37,7 @@ export type RootStackParamList = {
   EventMap: {
     userNpub: string;
     onEventSelect: (event: CalendarEvent) => void;
+    myEventsOnly?: boolean;
   };
 };
 
@@ -385,6 +391,22 @@ export default function App() {
             options={{
               headerShown: true,
               title: 'User Posts',
+              headerStyle: {
+                backgroundColor: '#2a2a2a',
+              },
+              headerTintColor: '#81b0ff',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: '#ffffff',
+              },
+            }}
+          />
+          <RootStack.Screen
+            name="MyEvents"
+            component={MyEventsScreen}
+            options={{
+              headerShown: true,
+              title: 'My Events',
               headerStyle: {
                 backgroundColor: '#2a2a2a',
               },

@@ -97,9 +97,9 @@ export function EventsScreen({
   // Fetch events when client is ready
   useEffect(() => {
     if (isClientReady && events.length === 0 && !eventsLoading) {
-      fetchEvents();
+      fetchEvents(userNpub);
     }
-  }, [isClientReady, events.length, eventsLoading, fetchEvents]);
+  }, [isClientReady, events.length, eventsLoading, fetchEvents, userNpub]);
 
   const handleEventPress = (event: CalendarEvent) => {
     navigation.navigate('EventDetail', {
@@ -122,7 +122,14 @@ export function EventsScreen({
 
   const handleEventCreated = () => {
     // Refresh events list after creating a new event
-    fetchEvents();
+    fetchEvents(userNpub);
+  };
+
+  const handleNavigateToMyEvents = () => {
+    navigation.navigate('MyEvents', {
+      userNpub,
+      isLoggedIn,
+    });
   };
 
   return (
@@ -136,6 +143,7 @@ export function EventsScreen({
         title="Calendar Events"
         onEventPress={handleEventPress}
         onMapPress={handleMapPress}
+        onMyEventsPress={isLoggedIn ? handleNavigateToMyEvents : undefined}
       />
 
       {/* Floating Action Button - only show when logged in */}
