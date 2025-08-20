@@ -25,6 +25,8 @@ interface EventListProps {
   onMapPress?: () => void;
   showMyEventsOnly?: boolean;
   onMyEventsPress?: () => void;
+  onEventEdit?: (event: CalendarEvent) => void; // Callback for editing events
+  userNpub?: string; // Add userNpub to check permissions
 }
 
 export function EventList({
@@ -36,6 +38,8 @@ export function EventList({
   onMapPress,
   showMyEventsOnly = false,
   onMyEventsPress,
+  onEventEdit,
+  userNpub,
 }: EventListProps) {
   const [sortOption, setSortOption] = React.useState<SortOption>('time');
   const [userLocation, setUserLocation] = React.useState<Coordinates | null>(
@@ -268,6 +272,20 @@ export function EventList({
     return locationService.formatDistance(distance);
   };
 
+  // Helper function to check if user can edit this event
+  const canEditEvent = (event: CalendarEvent): boolean => {
+    if (!showMyEventsOnly || !userNpub || !onEventEdit) return false;
+
+    // Convert userNpub to hex for comparison
+    try {
+      const { PublicKey } = require('kashir');
+      const userPubkey = PublicKey.parse(userNpub);
+      return event.pubkey === userPubkey.toHex();
+    } catch {
+      return false;
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -359,62 +377,74 @@ export function EventList({
             onPress={() => onEventPress?.(event)}
             activeOpacity={0.7}
           >
-            <View style={styles.eventContent}>
-              <View style={styles.eventHeader}>
-                <Text style={styles.eventTypeIndicator}>
-                  {getEventTypeIndicator(event.kind)}
-                </Text>
-                <Text style={styles.eventTitle} numberOfLines={2}>
-                  {event.title || 'Untitled Event'}
-                </Text>
-              </View>
-
-              <Text style={getEventDateStyle(event)}>
-                {formatEventDate(event)}
-              </Text>
-
-              {event.location && (
-                <View style={styles.locationContainer}>
-                  <Text style={styles.eventLocation} numberOfLines={1}>
-                    📍 {event.location}
+            <View style={styles.eventRow}>
+              <View style={styles.eventContent}>
+                <View style={styles.eventHeader}>
+                  <Text style={styles.eventTypeIndicator}>
+                    {getEventTypeIndicator(event.kind)}
                   </Text>
-                  {getDistanceText(event) && (
-                    <Text style={styles.distanceText}>
-                      {getDistanceText(event)}
-                    </Text>
-                  )}
+                  <Text style={styles.eventTitle} numberOfLines={2}>
+                    {event.title || 'Untitled Event'}
+                  </Text>
                 </View>
-              )}
 
-              {event.description && (
-                <Text style={styles.eventDescription} numberOfLines={2}>
-                  {event.description}
+                <Text style={getEventDateStyle(event)}>
+                  {formatEventDate(event)}
                 </Text>
-              )}
 
-              {event.categories && event.categories.length > 0 && (
-                <View style={styles.categoriesContainer}>
-                  {event.categories.slice(0, 3).map((category, index) => (
-                    <Text key={index} style={styles.categoryTag}>
-                      #{category}
+                {event.location && (
+                  <View style={styles.locationContainer}>
+                    <Text style={styles.eventLocation} numberOfLines={1}>
+                      📍 {event.location}
                     </Text>
-                  ))}
-                  {event.categories.length > 3 && (
-                    <Text style={styles.categoryTag}>
-                      +{event.categories.length - 3} more
-                    </Text>
-                  )}
-                </View>
-              )}
-
-              <View style={styles.eventFooter}>
-                <Text style={styles.organizer}>
-                  by {getOrganizerName(event.pubkey)}
-                </Text>
-                {event.kind === 31922 && (
-                  <Text style={styles.eventKind}>All Day</Text>
+                    {getDistanceText(event) && (
+                      <Text style={styles.distanceText}>
+                        {getDistanceText(event)}
+                      </Text>
+                    )}
+                  </View>
                 )}
+
+                {event.description && (
+                  <Text style={styles.eventDescription} numberOfLines={2}>
+                    {event.description}
+                  </Text>
+                )}
+
+                {event.categories && event.categories.length > 0 && (
+                  <View style={styles.categoriesContainer}>
+                    {event.categories.slice(0, 3).map((category, index) => (
+                      <Text key={index} style={styles.categoryTag}>
+                        #{category}
+                      </Text>
+                    ))}
+                    {event.categories.length > 3 && (
+                      <Text style={styles.categoryTag}>
+                        +{event.categories.length - 3} more
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                <View style={styles.eventFooter}>
+                  <Text style={styles.organizer}>
+                    by {getOrganizerName(event.pubkey)}
+                  </Text>
+                  {event.kind === 31922 && (
+                    <Text style={styles.eventKind}>All Day</Text>
+                  )}
+                </View>
               </View>
+
+              {canEditEvent(event) && (
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => onEventEdit?.(event)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editButtonText}>⚙️</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </TouchableOpacity>
         ))}
@@ -513,8 +543,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
+  eventRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
   eventContent: {
     flex: 1,
+    paddingRight: 12,
+  },
+  editButton: {
+    padding: 8,
+    marginTop: 4,
+  },
+  editButtonText: {
+    fontSize: 18,
   },
   eventHeader: {
     flexDirection: 'row',

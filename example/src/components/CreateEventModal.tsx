@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -15,12 +15,14 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { styles } from '../App.styles';
 import { PostActionService } from '../services/PostActionService';
 import type { CalendarEventData } from '../types';
+import type { CalendarEvent } from '../hooks/useEvents';
 
 interface CreateEventModalProps {
   visible: boolean;
   onClose: () => void;
   onEventCreated?: () => void;
   isLoggedIn: boolean;
+  existingEvent?: CalendarEvent; // Add support for editing existing events
 }
 
 export function CreateEventModal({
@@ -28,6 +30,7 @@ export function CreateEventModal({
   onClose,
   onEventCreated,
   isLoggedIn,
+  existingEvent,
 }: CreateEventModalProps) {
   // Helper function to get next rounded hour
   const getNextRoundedHour = () => {
@@ -38,12 +41,12 @@ export function CreateEventModal({
   };
 
   const [title, setTitle] = useState('');
-  const [summary, setSummary] = useState('');
+  const [summary, setSummary] = useState(''); // Note: summary not in CalendarEvent interface
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState(getNextRoundedHour());
   const [endDate, setEndDate] = useState(() => {
     const start = getNextRoundedHour();
-    return new Date(start.getTime() + 2 * 60 * 60 * 1000); // +2 hours from rounded start
+    return new Date(start.getTime() + 2 * 60 * 60 * 1000); // +2 hours from start
   });
   const [location, setLocation] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -51,6 +54,50 @@ export function CreateEventModal({
   const [hasEndDate, setHasEndDate] = useState(true);
 
   const [isCreating, setIsCreating] = useState(false);
+
+  // Update form fields when existingEvent changes
+  useEffect(() => {
+    const initializeDate = (
+      dateString?: string,
+      defaultDate: Date = getNextRoundedHour()
+    ) => {
+      if (!dateString) return defaultDate;
+
+      // Handle both date-based (YYYY-MM-DD) and time-based (Unix timestamp) formats
+      if (existingEvent?.kind === 31922) {
+        // Date-based event
+        return new Date(dateString + 'T12:00:00');
+      } else {
+        // Time-based event - Unix timestamp in seconds
+        return new Date(parseInt(dateString, 10) * 1000);
+      }
+    };
+
+    if (existingEvent) {
+      setTitle(existingEvent.title || '');
+      setDescription(existingEvent.description || '');
+      setStartDate(initializeDate(existingEvent.startDate));
+      if (existingEvent.endDate) {
+        setEndDate(initializeDate(existingEvent.endDate));
+      } else {
+        const start = initializeDate(existingEvent.startDate);
+        setEndDate(new Date(start.getTime() + 2 * 60 * 60 * 1000));
+      }
+      setLocation(existingEvent.location || '');
+      setImageUrl(existingEvent.image || '');
+      setIsDateBased(existingEvent.kind === 31922);
+    } else {
+      // Reset form for new event creation
+      setTitle('');
+      setDescription('');
+      setStartDate(getNextRoundedHour());
+      const start = getNextRoundedHour();
+      setEndDate(new Date(start.getTime() + 2 * 60 * 60 * 1000));
+      setLocation('');
+      setImageUrl('');
+      setIsDateBased(false);
+    }
+  }, [existingEvent]);
 
   // Date picker visibility state
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -102,9 +149,9 @@ export function CreateEventModal({
     }
   };
 
-  const handleCreateEvent = async () => {
+  const handleSaveEvent = async () => {
     if (!isLoggedIn) {
-      Alert.alert('Error', 'You must be logged in to create events.');
+      Alert.alert('Error', 'You must be logged in to save events.');
       return;
     }
 
@@ -131,17 +178,24 @@ export function CreateEventModal({
       const postActionService = PostActionService.getInstance();
       await postActionService.createCalendarEvent(eventData);
 
-      Alert.alert('Success', 'Event created successfully!');
+      Alert.alert(
+        'Success',
+        existingEvent
+          ? 'Event updated successfully!'
+          : 'Event created successfully!'
+      );
       resetForm();
       onClose();
       onEventCreated?.();
     } catch (error) {
-      console.error('Failed to create event:', error);
+      console.error('Failed to save event:', error);
       Alert.alert(
         'Error',
         error instanceof Error
           ? error.message
-          : 'Failed to create event. Please try again.'
+          : existingEvent
+            ? 'Failed to update event. Please try again.'
+            : 'Failed to create event. Please try again.'
       );
     } finally {
       setIsCreating(false);
@@ -245,7 +299,9 @@ export function CreateEventModal({
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContainer, styles.eventModalContainer]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Create Event</Text>
+            <Text style={styles.modalTitle}>
+              {existingEvent ? 'Edit Event' : 'Create Event'}
+            </Text>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={handleClose}
@@ -485,13 +541,15 @@ export function CreateEventModal({
                   ? styles.disabledButton
                   : styles.enabledButton,
               ]}
-              onPress={handleCreateEvent}
+              onPress={handleSaveEvent}
               disabled={isCreating || !title.trim() || !isLoggedIn}
             >
               {isCreating ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.modalButtonText}>Create Event</Text>
+                <Text style={styles.modalButtonText}>
+                  {existingEvent ? 'Update Event' : 'Create Event'}
+                </Text>
               )}
             </TouchableOpacity>
           </View>

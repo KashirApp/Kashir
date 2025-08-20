@@ -6,6 +6,7 @@ import { useEvents } from '../hooks/useEvents';
 import type { CalendarEvent } from '../hooks/useEvents';
 import { Header } from './Header';
 import { EventList } from './EventList';
+import { CreateEventModal } from './CreateEventModal';
 import { styles } from '../App.styles';
 import { Client } from 'kashir';
 
@@ -23,6 +24,8 @@ export function MyEventsScreen({ route, navigation }: MyEventsScreenProps) {
   const { userNpub, isLoggedIn } = route.params;
   const [isClientReady, setIsClientReady] = useState(false);
   const [client, setClient] = useState<Client | null>(null);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<CalendarEvent | null>(null);
 
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
@@ -91,6 +94,24 @@ export function MyEventsScreen({ route, navigation }: MyEventsScreenProps) {
     });
   };
 
+  const handleEventEdit = (event: CalendarEvent) => {
+    setEventToEdit(event);
+    setIsEditModalVisible(true);
+  };
+
+  const handleEditModalClose = () => {
+    setIsEditModalVisible(false);
+    setEventToEdit(null);
+  };
+
+  const handleEventUpdated = () => {
+    // Refresh events list after updating an event
+    if (isClientReady && userNpub) {
+      fetchEvents(userNpub, true);
+    }
+    handleEditModalClose();
+  };
+
   return (
     <SafeAreaViewContext style={styles.container}>
       <Header />
@@ -103,6 +124,16 @@ export function MyEventsScreen({ route, navigation }: MyEventsScreenProps) {
         onEventPress={handleEventPress}
         onMapPress={handleMapPress}
         showMyEventsOnly={true}
+        onEventEdit={handleEventEdit}
+        userNpub={userNpub}
+      />
+
+      <CreateEventModal
+        visible={isEditModalVisible}
+        onClose={handleEditModalClose}
+        onEventCreated={handleEventUpdated}
+        isLoggedIn={isLoggedIn}
+        existingEvent={eventToEdit}
       />
     </SafeAreaViewContext>
   );
