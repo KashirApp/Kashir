@@ -85,7 +85,7 @@ export function useEvents(
             .map((tag) => tag[1]);
 
           return {
-            id: event.id().toString(),
+            id: event.id().toHex(),
             pubkey: event.author().toHex(),
             kind: Number(event.kind()),
             content: event.content(),

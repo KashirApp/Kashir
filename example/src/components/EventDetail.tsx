@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProfileService } from '../services/ProfileService';
+import { Nip19Event, EventId } from 'kashir';
 import type { CalendarEvent } from '../hooks/useEvents';
 import type { NostrStackParamList } from './NostrNavigator';
 
@@ -147,6 +148,20 @@ export function EventDetail({
     }
   };
 
+  const createNeventUrl = (eventId: string): string => {
+    try {
+      // Use FFI method to create nevent
+      const eid = EventId.parse(eventId);
+      const nip19Event = new Nip19Event(eid);
+      const nevent = nip19Event.toBech32();
+      return `https://njump.me/${nevent}`;
+    } catch (error) {
+      console.error('Failed to create nevent URL:', error);
+      // Fallback to raw hex with note prefix
+      return `https://njump.me/note${eventId}`;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -262,15 +277,22 @@ export function EventDetail({
           </View>
         )}
 
-        {/* Event Metadata */}
+        {/* Share Button */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ℹ️ Event Info</Text>
-          <Text style={styles.metadata}>Event ID: {event.id}</Text>
-          <Text style={styles.metadata}>Event Kind: {event.kind}</Text>
-          <Text style={styles.metadata}>
-            Created: {new Date(event.created_at * 1000).toLocaleString()}
-          </Text>
+          <TouchableOpacity
+            style={styles.shareButton}
+            onPress={() => {
+              const shareUrl = createNeventUrl(event.id);
+              Linking.openURL(shareUrl).catch(() => {
+                Alert.alert('Error', 'Could not open share link');
+              });
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.shareButtonText}>🔗 Share Event</Text>
+          </TouchableOpacity>
         </View>
+
       </ScrollView>
     </View>
   );
@@ -401,5 +423,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'monospace',
     marginBottom: 4,
+  },
+  shareButton: {
+    backgroundColor: '#81b0ff',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
