@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Linking,
+  Share,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProfileService } from '../services/ProfileService';
@@ -281,11 +281,16 @@ export function EventDetail({
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.shareButton}
-            onPress={() => {
+            onPress={async () => {
               const shareUrl = createNeventUrl(event.id);
-              Linking.openURL(shareUrl).catch(() => {
-                Alert.alert('Error', 'Could not open share link');
-              });
+              try {
+                await Share.share({
+                  message: shareUrl,
+                  title: `Share Event: ${event.title || 'Untitled Event'}`,
+                });
+              } catch (error) {
+                console.error('Error sharing event:', error);
+              }
             }}
             activeOpacity={0.7}
           >
