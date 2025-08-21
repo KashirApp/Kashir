@@ -7,6 +7,7 @@ import { NostrNavigator } from './components/NostrNavigator';
 import { WalletScreen } from './components/WalletScreen';
 import { EventsScreen } from './components/EventsScreen';
 import { EventDetail } from './components/EventDetail';
+import { CalendarDetail } from './components/CalendarDetail';
 import { EventMapScreen } from './components/EventMapScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { BottomTabNavigation } from './components/BottomTabNavigation';
@@ -17,6 +18,7 @@ import { PostActionService } from './services/PostActionService';
 import { PublicKey } from 'kashir';
 import type { MainTabType } from './types';
 import type { CalendarEvent } from './hooks/useEvents';
+import type { Calendar } from './hooks/useCalendars';
 
 // Root stack for the entire app
 export type RootStackParamList = {
@@ -31,6 +33,11 @@ export type RootStackParamList = {
   };
   EventDetail: {
     event: CalendarEvent;
+    userNpub: string;
+    isLoggedIn: boolean;
+  };
+  CalendarDetail: {
+    calendar: Calendar;
     userNpub: string;
     isLoggedIn: boolean;
   };
@@ -466,6 +473,22 @@ export default function App() {
               />
             )}
           </RootStack.Screen>
+          <RootStack.Screen
+            name="CalendarDetail"
+            component={CalendarDetail}
+            options={{
+              headerShown: true,
+              title: 'Calendar Events',
+              headerStyle: {
+                backgroundColor: '#2a2a2a',
+              },
+              headerTintColor: '#81b0ff',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: '#ffffff',
+              },
+            }}
+          />
           <RootStack.Screen
             name="EventMap"
             component={EventMapScreen}

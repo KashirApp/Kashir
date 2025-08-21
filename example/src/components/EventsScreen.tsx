@@ -5,9 +5,12 @@ import { NostrClientService, LoginType } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
 import { useEvents } from '../hooks/useEvents';
+import { useCalendars } from '../hooks/useCalendars';
 import type { CalendarEvent } from '../hooks/useEvents';
+import type { Calendar } from '../hooks/useCalendars';
 import { Header } from './Header';
 import { EventList } from './EventList';
+import { CalendarList } from './CalendarList';
 import { CreateEventModal } from './CreateEventModal';
 import { styles } from '../App.styles';
 import { Client, Keys, SecretKey } from 'kashir';
@@ -27,6 +30,7 @@ export function EventsScreen({
   const [client, setClient] = useState<Client | null>(null);
   const [isCreateEventModalVisible, setIsCreateEventModalVisible] =
     useState(false);
+  const [currentView, setCurrentView] = useState<'events' | 'calendars'>('events');
   const [_userKeys, setUserKeys] = useState<Keys | null>(null);
 
   // Initialize services
@@ -34,12 +38,18 @@ export function EventsScreen({
   const profileService = useMemo(() => new ProfileService(), []);
   const session = clientService.getCurrentSession();
 
-  // Use events hook
+  // Use events and calendars hooks
   const {
     events,
     loading: eventsLoading,
     fetchEvents,
   } = useEvents(client, profileService);
+
+  const {
+    calendars,
+    loading: calendarsLoading,
+    fetchCalendars,
+  } = useCalendars(client, profileService);
 
   // Monitor client readiness
   useEffect(() => {
@@ -94,16 +104,28 @@ export function EventsScreen({
     }
   }, [isLoggedIn, session?.type]);
 
-  // Fetch events when client is ready
+  // Fetch events and calendars when client is ready
   useEffect(() => {
-    if (isClientReady && events.length === 0 && !eventsLoading) {
-      fetchEvents(userNpub);
+    if (isClientReady && !eventsLoading && !calendarsLoading) {
+      if (currentView === 'events' && events.length === 0) {
+        fetchEvents(userNpub);
+      } else if (currentView === 'calendars' && calendars.length === 0) {
+        fetchCalendars(userNpub);
+      }
     }
-  }, [isClientReady, events.length, eventsLoading, fetchEvents, userNpub]);
+  }, [isClientReady, currentView, events.length, calendars.length, eventsLoading, calendarsLoading, fetchEvents, fetchCalendars, userNpub]);
 
   const handleEventPress = (event: CalendarEvent) => {
     navigation.navigate('EventDetail', {
       event,
+      userNpub,
+      isLoggedIn,
+    });
+  };
+
+  const handleCalendarPress = (calendar: Calendar) => {
+    navigation.navigate('CalendarDetail', {
+      calendar,
       userNpub,
       isLoggedIn,
     });
@@ -114,6 +136,20 @@ export function EventsScreen({
       userNpub,
       onEventSelect: handleEventPress,
     });
+  };
+
+  const handleCalendarModePress = () => {
+    setCurrentView('calendars');
+    if (calendars.length === 0 && !calendarsLoading) {
+      fetchCalendars(userNpub);
+    }
+  };
+
+  const handleEventsModePress = () => {
+    setCurrentView('events');
+    if (events.length === 0 && !eventsLoading) {
+      fetchEvents(userNpub);
+    }
   };
 
   const handleCreateEvent = () => {
@@ -136,15 +172,29 @@ export function EventsScreen({
     <SafeAreaViewContext style={styles.container}>
       <Header />
 
-      <EventList
-        events={events}
-        loading={eventsLoading}
-        profileService={profileService}
-        title="Events"
-        onEventPress={handleEventPress}
-        onMapPress={handleMapPress}
-        onMyEventsPress={isLoggedIn ? handleNavigateToMyEvents : undefined}
-      />
+      {currentView === 'events' ? (
+        <EventList
+          events={events}
+          loading={eventsLoading}
+          profileService={profileService}
+          title="Events"
+          onEventPress={handleEventPress}
+          onMapPress={handleMapPress}
+          onMyEventsPress={isLoggedIn ? handleNavigateToMyEvents : undefined}
+          onCalendarModePress={handleCalendarModePress}
+        />
+      ) : (
+        <CalendarList
+          calendars={calendars.filter(calendar => 
+            calendar.eventCoordinates && calendar.eventCoordinates.length > 0
+          )}
+          loading={calendarsLoading}
+          profileService={profileService}
+          title="Calendars"
+          onCalendarPress={handleCalendarPress}
+          onEventsModePress={handleEventsModePress}
+        />
+      )}
 
       {/* Floating Action Button - only show when logged in */}
       {isLoggedIn && (

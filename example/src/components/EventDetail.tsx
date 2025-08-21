@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Share,
+  Linking,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProfileService } from '../services/ProfileService';

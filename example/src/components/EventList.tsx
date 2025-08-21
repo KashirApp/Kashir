@@ -15,6 +15,7 @@ import type { CalendarEvent } from '../hooks/useEvents';
 import type { Coordinates } from '../services/LocationService';
 
 type SortOption = 'time' | 'distance';
+type ViewMode = 'events' | 'calendars';
 
 interface EventListProps {
   events: CalendarEvent[];
@@ -25,8 +26,9 @@ interface EventListProps {
   onMapPress?: () => void;
   showMyEventsOnly?: boolean;
   onMyEventsPress?: () => void;
-  onEventEdit?: (event: CalendarEvent) => void; // Callback for editing events
-  userNpub?: string; // Add userNpub to check permissions
+  onEventEdit?: (event: CalendarEvent) => void;
+  userNpub?: string;
+  onCalendarModePress?: () => void; // Callback for switching to calendar view
 }
 
 export function EventList({
@@ -40,6 +42,7 @@ export function EventList({
   onMyEventsPress,
   onEventEdit,
   userNpub,
+  onCalendarModePress,
 }: EventListProps) {
   const [sortOption, setSortOption] = React.useState<SortOption>('time');
   const [userLocation, setUserLocation] = React.useState<Coordinates | null>(
@@ -320,11 +323,47 @@ export function EventList({
             </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.headerText}>
-          {getEventTypeIndicator(events[0]?.kind || 31922)}{' '}
-          {sortOption === 'distance' ? 'Events by Distance' : title} (
-          {sortedEvents.length})
-        </Text>
+        <View style={styles.centerSection}>
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                styles.activeTab, // Events tab is always active since this is EventList
+              ]}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  styles.activeTabText,
+                ]}
+              >
+                🍻
+              </Text>
+            </TouchableOpacity>
+            {onCalendarModePress && (
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                ]}
+                onPress={onCalendarModePress}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                  ]}
+                >
+                  📅
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.headerText}>
+            {sortOption === 'distance' ? 'Events by Distance' : title} (
+            {sortedEvents.length})
+          </Text>
+        </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={[
@@ -515,11 +554,38 @@ const styles = StyleSheet.create({
   sortButtonTextActive: {
     color: '#000',
   },
+  centerSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 2,
+    marginBottom: 8,
+  },
+  tab: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 18,
+    marginHorizontal: 2,
+  },
+  activeTab: {
+    backgroundColor: '#81b0ff',
+  },
+  tabText: {
+    color: '#999',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  activeTabText: {
+    color: '#000',
+  },
   headerText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
     textAlign: 'center',
   },
   mapButton: {
