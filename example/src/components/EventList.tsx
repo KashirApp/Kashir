@@ -316,7 +316,7 @@ export function EventList({
               onPress={onMyEventsPress}
               activeOpacity={0.7}
             >
-              <Text style={styles.myEventsButtonText}>My Events</Text>
+              <Text style={styles.myEventsButtonText}>👤</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -360,7 +360,7 @@ export function EventList({
                 onPress={onMapPress}
                 activeOpacity={0.7}
               >
-                <Text style={styles.mapButtonText}>🗺️ Map</Text>
+                <Text style={styles.mapButtonText}>🗺️</Text>
               </TouchableOpacity>
             )}
         </View>
