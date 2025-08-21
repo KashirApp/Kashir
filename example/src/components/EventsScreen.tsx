@@ -140,7 +140,7 @@ export function EventsScreen({
         events={events}
         loading={eventsLoading}
         profileService={profileService}
-        title="Calendar Events"
+        title="Events"
         onEventPress={handleEventPress}
         onMapPress={handleMapPress}
         onMyEventsPress={isLoggedIn ? handleNavigateToMyEvents : undefined}

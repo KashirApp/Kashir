@@ -33,7 +33,7 @@ export function EventList({
   events,
   loading,
   profileService,
-  title = 'Calendar Events (by time)',
+  title = 'Events (by time)',
   onEventPress,
   onMapPress,
   showMyEventsOnly = false,
@@ -290,7 +290,7 @@ export function EventList({
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#81b0ff" />
-        <Text style={styles.loadingText}>Loading calendar events...</Text>
+        <Text style={styles.loadingText}>Loading events...</Text>
       </View>
     );
   }
@@ -298,7 +298,7 @@ export function EventList({
   if (events.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>📅 No calendar events found</Text>
+        <Text style={styles.emptyText}>📅 No events found</Text>
         <Text style={styles.emptySubtext}>
           Events will appear here when they are created
         </Text>
