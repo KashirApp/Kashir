@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,7 @@ interface EventDetailProps extends EventDetailScreenProps {
 
 export function EventDetail({
   route,
-  navigation: _navigation,
+  navigation,
   onRSVP,
 }: EventDetailProps) {
   const { event } = route.params;
@@ -35,6 +35,46 @@ export function EventDetail({
     'accepted' | 'declined' | 'tentative'
   >('accepted');
   const [isSubmittingRSVP, setIsSubmittingRSVP] = useState(false);
+
+  const createNeventUrl = (eventId: string): string => {
+    try {
+      // Use FFI method to create nevent
+      const eid = EventId.parse(eventId);
+      const nip19Event = new Nip19Event(eid);
+      const nevent = nip19Event.toBech32();
+      return `https://njump.me/${nevent}`;
+    } catch (error) {
+      console.error('Failed to create nevent URL:', error);
+      // Fallback to raw hex with note prefix
+      return `https://njump.me/note${eventId}`;
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = createNeventUrl(event.id);
+    try {
+      await Share.share({
+        message: shareUrl,
+        title: `Share Event: ${event.title || 'Untitled Event'}`,
+      });
+    } catch (error) {
+      console.error('Error sharing event:', error);
+    }
+  };
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleShare}
+          style={styles.headerShareButton}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.headerShareText}>🔗</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, event.id, event.title]);
 
   const formatEventDate = (eventData: CalendarEvent) => {
     if (!eventData.startDate) return 'Date TBD';
@@ -145,20 +185,6 @@ export function EventDetail({
         return "❌ Can't Go";
       default:
         return status;
-    }
-  };
-
-  const createNeventUrl = (eventId: string): string => {
-    try {
-      // Use FFI method to create nevent
-      const eid = EventId.parse(eventId);
-      const nip19Event = new Nip19Event(eid);
-      const nevent = nip19Event.toBech32();
-      return `https://njump.me/${nevent}`;
-    } catch (error) {
-      console.error('Failed to create nevent URL:', error);
-      // Fallback to raw hex with note prefix
-      return `https://njump.me/note${eventId}`;
     }
   };
 
@@ -276,27 +302,6 @@ export function EventDetail({
             </TouchableOpacity>
           </View>
         )}
-
-        {/* Share Button */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.shareButton}
-            onPress={async () => {
-              const shareUrl = createNeventUrl(event.id);
-              try {
-                await Share.share({
-                  message: shareUrl,
-                  title: `Share Event: ${event.title || 'Untitled Event'}`,
-                });
-              } catch (error) {
-                console.error('Error sharing event:', error);
-              }
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.shareButtonText}>🔗 Share Event</Text>
-          </TouchableOpacity>
-        </View>
 
       </ScrollView>
     </View>
@@ -429,15 +434,12 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     marginBottom: 4,
   },
-  shareButton: {
-    backgroundColor: '#81b0ff',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
+  headerShareButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  shareButtonText: {
-    color: '#fff',
+  headerShareText: {
+    color: '#81b0ff',
     fontSize: 16,
     fontWeight: '600',
   },
