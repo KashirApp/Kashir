@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useLayoutEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,11 +25,7 @@ interface EventDetailProps extends EventDetailScreenProps {
   onRSVP?: (status: 'accepted' | 'declined' | 'tentative') => void;
 }
 
-export function EventDetail({
-  route,
-  navigation,
-  onRSVP,
-}: EventDetailProps) {
+export function EventDetail({ route, navigation, onRSVP }: EventDetailProps) {
   const { event } = route.params;
   const profileService = useMemo(() => new ProfileService(), []);
   const [selectedRSVPStatus, setSelectedRSVPStatus] = useState<
@@ -51,7 +47,7 @@ export function EventDetail({
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     const shareUrl = createNeventUrl(event.id);
     try {
       await Share.share({
@@ -61,21 +57,18 @@ export function EventDetail({
     } catch (error) {
       console.error('Error sharing event:', error);
     }
-  };
+  }, [event.id, event.title]);
+
+  const headerRightComponent = useMemo(
+    () => <HeaderShareButton onPress={handleShare} />,
+    [handleShare]
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={handleShare}
-          style={styles.headerShareButton}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.headerShareText}>🔗</Text>
-        </TouchableOpacity>
-      ),
+      headerRight: () => headerRightComponent,
     });
-  }, [navigation, event.id, event.title]);
+  }, [navigation, headerRightComponent]);
 
   const formatEventDate = (eventData: CalendarEvent) => {
     if (!eventData.startDate) return 'Date TBD';
@@ -303,7 +296,6 @@ export function EventDetail({
             </TouchableOpacity>
           </View>
         )}
-
       </ScrollView>
     </View>
   );
@@ -445,3 +437,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+const HeaderShareButton = ({ onPress }: { onPress: () => void }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={styles.headerShareButton}
+    activeOpacity={0.7}
+  >
+    <Text style={styles.headerShareText}>🔗</Text>
+  </TouchableOpacity>
+);

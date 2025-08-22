@@ -19,7 +19,7 @@ export interface Calendar {
 
 export function useCalendars(
   client: Client | null,
-  profileService: ProfileService
+  _profileService: ProfileService
 ) {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,10 @@ export function useCalendars(
             const userPubkey = PublicKey.parse(currentUserPubkey);
             calendarsFilter = calendarsFilter.authors([userPubkey]);
           } catch (error) {
-            console.error('Error parsing user pubkey for calendar filter:', error);
+            console.error(
+              'Error parsing user pubkey for calendar filter:',
+              error
+            );
           }
         }
 
@@ -63,15 +66,15 @@ export function useCalendars(
 
         const parsedCalendars = calendarsArray.map((event: EventInterface) => {
           const tags = tagsToArray(event.tags());
-          
+
           // Extract calendar metadata from tags
-          const titleTag = tags.find(tag => tag[0] === 'title');
-          const dTag = tags.find(tag => tag[0] === 'd'); // UUID identifier
-          
+          const titleTag = tags.find((tag) => tag[0] === 'title');
+          const dTag = tags.find((tag) => tag[0] === 'd'); // UUID identifier
+
           // Extract event coordinates (a tags pointing to calendar events)
           const eventCoordinates = tags
-            .filter(tag => tag[0] === 'a')
-            .map(tag => tag[1]);
+            .filter((tag) => tag[0] === 'a')
+            .map((tag) => tag[1]);
 
           return {
             id: event.id().toHex(),
@@ -93,14 +96,13 @@ export function useCalendars(
         // TODO: Fix profile loading for calendar creators
         // The ProfileService expects PublicKeyInterface objects, but we have hex strings
         // Need to find the correct method to convert hex to PublicKeyInterface
-
       } catch (error) {
         console.error('Error fetching calendars:', error);
       } finally {
         setLoading(false);
       }
     },
-    [client, profileService]
+    [client]
   );
 
   return {

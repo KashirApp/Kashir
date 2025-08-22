@@ -15,7 +15,6 @@ import type { CalendarEvent } from '../hooks/useEvents';
 import type { Coordinates } from '../services/LocationService';
 
 type SortOption = 'time' | 'distance';
-type ViewMode = 'events' | 'calendars';
 
 interface EventListProps {
   events: CalendarEvent[];
@@ -332,30 +331,15 @@ export function EventList({
               ]}
               activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  styles.activeTabText,
-                ]}
-              >
-                🍻
-              </Text>
+              <Text style={[styles.tabText, styles.activeTabText]}>🍻</Text>
             </TouchableOpacity>
             {onCalendarModePress && (
               <TouchableOpacity
-                style={[
-                  styles.tab,
-                ]}
+                style={[styles.tab]}
                 onPress={onCalendarModePress}
                 activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.tabText,
-                  ]}
-                >
-                  📅
-                </Text>
+                <Text style={[styles.tabText]}>📅</Text>
               </TouchableOpacity>
             )}
           </View>

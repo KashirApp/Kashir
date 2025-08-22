@@ -30,7 +30,9 @@ export function EventsScreen({
   const [client, setClient] = useState<Client | null>(null);
   const [isCreateEventModalVisible, setIsCreateEventModalVisible] =
     useState(false);
-  const [currentView, setCurrentView] = useState<'events' | 'calendars'>('events');
+  const [currentView, setCurrentView] = useState<'events' | 'calendars'>(
+    'events'
+  );
   const [_userKeys, setUserKeys] = useState<Keys | null>(null);
 
   // Initialize services
@@ -113,7 +115,17 @@ export function EventsScreen({
         fetchCalendars(userNpub);
       }
     }
-  }, [isClientReady, currentView, events.length, calendars.length, eventsLoading, calendarsLoading, fetchEvents, fetchCalendars, userNpub]);
+  }, [
+    isClientReady,
+    currentView,
+    events.length,
+    calendars.length,
+    eventsLoading,
+    calendarsLoading,
+    fetchEvents,
+    fetchCalendars,
+    userNpub,
+  ]);
 
   const handleEventPress = (event: CalendarEvent) => {
     navigation.navigate('EventDetail', {
@@ -185,8 +197,9 @@ export function EventsScreen({
         />
       ) : (
         <CalendarList
-          calendars={calendars.filter(calendar => 
-            calendar.eventCoordinates && calendar.eventCoordinates.length > 0
+          calendars={calendars.filter(
+            (calendar) =>
+              calendar.eventCoordinates && calendar.eventCoordinates.length > 0
           )}
           loading={calendarsLoading}
           profileService={profileService}

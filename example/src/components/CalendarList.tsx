@@ -94,9 +94,7 @@ export function CalendarList({
                 onPress={onEventsModePress}
                 activeOpacity={0.7}
               >
-                <Text style={styles.tabText}>
-                  🍻
-                </Text>
+                <Text style={styles.tabText}>🍻</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -106,14 +104,7 @@ export function CalendarList({
               ]}
               activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  styles.activeTabText,
-                ]}
-              >
-                📅
-              </Text>
+              <Text style={[styles.tabText, styles.activeTabText]}>📅</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.headerText}>
@@ -156,7 +147,8 @@ export function CalendarList({
                     {calendar.eventCoordinates?.length || 0} events
                   </Text>
                   <Text style={styles.createdAt}>
-                    Created: {new Date(calendar.created_at * 1000).toLocaleDateString()}
+                    Created:{' '}
+                    {new Date(calendar.created_at * 1000).toLocaleDateString()}
                   </Text>
                 </View>
 
