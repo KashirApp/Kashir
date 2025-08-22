@@ -47,13 +47,10 @@ export function CalendarDetail({ route, navigation }: CalendarDetailProps) {
         !calendar.eventCoordinates ||
         calendar.eventCoordinates.length === 0
       ) {
-        console.log('CalendarDetail: No client or event coordinates');
         return;
       }
 
       setLoading(true);
-      console.log('CalendarDetail: Fetching specific calendar events...');
-      console.log('Calendar eventCoordinates:', calendar.eventCoordinates);
 
       try {
         // Parse event coordinates and group by author to minimize requests
@@ -74,10 +71,6 @@ export function CalendarDetail({ route, navigation }: CalendarDetailProps) {
             authorGroups.get(key)!.dTags.push(dTag);
           }
         });
-
-        console.log(
-          `CalendarDetail: Created ${authorGroups.size} author groups`
-        );
 
         // Fetch events using grouped filters
         const allEvents: EventInterface[] = [];
@@ -101,7 +94,12 @@ export function CalendarDetail({ route, navigation }: CalendarDetailProps) {
               const filteredEvents = eventsArray.filter((event) => {
                 const tags = tagsToArray(event.tags());
                 const eventDTag = tags.find((tag) => tag[0] === 'd')?.[1];
-                return eventDTag && dTags.includes(eventDTag);
+                const eventId = event.id().toHex();
+
+                // Check if the event matches either by d-tag or event ID
+                const matchesByDTag = eventDTag && dTags.includes(eventDTag);
+                const matchesById = dTags.includes(eventId);
+                return matchesByDTag || matchesById;
               });
 
               allEvents.push(...filteredEvents);

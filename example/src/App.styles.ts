@@ -270,14 +270,13 @@ export const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
   },
   modalContainer: {
-    width: '90%',
-    maxHeight: '80%',
+    width: '100%',
+    height: '100%',
     backgroundColor: '#2a2a2a',
-    borderRadius: 12,
     padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -461,5 +460,152 @@ export const styles = StyleSheet.create({
   endDateQuickSelectRow: {
     flexDirection: 'row',
     marginTop: 8,
+  },
+  // Additional modal styles
+  modalContent: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 10,
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalCloseText: {
+    fontSize: 18,
+    color: '#999',
+    fontWeight: 'bold',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonPrimary: {
+    backgroundColor: '#81b0ff',
+  },
+  buttonSecondary: {
+    backgroundColor: '#444',
+  },
+  buttonPrimaryText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonSecondaryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  imagePreviewContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  imagePreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  imageErrorText: {
+    color: '#ff6b66',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  // Event selection styles
+  eventSelectionSubtext: {
+    color: '#999',
+    fontSize: 14,
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  eventsList: {
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: '#444',
+    borderRadius: 8,
+    backgroundColor: '#1a1a1a',
+  },
+  eventItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  eventItemSelected: {
+    backgroundColor: '#2a3a4a',
+  },
+  eventItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#81b0ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  eventCheckboxText: {
+    color: '#81b0ff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  eventDetails: {
+    flex: 1,
+  },
+  eventTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  eventDate: {
+    color: '#999',
+    fontSize: 12,
+  },
+  eventsLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  eventsLoadingText: {
+    color: '#999',
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  moreEventsIndicator: {
+    padding: 12,
+    alignItems: 'center',
+    backgroundColor: '#333',
+  },
+  moreEventsText: {
+    color: '#999',
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 });

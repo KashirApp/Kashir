@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
-import { NostrClientService, LoginType } from '../services/NostrClient';
+import { NostrClientService } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
-import { SecureStorageService } from '../services/SecureStorageService';
 import { useEvents } from '../hooks/useEvents';
 import { useCalendars } from '../hooks/useCalendars';
 import type { CalendarEvent } from '../hooks/useEvents';
@@ -12,8 +11,9 @@ import { Header } from './Header';
 import { EventList } from './EventList';
 import { CalendarList } from './CalendarList';
 import { CreateEventModal } from './CreateEventModal';
+import { CreateCalendarModal } from './CreateCalendarModal';
 import { styles } from '../App.styles';
-import { Client, Keys, SecretKey } from 'kashir';
+import { Client } from 'kashir';
 
 interface EventsScreenProps {
   isLoggedIn: boolean;
@@ -30,15 +30,13 @@ export function EventsScreen({
   const [client, setClient] = useState<Client | null>(null);
   const [isCreateEventModalVisible, setIsCreateEventModalVisible] =
     useState(false);
+  const [isCreateCalendarModalVisible, setIsCreateCalendarModalVisible] =
+    useState(false);
   const [currentView, setCurrentView] = useState<'events' | 'calendars'>(
     'events'
   );
-  const [_userKeys, setUserKeys] = useState<Keys | null>(null);
-
-  // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
   const profileService = useMemo(() => new ProfileService(), []);
-  const session = clientService.getCurrentSession();
 
   // Use events and calendars hooks
   const {
@@ -86,27 +84,7 @@ export function EventsScreen({
     };
   }, [clientService]);
 
-  // Load user keys for signing
-  useEffect(() => {
-    const loadKeys = async () => {
-      try {
-        const privateKey = await SecureStorageService.getNostrPrivateKey();
-        if (privateKey) {
-          const secretKey = SecretKey.parse(privateKey);
-          const keys = new Keys(secretKey);
-          setUserKeys(keys);
-        }
-      } catch (error) {
-        console.error('Failed to load user keys:', error);
-      }
-    };
-
-    if (isLoggedIn && session?.type === LoginType.PrivateKey) {
-      loadKeys();
-    }
-  }, [isLoggedIn, session?.type]);
-
-  // Fetch events and calendars when client is ready
+  // Initialize services
   useEffect(() => {
     if (isClientReady && !eventsLoading && !calendarsLoading) {
       if (currentView === 'events' && events.length === 0) {
@@ -168,13 +146,43 @@ export function EventsScreen({
     setIsCreateEventModalVisible(true);
   };
 
+  const handleCreateCalendar = () => {
+    setIsCreateCalendarModalVisible(true);
+  };
+
+  const handleCreate = () => {
+    if (currentView === 'events') {
+      handleCreateEvent();
+    } else {
+      handleCreateCalendar();
+    }
+  };
+
   const handleEventCreated = () => {
     // Refresh events list after creating a new event
     fetchEvents(userNpub);
   };
 
+  const handleCalendarCreated = () => {
+    // Refresh calendars list after creating a new calendar
+    // Fetch all calendars (not filtered by user) for the general calendar view
+    fetchCalendars();
+
+    // Small delay to ensure the calendar is published to relays before refetching
+    setTimeout(() => {
+      fetchCalendars();
+    }, 1500);
+  };
+
   const handleNavigateToMyEvents = () => {
     navigation.navigate('MyEvents', {
+      userNpub,
+      isLoggedIn,
+    });
+  };
+
+  const handleNavigateToMyCalendars = () => {
+    navigation.navigate('MyCalendars', {
       userNpub,
       isLoggedIn,
     });
@@ -205,6 +213,10 @@ export function EventsScreen({
           profileService={profileService}
           title="Calendars"
           onCalendarPress={handleCalendarPress}
+          onMyCalendarsPress={
+            isLoggedIn ? handleNavigateToMyCalendars : undefined
+          }
+          userNpub={userNpub}
           onEventsModePress={handleEventsModePress}
         />
       )}
@@ -213,7 +225,7 @@ export function EventsScreen({
       {isLoggedIn && (
         <TouchableOpacity
           style={styles.fab}
-          onPress={handleCreateEvent}
+          onPress={handleCreate}
           activeOpacity={0.8}
         >
           <Text style={styles.fabText}>+</Text>
@@ -226,6 +238,15 @@ export function EventsScreen({
         onClose={() => setIsCreateEventModalVisible(false)}
         onEventCreated={handleEventCreated}
         isLoggedIn={isLoggedIn}
+      />
+
+      {/* Create Calendar Modal */}
+      <CreateCalendarModal
+        visible={isCreateCalendarModalVisible}
+        onClose={() => setIsCreateCalendarModalVisible(false)}
+        onCalendarCreated={handleCalendarCreated}
+        isLoggedIn={isLoggedIn}
+        userNpub={userNpub}
       />
     </SafeAreaViewContext>
   );

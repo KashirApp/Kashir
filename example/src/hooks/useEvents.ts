@@ -31,7 +31,6 @@ export function useEvents(
   const fetchEvents = useCallback(
     async (currentUserPubkey?: string, myEventsOnly: boolean = false) => {
       if (!client) {
-        console.log('Client not available for events fetch');
         return;
       }
 
@@ -39,8 +38,6 @@ export function useEvents(
       setEvents([]);
 
       try {
-        console.log('Fetching calendar events (NIP-52)...');
-
         let eventsFilter = new Filter()
           .kinds([new Kind(31922), new Kind(31923)]) // NIP-52 calendar event kinds
           .limit(BigInt(50));
@@ -64,8 +61,6 @@ export function useEvents(
             eventsArray = [];
           }
         }
-
-        console.log(`Received ${eventsArray.length} calendar events`);
 
         // Process events and extract calendar data
         const calendarEvents: CalendarEvent[] = eventsArray.map((event) => {
@@ -135,7 +130,6 @@ export function useEvents(
           return aDiff - bDiff;
         });
 
-        console.log(`Processed ${calendarEvents.length} calendar events`);
         setEvents(calendarEvents);
 
         // Fetch profiles for event organizers

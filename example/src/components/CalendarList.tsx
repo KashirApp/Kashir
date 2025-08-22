@@ -18,6 +18,7 @@ interface CalendarListProps {
   onCalendarPress?: (calendar: Calendar) => void;
   showMyCalendarsOnly?: boolean;
   onMyCalendarsPress?: () => void;
+  onEditCalendar?: (calendar: Calendar) => void; // Add edit calendar callback
   userNpub?: string;
   onEventsModePress?: () => void; // Callback for switching back to events view
 }
@@ -30,6 +31,7 @@ export function CalendarList({
   onCalendarPress,
   showMyCalendarsOnly = false,
   onMyCalendarsPress,
+  onEditCalendar,
   userNpub,
   onEventsModePress,
 }: CalendarListProps) {
@@ -166,7 +168,7 @@ export function CalendarList({
                 <TouchableOpacity
                   style={styles.editButton}
                   onPress={() => {
-                    // TODO: Add edit calendar functionality
+                    onEditCalendar?.(calendar);
                   }}
                   activeOpacity={0.7}
                 >

@@ -13,6 +13,14 @@ export interface CalendarEventData {
   isDateBased: boolean; // true for kind 31922 (date-based), false for kind 31923 (time-based)
 }
 
+// Calendar creation types
+export interface CalendarData {
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  eventCoordinates?: string[]; // Array of event coordinate strings for calendar events
+}
+
 export type EventType = 'date-based' | 'time-based';
 
 export interface ProfileData {

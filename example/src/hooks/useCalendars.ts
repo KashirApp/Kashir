@@ -27,7 +27,6 @@ export function useCalendars(
   const fetchCalendars = useCallback(
     async (currentUserPubkey?: string, myCalendarsOnly: boolean = false) => {
       if (!client) {
-        console.log('Client not available for calendars fetch');
         return;
       }
 
@@ -35,8 +34,6 @@ export function useCalendars(
       setCalendars([]);
 
       try {
-        console.log('Fetching calendars (NIP-52 kind 31924)...');
-
         let calendarsFilter = new Filter()
           .kinds([new Kind(31924)]) // Calendar list event kind
           .limit(BigInt(50));
@@ -62,7 +59,6 @@ export function useCalendars(
         if (responseEvents) {
           calendarsArray = responseEvents.toVec();
         }
-        console.log(`Found ${calendarsArray.length} raw calendar events`);
 
         const parsedCalendars = calendarsArray.map((event: EventInterface) => {
           const tags = tagsToArray(event.tags());
@@ -90,7 +86,6 @@ export function useCalendars(
           } as Calendar;
         });
 
-        console.log(`Parsed ${parsedCalendars.length} calendars`);
         setCalendars(parsedCalendars);
 
         // TODO: Fix profile loading for calendar creators

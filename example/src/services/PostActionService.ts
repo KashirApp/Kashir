@@ -12,7 +12,7 @@ import { SecureStorageService } from './SecureStorageService';
 import { ProfileService } from './ProfileService';
 import { LNURLService } from './LNURLService';
 import type { EventInterface } from 'kashir';
-import type { CalendarEventData } from '../types';
+import type { CalendarEventData, CalendarData } from '../types';
 
 export class PostActionService {
   private static instance: PostActionService | null = null;
@@ -423,9 +423,188 @@ export class PostActionService {
       }
 
       await client.sendEvent(signedEvent);
-      console.log(`Successfully created calendar event: ${eventData.title}`);
     } catch (error) {
       console.error('Failed to create calendar event:', error);
+      throw error;
+    }
+  }
+
+  async createCalendar(calendarData: CalendarData): Promise<void> {
+    try {
+      const clientService = NostrClientService.getInstance();
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+
+      if (!client) {
+        throw new Error('Client not available');
+      }
+
+      if (!session) {
+        throw new Error('User not logged in');
+      }
+
+      // Calendar list events use kind 31924 according to NIP-52
+      const calendarKind = new Kind(31924);
+
+      // Prepare calendar tags according to NIP-52
+      const tags: Tag[] = [];
+
+      // Title tag (required)
+      tags.push(Tag.parse(['title', calendarData.title]));
+
+      // Generate a unique identifier for this calendar
+      const generateUUID = (): string => {
+        // Try to use crypto.randomUUID() if available (modern browsers/React Native)
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+
+        // Fallback to a simple UUID v4 implementation
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+          /[xy]/g,
+          function (c) {
+            const r = Math.floor(Math.random() * 16);
+            const v = c === 'x' ? r : Math.floor(r / 4) * 4 + 8;
+            return v.toString(16);
+          }
+        );
+      };
+
+      const uuid = generateUUID();
+      tags.push(Tag.parse(['d', uuid]));
+
+      // Image tag (optional)
+      if (calendarData.imageUrl?.trim()) {
+        tags.push(Tag.parse(['image', calendarData.imageUrl.trim()]));
+      }
+
+      // Event coordinates (a tags for calendar events)
+      if (
+        calendarData.eventCoordinates &&
+        calendarData.eventCoordinates.length > 0
+      ) {
+        calendarData.eventCoordinates.forEach((coord) => {
+          tags.push(Tag.parse(['a', coord]));
+        });
+      }
+
+      // Create the calendar with description as content
+      const eventBuilder = new EventBuilder(
+        calendarKind,
+        calendarData.description || ''
+      )
+        .tags(tags)
+        .allowSelfTagging();
+
+      let signedEvent;
+      if (session.type === LoginType.Amber) {
+        const signer = await client.signer();
+        if (!signer) {
+          throw new Error('Amber signer not available');
+        }
+        signedEvent = await eventBuilder.sign(signer);
+      } else if (session.type === LoginType.PrivateKey) {
+        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
+        if (!privateKeyHex) {
+          throw new Error('Private key not found in secure storage');
+        }
+        const secretKey = SecretKey.parse(privateKeyHex);
+        const keys = new Keys(secretKey);
+        signedEvent = eventBuilder.signWithKeys(keys);
+      } else {
+        throw new Error('No signing method available');
+      }
+
+      await client.sendEvent(signedEvent);
+    } catch (error) {
+      console.error('Failed to create calendar:', error);
+      throw error;
+    }
+  }
+
+  async updateCalendar(
+    existingCalendar: any,
+    calendarData: CalendarData
+  ): Promise<void> {
+    try {
+      const clientService = NostrClientService.getInstance();
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+
+      if (!client) {
+        throw new Error('Client not available');
+      }
+
+      if (!session) {
+        throw new Error('User not logged in');
+      }
+
+      // Calendar list events use kind 31924 according to NIP-52
+      const calendarKind = new Kind(31924);
+
+      // Prepare calendar tags according to NIP-52
+      const tags: Tag[] = [];
+
+      // Title tag (required)
+      tags.push(Tag.parse(['title', calendarData.title]));
+
+      // Use the same UUID from the existing calendar to update (replaceable event)
+      const existingDTag = existingCalendar.tags.find(
+        (tag: string[]) => tag[0] === 'd'
+      );
+      const uuid = existingDTag ? existingDTag[1] : existingCalendar.uuid;
+
+      if (!uuid) {
+        throw new Error('Cannot update calendar: no identifier found');
+      }
+
+      tags.push(Tag.parse(['d', uuid]));
+
+      // Image tag (optional)
+      if (calendarData.imageUrl?.trim()) {
+        tags.push(Tag.parse(['image', calendarData.imageUrl.trim()]));
+      }
+
+      // Event coordinates (a tags for calendar events) - use new selection
+      if (
+        calendarData.eventCoordinates &&
+        calendarData.eventCoordinates.length > 0
+      ) {
+        calendarData.eventCoordinates.forEach((coord) => {
+          tags.push(Tag.parse(['a', coord]));
+        });
+      }
+
+      // Create the calendar with description as content
+      const eventBuilder = new EventBuilder(
+        calendarKind,
+        calendarData.description || ''
+      )
+        .tags(tags)
+        .allowSelfTagging();
+
+      let signedEvent;
+      if (session.type === LoginType.Amber) {
+        const signer = await client.signer();
+        if (!signer) {
+          throw new Error('Amber signer not available');
+        }
+        signedEvent = await eventBuilder.sign(signer);
+      } else if (session.type === LoginType.PrivateKey) {
+        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
+        if (!privateKeyHex) {
+          throw new Error('Private key not found in secure storage');
+        }
+        const secretKey = SecretKey.parse(privateKeyHex);
+        const keys = new Keys(secretKey);
+        signedEvent = eventBuilder.signWithKeys(keys);
+      } else {
+        throw new Error('No signing method available');
+      }
+
+      await client.sendEvent(signedEvent);
+    } catch (error) {
+      console.error('Failed to update calendar:', error);
       throw error;
     }
   }
