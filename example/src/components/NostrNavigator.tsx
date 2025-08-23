@@ -1,17 +1,22 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PostsScreen } from './PostsScreen';
+import { PostDetail } from './PostDetail';
 import { EventDetail } from './EventDetail';
 import { EventMapScreen } from './EventMapScreen';
 import { LoginScreen } from './LoginScreen';
 import { LoginType } from '../services/NostrClient';
 import { PostActionService } from '../services/PostActionService';
 import type { CalendarEvent } from '../hooks/useEvents';
+import type { PostWithStats } from '../types/EventStats';
 
 export type NostrStackParamList = {
   PostsMain: {
     userNpub: string;
     loginType: LoginType;
+  };
+  PostDetail: {
+    post: PostWithStats;
   };
   EventDetail: {
     event: CalendarEvent;
@@ -71,6 +76,13 @@ export function NostrNavigator({
           >
             {(props) => <PostsScreen {...props} onLogout={onLogout} />}
           </Stack.Screen>
+          <Stack.Screen
+            name="PostDetail"
+            options={{
+              title: 'Post Details',
+            }}
+            component={PostDetail}
+          />
           <Stack.Screen
             name="EventDetail"
             options={{

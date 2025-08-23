@@ -71,8 +71,6 @@ export class ProfileService {
 
     if (uncachedPubkeys.length === 0) return;
 
-    console.log(`Fetching profiles for ${uncachedPubkeys.length} users...`);
-
     // Fetch profiles in parallel (limit to 10 at a time to avoid overwhelming)
     const batchSize = 10;
     for (let i = 0; i < uncachedPubkeys.length; i += batchSize) {
@@ -87,41 +85,11 @@ export class ProfileService {
     try {
       const publicKey = PublicKey.parse(userNpub);
 
-      // Create filter for kind 0 (metadata/profile) events
-      const profileFilter = new Filter()
-        .author(publicKey)
-        .kinds([new Kind(0)])
-        .limit(1n);
+      // Use the cached fetchProfileForPubkey method
+      const profileName = await this.fetchProfileForPubkey(client, publicKey);
 
-      console.log('Fetching user profile...');
-
-      try {
-        const events = await client.fetchEvents(profileFilter, 10000 as any);
-        const eventArray = events.toVec();
-
-        if (eventArray.length > 0) {
-          const profileEvent = eventArray[0];
-          if (profileEvent) {
-            const content = profileEvent.content();
-
-            try {
-              const profileData = JSON.parse(content);
-              const name =
-                profileData.name ||
-                profileData.display_name ||
-                profileData.username;
-
-              if (name) {
-                console.log('Found user name:', name);
-                return name;
-              }
-            } catch (parseError) {
-              console.error('Error parsing profile JSON:', parseError);
-            }
-          }
-        }
-      } catch (fetchError) {
-        console.error('Error fetching profile:', fetchError);
+      if (profileName) {
+        return profileName;
       }
 
       // Fallback to shortened npub
@@ -161,10 +129,8 @@ export class ProfileService {
 
             // Prefer Lightning address over LNURL
             if (lightningAddress) {
-              console.log('Found Lightning address:', lightningAddress);
               return lightningAddress;
             } else if (lnurl) {
-              console.log('Found LNURL:', lnurl);
               return lnurl;
             }
           } catch (parseError) {
@@ -187,3 +153,6 @@ export class ProfileService {
     return this.profileCache;
   }
 }
+
+// Create a shared instance that all components will use
+export const sharedProfileService = new ProfileService();

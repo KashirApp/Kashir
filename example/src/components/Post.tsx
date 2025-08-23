@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Text, View, TouchableOpacity, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { EventInterface, TimestampInterface } from 'kashir';
 import { styles } from '../App.styles';
 import { PostActionService } from '../services/PostActionService';
 import { StorageService } from '../services/StorageService';
 import { walletManager } from '../services/WalletManager';
 import type { PostWithStats } from '../types/EventStats';
+import type { NostrStackParamList } from './NostrNavigator';
 
 interface PostProps {
   post: PostWithStats;
@@ -13,6 +16,7 @@ interface PostProps {
   totalPosts: number;
   authorName?: string;
   showAuthor?: boolean;
+  onPress?: () => void; // Optional onPress override
 }
 
 const formatTimestamp = (timestamp: TimestampInterface) => {
@@ -26,7 +30,10 @@ export function Post({
   totalPosts,
   authorName,
   showAuthor = false,
+  onPress,
 }: PostProps) {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<NostrStackParamList>>();
   // All posts are PostWithStats with originalEvent for actions
   const eventData = post.event;
   const stats = post.stats;
@@ -148,18 +155,33 @@ export function Post({
     }
   };
 
+  const handlePostPress = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      navigation.navigate('PostDetail', {
+        post: {
+          ...post,
+          authorName,
+        },
+      });
+    }
+  };
+
   return (
     <View key={postId} style={styles.postCard}>
-      {showAuthor && authorName && (
-        <Text style={styles.postAuthor}>@{authorName}</Text>
-      )}
-      <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
-      <Text style={styles.postContent}>{postContent}</Text>
+      <TouchableOpacity onPress={handlePostPress} activeOpacity={0.7}>
+        {showAuthor && authorName && (
+          <Text style={styles.postAuthor}>@{authorName}</Text>
+        )}
+        <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
+        <Text style={styles.postContent}>{postContent}</Text>
+      </TouchableOpacity>
 
       <View style={styles.postActions}>
         <TouchableOpacity
           style={[styles.actionButton, styles.enabledButton]}
-          disabled={true}
+          onPress={handlePostPress}
         >
           <Text style={styles.actionButtonText}>
             💬

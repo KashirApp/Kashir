@@ -3,7 +3,7 @@ import { TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService } from '../services/NostrClient';
-import { ProfileService } from '../services/ProfileService';
+import { sharedProfileService } from '../services/ProfileService';
 import { SecureStorageService } from '../services/SecureStorageService';
 import { useFollowing } from '../hooks/useFollowing';
 import { useTrending } from '../hooks/useTrending';
@@ -41,7 +41,7 @@ export function PostsScreen({
 
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
-  const profileService = useMemo(() => new ProfileService(), []);
+  const profileService = sharedProfileService;
 
   // Get client from service but only use it when ready
   const [client, setClient] = useState<Client | null>(null);

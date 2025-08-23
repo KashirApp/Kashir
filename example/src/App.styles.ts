@@ -608,4 +608,46 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
   },
+  // Post Detail Screen Styles
+  originalPost: {
+    marginBottom: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: '#444',
+    paddingBottom: 20,
+  },
+  repliesSection: {
+    flex: 1,
+  },
+  repliesHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+  replyContainer: {
+    marginLeft: 20,
+    borderLeftWidth: 2,
+    borderLeftColor: '#444',
+    paddingLeft: 15,
+    marginBottom: 10,
+  },
+  noRepliesText: {
+    color: '#999',
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  noRepliesContainer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+  },
+  noRepliesSubtext: {
+    color: '#666',
+    textAlign: 'center',
+    fontSize: 14,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
 });
