@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import { ProfileService } from '../services/ProfileService';
 import { Post } from './Post';
 import type { PostWithStats } from '../types/EventStats';
@@ -23,20 +23,46 @@ export function PostList({
   title,
   hidePostCount = false,
 }: PostListProps) {
-  const getAuthorName = (post: PostWithStats): string => {
-    if (!showAuthor) return '';
+  const getAuthorName = useCallback(
+    (post: PostWithStats): string => {
+      if (!showAuthor) return '';
 
-    const pubkey = post.event.pubkey;
+      const pubkey = post.event.pubkey;
 
-    // Get name from cache
-    const cached = profileService.getProfileCache().get(pubkey);
-    if (cached && cached.name) {
-      return cached.name;
-    } else {
-      // Fallback to shortened hex if name not loaded yet
-      return pubkey.substring(0, 8) + '...';
+      // Get name from cache
+      const cached = profileService.getProfileCache().get(pubkey);
+      if (cached && cached.name) {
+        return cached.name;
+      } else {
+        // Fallback to shortened hex if name not loaded yet
+        return pubkey.substring(0, 8) + '...';
+      }
+    },
+    [showAuthor, profileService]
+  );
+
+  const renderPost = useCallback(
+    ({ item, index }: { item: PostWithStats; index: number }) => {
+      return (
+        <Post
+          key={item.event.id}
+          post={item}
+          index={index}
+          totalPosts={posts.length}
+          authorName={getAuthorName(item)}
+          showAuthor={showAuthor}
+        />
+      );
+    },
+    [posts.length, getAuthorName, showAuthor]
+  );
+
+  const renderHeader = useCallback(() => {
+    if (posts.length > 0 && !hidePostCount) {
+      return <Text style={styles.postCount}>Found {posts.length} posts</Text>;
     }
-  };
+    return null;
+  }, [posts.length, hidePostCount]);
 
   if (loading) {
     return (
@@ -48,24 +74,16 @@ export function PostList({
   }
 
   return (
-    <ScrollView style={styles.postsContainer}>
-      {posts.length > 0 && !hidePostCount && (
-        <Text style={styles.postCount}>Found {posts.length} posts</Text>
-      )}
-      {posts.map((post, index) => {
-        const postKey = post.event.id;
-
-        return (
-          <Post
-            key={postKey}
-            post={post}
-            index={index}
-            totalPosts={posts.length}
-            authorName={getAuthorName(post)}
-            showAuthor={showAuthor}
-          />
-        );
-      })}
-    </ScrollView>
+    <FlatList
+      style={styles.postsContainer}
+      data={posts}
+      renderItem={renderPost}
+      keyExtractor={(item) => item.event.id}
+      ListHeaderComponent={renderHeader}
+      removeClippedSubviews={false}
+      maxToRenderPerBatch={5}
+      windowSize={10}
+      initialNumToRender={3}
+    />
   );
 }

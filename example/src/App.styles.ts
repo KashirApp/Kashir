@@ -533,6 +533,80 @@ export const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+  // Post image styles
+  imageContainerSingle: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  imageContainerDouble: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  imageContainerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  imageWrapper: {
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  lastImageWrapper: {
+    position: 'relative',
+  },
+  postImage: {
+    borderRadius: 8,
+  },
+  imageLarge: {
+    width: '100%',
+    height: 200,
+  },
+  imageMedium: {
+    width: '48%',
+    height: 120,
+  },
+  imageSmall: {
+    width: '48%',
+    height: 100,
+  },
+  imageError: {
+    backgroundColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  imageErrorTextSmall: {
+    color: '#999',
+    fontSize: 10,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  moreImagesOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  moreImagesText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  moreImagesIndicator: {
+    color: '#999',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
   // Event selection styles
   eventSelectionSubtext: {
     color: '#999',

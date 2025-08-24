@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Text, View, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,6 +9,11 @@ import { StorageService } from '../services/StorageService';
 import { walletManager } from '../services/WalletManager';
 import type { PostWithStats } from '../types/EventStats';
 import type { NostrStackParamList } from './NostrNavigator';
+import { ImagePreview } from './ImagePreview';
+import {
+  extractImageUrls,
+  removeImageUrlsFromContent,
+} from '../utils/imageUtils';
 
 interface PostProps {
   post: PostWithStats;
@@ -24,14 +29,14 @@ const formatTimestamp = (timestamp: TimestampInterface) => {
   return date.toLocaleString();
 };
 
-export function Post({
+const PostComponent = ({
   post,
   index,
   totalPosts,
   authorName,
   showAuthor = false,
   onPress,
-}: PostProps) {
+}: PostProps) => {
   const navigation =
     useNavigation<NativeStackNavigationProp<NostrStackParamList>>();
   // All posts are PostWithStats with originalEvent for actions
@@ -40,8 +45,19 @@ export function Post({
   const originalEvent = (post as any).originalEvent as EventInterface;
 
   const postId = eventData.id;
-  const postContent = eventData.content;
+  const originalPostContent = eventData.content;
   const postTimestamp = originalEvent.createdAt();
+
+  // Extract images and clean content
+  const imageUrls = useMemo(
+    () => extractImageUrls(originalPostContent),
+    [originalPostContent]
+  );
+  const postContent = useMemo(() => {
+    return imageUrls.length > 0
+      ? removeImageUrlsFromContent(originalPostContent, imageUrls)
+      : originalPostContent;
+  }, [originalPostContent, imageUrls]);
 
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
@@ -176,6 +192,7 @@ export function Post({
         )}
         <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
         <Text style={styles.postContent}>{postContent}</Text>
+        <ImagePreview imageUrls={imageUrls} />
       </TouchableOpacity>
 
       <View style={styles.postActions}>
@@ -234,4 +251,15 @@ export function Post({
       {index < totalPosts - 1 && <View style={styles.separator} />}
     </View>
   );
-}
+};
+
+export const Post = memo(PostComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.post.event.id === nextProps.post.event.id &&
+    prevProps.index === nextProps.index &&
+    prevProps.totalPosts === nextProps.totalPosts &&
+    prevProps.authorName === nextProps.authorName &&
+    prevProps.showAuthor === nextProps.showAuthor &&
+    prevProps.onPress === nextProps.onPress
+  );
+});
