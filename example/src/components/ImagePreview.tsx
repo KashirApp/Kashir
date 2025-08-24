@@ -1,6 +1,7 @@
 import React, { useState, useCallback, memo } from 'react';
-import { View, Image, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Image, Text, TouchableOpacity } from 'react-native';
 import { styles } from '../App.styles';
+import { ImageModal } from './ImageModal';
 
 interface ImagePreviewProps {
   imageUrls: string[];
@@ -13,6 +14,8 @@ function ImagePreviewComponent({
 }: ImagePreviewProps) {
   const [, setLoadingStates] = useState<Record<string, boolean>>({});
   const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const displayUrls = imageUrls.slice(0, maxImages);
   const remainingCount = imageUrls.length - maxImages;
@@ -27,10 +30,9 @@ function ImagePreviewComponent({
     setErrorStates((prev) => ({ ...prev, [url]: true }));
   }, []);
 
-  const handleImagePress = useCallback((_url: string) => {
-    Alert.alert('Image', 'Full image viewer coming soon!', [
-      { text: 'OK', style: 'default' },
-    ]);
+  const handleImagePress = useCallback((index: number) => {
+    setSelectedImageIndex(index);
+    setModalVisible(true);
   }, []);
 
   const getImageStyle = useCallback(() => {
@@ -66,7 +68,7 @@ function ImagePreviewComponent({
         {displayUrls.map((url, index) => (
           <TouchableOpacity
             key={`${url}-${index}`}
-            onPress={() => handleImagePress(url)}
+            onPress={() => handleImagePress(index)}
             style={[
               styles.imageWrapper,
               imageStyle,
@@ -106,6 +108,13 @@ function ImagePreviewComponent({
           And {remainingCount} more image{remainingCount > 1 ? 's' : ''}
         </Text>
       )}
+
+      <ImageModal
+        visible={modalVisible}
+        imageUrls={imageUrls}
+        initialIndex={selectedImageIndex}
+        onClose={() => setModalVisible(false)}
+      />
     </View>
   );
 }

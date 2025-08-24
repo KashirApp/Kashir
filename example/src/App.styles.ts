@@ -724,4 +724,127 @@ export const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: 'italic',
   },
+  // Image Modal Styles
+  imageModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  imageModalContainer: {
+    flex: 1,
+  },
+  imageModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    position: 'absolute',
+    top: 50, // Adjust for SafeAreaView
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  imageModalCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalCloseText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  imageModalCounter: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  imageModalContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  imageModalImage: {
+    width: '100%',
+    height: '100%',
+    minWidth: 200,
+    minHeight: 200,
+  },
+  imageModalError: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 200,
+    height: 200,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+  },
+  imageModalErrorIcon: {
+    fontSize: 48,
+    marginBottom: 10,
+  },
+  imageModalErrorText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  imageModalNavButton: {
+    position: 'absolute',
+    top: '50%',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -30,
+  },
+  imageModalPrevButton: {
+    left: 20,
+  },
+  imageModalNextButton: {
+    right: 20,
+  },
+  imageModalNavText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  imageModalThumbnails: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    height: 80,
+  },
+  imageModalThumbnailsContainer: {
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  imageModalThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginHorizontal: 5,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  imageModalThumbnailActive: {
+    borderColor: '#81b0ff',
+  },
+  imageModalThumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
 });
