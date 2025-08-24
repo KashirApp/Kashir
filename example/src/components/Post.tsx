@@ -10,10 +10,15 @@ import { walletManager } from '../services/WalletManager';
 import type { PostWithStats } from '../types/EventStats';
 import type { NostrStackParamList } from './NostrNavigator';
 import { ImagePreview } from './ImagePreview';
+import { VideoPreview } from './VideoPreview';
 import {
   extractImageUrls,
   removeImageUrlsFromContent,
 } from '../utils/imageUtils';
+import {
+  extractVideoUrls,
+  removeVideoUrlsFromContent,
+} from '../utils/videoUtils';
 
 interface PostProps {
   post: PostWithStats;
@@ -48,16 +53,29 @@ const PostComponent = ({
   const originalPostContent = eventData.content;
   const postTimestamp = originalEvent.createdAt();
 
-  // Extract images and clean content
+  // Extract images and videos, and clean content
   const imageUrls = useMemo(
     () => extractImageUrls(originalPostContent),
     [originalPostContent]
   );
+  const videoUrls = useMemo(() => {
+    return extractVideoUrls(originalPostContent);
+  }, [originalPostContent]);
   const postContent = useMemo(() => {
-    return imageUrls.length > 0
-      ? removeImageUrlsFromContent(originalPostContent, imageUrls)
-      : originalPostContent;
-  }, [originalPostContent, imageUrls]);
+    let cleanedContent = originalPostContent;
+
+    // Remove image URLs
+    if (imageUrls.length > 0) {
+      cleanedContent = removeImageUrlsFromContent(cleanedContent, imageUrls);
+    }
+
+    // Remove video URLs
+    if (videoUrls.length > 0) {
+      cleanedContent = removeVideoUrlsFromContent(cleanedContent, videoUrls);
+    }
+
+    return cleanedContent;
+  }, [originalPostContent, imageUrls, videoUrls]);
 
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
@@ -193,6 +211,7 @@ const PostComponent = ({
         <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
         <Text style={styles.postContent}>{postContent}</Text>
         <ImagePreview imageUrls={imageUrls} />
+        <VideoPreview videoUrls={videoUrls} />
       </TouchableOpacity>
 
       <View style={styles.postActions}>

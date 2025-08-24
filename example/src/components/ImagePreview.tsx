@@ -82,7 +82,7 @@ function ImagePreviewComponent({
               <>
                 <Image
                   source={{ uri: url }}
-                  style={[styles.postImage, imageStyle]}
+                  style={[styles.postImage, imageStyle] as any}
                   onLoad={() => handleImageLoad(url)}
                   onError={() => handleImageError(url)}
                   resizeMode="cover"

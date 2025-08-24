@@ -291,7 +291,7 @@ export function CreateCalendarModal({
                 <View style={styles.imagePreviewContainer}>
                   <Image
                     source={{ uri: trimmedImageUrl }}
-                    style={styles.imagePreview}
+                    style={styles.imagePreview as any}
                     onError={() => setImageError(true)}
                     onLoad={() => setImageError(false)}
                   />

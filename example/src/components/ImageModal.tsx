@@ -235,7 +235,12 @@ export function ImageModal({
                 >
                   <Image
                     source={{ uri: currentImageUrl }}
-                    style={[styles.imageModalImage, { width: screenWidth, height: screenHeight * 0.8 }]}
+                    style={
+                      [
+                        styles.imageModalImage,
+                        { width: screenWidth, height: screenHeight * 0.8 },
+                      ] as any
+                    }
                     resizeMode="contain"
                     onError={handleImageError}
                   />
@@ -302,7 +307,7 @@ export function ImageModal({
                   >
                     <Image
                       source={{ uri: url }}
-                      style={styles.imageModalThumbnailImage}
+                      style={styles.imageModalThumbnailImage as any}
                       resizeMode="cover"
                     />
                   </TouchableOpacity>
