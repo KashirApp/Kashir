@@ -35,6 +35,16 @@ function ImagePreviewComponent({
     setModalVisible(true);
   }, []);
 
+  const getWrapperStyle = useCallback(() => {
+    if (displayUrls.length === 1) {
+      return null; // imageLarge uses 100% width
+    } else if (displayUrls.length === 2) {
+      return styles.imageMediumWrapper;
+    } else {
+      return styles.imageSmallWrapper;
+    }
+  }, [displayUrls.length]);
+
   const getImageStyle = useCallback(() => {
     if (displayUrls.length === 1) {
       return styles.imageLarge;
@@ -55,6 +65,7 @@ function ImagePreviewComponent({
     }
   }, [displayUrls.length]);
 
+  const wrapperStyle = getWrapperStyle();
   const imageStyle = getImageStyle();
   const containerStyle = getContainerStyle();
 
@@ -71,7 +82,7 @@ function ImagePreviewComponent({
             onPress={() => handleImagePress(index)}
             style={[
               styles.imageWrapper,
-              imageStyle,
+              wrapperStyle,
               index === displayUrls.length - 1 &&
                 remainingCount > 0 &&
                 styles.lastImageWrapper,

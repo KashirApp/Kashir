@@ -540,14 +540,12 @@ export const styles = StyleSheet.create({
   },
   imageContainerDouble: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
+    justifyContent: 'flex-start',
   },
   imageContainerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 8,
+    justifyContent: 'flex-start',
   },
   imageWrapper: {
     position: 'relative',
@@ -565,12 +563,18 @@ export const styles = StyleSheet.create({
     height: 200,
   },
   imageMedium: {
-    width: '48%',
-    height: 120,
+    width: '100%',
+    height: 150,
   },
   imageSmall: {
-    width: '48%',
-    height: 100,
+    width: '100%',
+    height: 140,
+  },
+  imageMediumWrapper: {
+    width: '49.8%',
+  },
+  imageSmallWrapper: {
+    width: '49.8%',
   },
   imageError: {
     backgroundColor: '#333',
