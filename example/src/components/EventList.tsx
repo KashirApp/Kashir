@@ -333,15 +333,13 @@ export function EventList({
             >
               <Text style={[styles.tabText, styles.activeTabText]}>🍻</Text>
             </TouchableOpacity>
-            {onCalendarModePress && (
-              <TouchableOpacity
-                style={[styles.tab]}
-                onPress={onCalendarModePress}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.tabText]}>📅</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.tab, !onCalendarModePress && styles.tabDisabled]}
+              onPress={onCalendarModePress}
+              activeOpacity={onCalendarModePress ? 0.7 : 1}
+            >
+              <Text style={[styles.tabText, !onCalendarModePress && styles.tabTextDisabled]}>📅</Text>
+            </TouchableOpacity>
           </View>
           <Text style={styles.headerText}>
             {sortOption === 'distance' ? 'Events by Distance' : title} (
@@ -494,6 +492,7 @@ const styles = StyleSheet.create({
   leftButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 80, // Ensure consistent width
   },
   myEventsButton: {
     backgroundColor: '#333',
@@ -516,6 +515,8 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 120, // Ensure consistent width
+    justifyContent: 'flex-end',
   },
   sortButton: {
     backgroundColor: '#333',
@@ -565,6 +566,12 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: '#000',
+  },
+  tabDisabled: {
+    opacity: 0.5,
+  },
+  tabTextDisabled: {
+    color: '#666',
   },
   headerText: {
     color: '#fff',

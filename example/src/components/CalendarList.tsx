@@ -90,15 +90,13 @@ export function CalendarList({
         </View>
         <View style={styles.centerSection}>
           <View style={styles.tabContainer}>
-            {onEventsModePress && (
-              <TouchableOpacity
-                style={styles.tab}
-                onPress={onEventsModePress}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.tabText}>🍻</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.tab, !onEventsModePress && styles.tabDisabled]}
+              onPress={onEventsModePress}
+              activeOpacity={onEventsModePress ? 0.7 : 1}
+            >
+              <Text style={[styles.tabText, !onEventsModePress && styles.tabTextDisabled]}>🍻</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.tab,
@@ -114,7 +112,7 @@ export function CalendarList({
           </Text>
         </View>
         <View style={styles.headerButtons}>
-          {/* Space for future buttons */}
+          {/* Right section with consistent width */}
         </View>
       </View>
 
@@ -201,6 +199,7 @@ const styles = StyleSheet.create({
   leftButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 80, // Ensure consistent width
   },
   myCalendarsButton: {
     backgroundColor: '#333',
@@ -217,6 +216,8 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 120, // Ensure consistent width to match EventList right section
+    justifyContent: 'flex-end',
   },
   centerSection: {
     flex: 1,
@@ -245,6 +246,12 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: '#000',
+  },
+  tabDisabled: {
+    opacity: 0.5,
+  },
+  tabTextDisabled: {
+    color: '#666',
   },
   headerText: {
     color: '#fff',
