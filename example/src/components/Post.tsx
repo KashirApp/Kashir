@@ -11,6 +11,7 @@ import type { PostWithStats } from '../types/EventStats';
 import type { NostrStackParamList } from './NostrNavigator';
 import { ImagePreview } from './ImagePreview';
 import { VideoPreview } from './VideoPreview';
+import { ReplyModal } from './ReplyModal';
 import {
   extractImageUrls,
   removeImageUrlsFromContent,
@@ -27,6 +28,9 @@ interface PostProps {
   authorName?: string;
   showAuthor?: boolean;
   onPress?: () => void; // Optional onPress override
+  userKeys?: any;
+  loginType?: any;
+  onReplyPosted?: () => void;
 }
 
 const formatTimestamp = (timestamp: TimestampInterface) => {
@@ -41,6 +45,9 @@ const PostComponent = ({
   authorName,
   showAuthor = false,
   onPress,
+  userKeys,
+  loginType,
+  onReplyPosted,
 }: PostProps) => {
   const navigation =
     useNavigation<NativeStackNavigationProp<NostrStackParamList>>();
@@ -81,6 +88,7 @@ const PostComponent = ({
   const [isReposting, setIsReposting] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
   const [zapAmount, setZapAmount] = useState(21);
+  const [isReplyModalVisible, setIsReplyModalVisible] = useState(false);
   const postActionService = PostActionService.getInstance();
 
   // Access wallet functionality for payments via WalletManager
@@ -202,6 +210,15 @@ const PostComponent = ({
     }
   };
 
+  const handleReply = () => {
+    setIsReplyModalVisible(true);
+  };
+
+  const handleReplyPosted = () => {
+    setIsReplyModalVisible(false);
+    onReplyPosted?.();
+  };
+
   return (
     <View key={postId} style={styles.postCard}>
       <TouchableOpacity onPress={handlePostPress} activeOpacity={0.7}>
@@ -214,10 +231,11 @@ const PostComponent = ({
         <VideoPreview videoUrls={videoUrls} />
       </TouchableOpacity>
 
-      <View style={styles.postActions}>
+      <View style={styles.postActions} pointerEvents="box-none">
         <TouchableOpacity
           style={[styles.actionButton, styles.enabledButton]}
-          onPress={handlePostPress}
+          onPress={handleReply}
+          activeOpacity={0.7}
         >
           <Text style={styles.actionButtonText}>
             💬
@@ -268,6 +286,16 @@ const PostComponent = ({
       </View>
 
       {index < totalPosts - 1 && <View style={styles.separator} />}
+
+      {/* Reply Modal */}
+      <ReplyModal
+        visible={isReplyModalVisible}
+        onClose={() => setIsReplyModalVisible(false)}
+        post={post}
+        userKeys={userKeys}
+        loginType={loginType}
+        onReplyPosted={handleReplyPosted}
+      />
     </View>
   );
 };
@@ -279,6 +307,9 @@ export const Post = memo(PostComponent, (prevProps, nextProps) => {
     prevProps.totalPosts === nextProps.totalPosts &&
     prevProps.authorName === nextProps.authorName &&
     prevProps.showAuthor === nextProps.showAuthor &&
-    prevProps.onPress === nextProps.onPress
+    prevProps.onPress === nextProps.onPress &&
+    prevProps.userKeys === nextProps.userKeys &&
+    prevProps.loginType === nextProps.loginType &&
+    prevProps.onReplyPosted === nextProps.onReplyPosted
   );
 });

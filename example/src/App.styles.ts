@@ -1073,4 +1073,37 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  // Reply Modal Styles
+  replyPreviewContainer: {
+    backgroundColor: '#333',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007AFF',
+  },
+  replyPreviewLabel: {
+    color: '#999',
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  replyPreviewText: {
+    color: '#ccc',
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  // Reply input container styles
+  replyInputContainer: {
+    flex: 1,
+    marginTop: 16,
+  },
+  replyInputContainerKeyboard: {
+    flex: 1,
+    minHeight: 100,
+    marginTop: 16,
+  },
+  replyInput: {
+    flex: 1,
+  },
 });

@@ -13,6 +13,9 @@ interface PostListProps {
   title: string;
   onProfileFetch?: (pubkey: any) => void;
   hidePostCount?: boolean;
+  userKeys?: any;
+  loginType?: any;
+  onReplyPosted?: () => void;
 }
 
 export function PostList({
@@ -22,6 +25,9 @@ export function PostList({
   profileService,
   title,
   hidePostCount = false,
+  userKeys,
+  loginType,
+  onReplyPosted,
 }: PostListProps) {
   const getAuthorName = useCallback(
     (post: PostWithStats): string => {
@@ -51,10 +57,20 @@ export function PostList({
           totalPosts={posts.length}
           authorName={getAuthorName(item)}
           showAuthor={showAuthor}
+          userKeys={userKeys}
+          loginType={loginType}
+          onReplyPosted={onReplyPosted}
         />
       );
     },
-    [posts.length, getAuthorName, showAuthor]
+    [
+      posts.length,
+      getAuthorName,
+      showAuthor,
+      userKeys,
+      loginType,
+      onReplyPosted,
+    ]
   );
 
   const renderHeader = useCallback(() => {

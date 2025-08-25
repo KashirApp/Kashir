@@ -233,6 +233,9 @@ export function PostsScreen({
               : 'Fetching trending posts...'
         }
         hidePostCount={activeTab === 'trending'}
+        userKeys={userKeys}
+        loginType={loginType}
+        onReplyPosted={handleRefresh}
       />
 
       {/* Floating Action Button */}
