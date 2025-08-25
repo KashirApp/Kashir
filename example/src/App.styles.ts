@@ -521,6 +521,10 @@ export const styles = StyleSheet.create({
     marginTop: 12,
     alignItems: 'center',
   },
+  imagePreviewContainerSingle: {
+    marginTop: 12,
+    alignItems: 'flex-start', // No centering for single images
+  },
   imagePreview: {
     width: 100,
     height: 100,
@@ -536,7 +540,8 @@ export const styles = StyleSheet.create({
   // Post image styles
   imageContainerSingle: {
     width: '100%',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    // Remove the negative margins to align with text content
   },
   imageContainerDouble: {
     flexDirection: 'row',
@@ -552,15 +557,23 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
+  imageSingleWrapper: {
+    borderRadius: 8, // Restore border radius for cleaner appearance
+  },
   lastImageWrapper: {
     position: 'relative',
   },
   postImage: {
     borderRadius: 8,
   },
+  postImageSingle: {
+    borderRadius: 8, // Restore border radius since we're not edge-to-edge
+  },
   imageLarge: {
     width: '100%',
-    height: 200,
+  },
+  imageLargeWrapper: {
+    width: '100%',
   },
   imageMedium: {
     width: '100%',

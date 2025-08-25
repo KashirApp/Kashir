@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from 'react';
-import { View, Image, Text, TouchableOpacity } from 'react-native';
+import { View, Image, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { styles } from '../App.styles';
 import { ImageModal } from './ImageModal';
 
@@ -8,26 +8,32 @@ interface ImagePreviewProps {
   maxImages?: number;
 }
 
+// Calculate content width: screen width minus post card margins (20px) and padding (30px)
+const contentWidth = Dimensions.get('window').width - 50;
+
 function ImagePreviewComponent({
   imageUrls,
   maxImages = 4,
 }: ImagePreviewProps) {
-  const [, setLoadingStates] = useState<Record<string, boolean>>({});
   const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
+  const [imageDimensions, setImageDimensions] = useState<
+    Record<string, { width: number; height: number }>
+  >({});
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const displayUrls = imageUrls.slice(0, maxImages);
   const remainingCount = imageUrls.length - maxImages;
 
-  const handleImageLoad = useCallback((url: string) => {
-    setLoadingStates((prev) => ({ ...prev, [url]: false }));
-  }, []);
-
   const handleImageError = useCallback((url: string) => {
     console.warn('Failed to load image:', url);
-    setLoadingStates((prev) => ({ ...prev, [url]: false }));
     setErrorStates((prev) => ({ ...prev, [url]: true }));
+  }, []);
+
+  // Get image dimensions when loaded for single images
+  const handleSingleImageLoad = useCallback((url: string, event: any) => {
+    const { width, height } = event.nativeEvent.source;
+    setImageDimensions((prev) => ({ ...prev, [url]: { width, height } }));
   }, []);
 
   const handleImagePress = useCallback((index: number) => {
@@ -37,7 +43,11 @@ function ImagePreviewComponent({
 
   const getWrapperStyle = useCallback(() => {
     if (displayUrls.length === 1) {
-      return null; // imageLarge uses 100% width
+      return [
+        styles.imageLargeWrapper,
+        styles.imageSingleWrapper,
+        { width: contentWidth },
+      ];
     } else if (displayUrls.length === 2) {
       return styles.imageMediumWrapper;
     } else {
@@ -45,15 +55,34 @@ function ImagePreviewComponent({
     }
   }, [displayUrls.length]);
 
-  const getImageStyle = useCallback(() => {
-    if (displayUrls.length === 1) {
-      return styles.imageLarge;
-    } else if (displayUrls.length === 2) {
-      return styles.imageMedium;
-    } else {
-      return styles.imageSmall;
-    }
-  }, [displayUrls.length]);
+  const getImageStyle = useCallback(
+    (url?: string) => {
+      if (displayUrls.length === 1 && url && imageDimensions[url]) {
+        const { width, height } = imageDimensions[url];
+        const aspectRatio = width / height;
+        const calculatedHeight = contentWidth / aspectRatio;
+        return [
+          styles.imageLarge,
+          styles.postImageSingle,
+          {
+            width: contentWidth,
+            height: calculatedHeight,
+          },
+        ];
+      } else if (displayUrls.length === 1) {
+        return [
+          styles.imageLarge,
+          styles.postImageSingle,
+          { width: contentWidth },
+        ];
+      } else if (displayUrls.length === 2) {
+        return styles.imageMedium;
+      } else {
+        return styles.imageSmall;
+      }
+    },
+    [displayUrls.length, imageDimensions]
+  );
 
   const getContainerStyle = useCallback(() => {
     if (displayUrls.length === 1) {
@@ -65,16 +94,24 @@ function ImagePreviewComponent({
     }
   }, [displayUrls.length]);
 
+  const getPreviewContainerStyle = useCallback(() => {
+    if (displayUrls.length === 1) {
+      return styles.imagePreviewContainerSingle;
+    } else {
+      return styles.imagePreviewContainer;
+    }
+  }, [displayUrls.length]);
+
   const wrapperStyle = getWrapperStyle();
-  const imageStyle = getImageStyle();
   const containerStyle = getContainerStyle();
+  const previewContainerStyle = getPreviewContainerStyle();
 
   if (imageUrls.length === 0) {
     return null;
   }
 
   return (
-    <View style={styles.imagePreviewContainer}>
+    <View style={previewContainerStyle}>
       <View style={containerStyle}>
         {displayUrls.map((url, index) => (
           <TouchableOpacity
@@ -93,8 +130,12 @@ function ImagePreviewComponent({
               <>
                 <Image
                   source={{ uri: url }}
-                  style={[styles.postImage, imageStyle] as any}
-                  onLoad={() => handleImageLoad(url)}
+                  style={[styles.postImage, getImageStyle(url)] as any}
+                  onLoad={(event) =>
+                    displayUrls.length === 1
+                      ? handleSingleImageLoad(url, event)
+                      : undefined
+                  }
                   onError={() => handleImageError(url)}
                   resizeMode="cover"
                   fadeDuration={200}
@@ -106,7 +147,7 @@ function ImagePreviewComponent({
                 )}
               </>
             ) : (
-              <View style={[styles.imageError, imageStyle]}>
+              <View style={[styles.imageError, getImageStyle(url)]}>
                 <Text style={styles.imageErrorText}>📷</Text>
                 <Text style={styles.imageErrorTextSmall}>Failed to load</Text>
               </View>
