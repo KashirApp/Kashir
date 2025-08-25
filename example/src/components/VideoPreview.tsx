@@ -13,22 +13,11 @@ function VideoPreviewComponent({
   videoUrls,
   maxVideos = 2,
 }: VideoPreviewProps) {
-  const [playbackErrors, setPlaybackErrors] = useState<Record<string, boolean>>(
-    {}
-  );
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string>('');
 
   const displayUrls = videoUrls.slice(0, maxVideos);
   const remainingCount = videoUrls.length - maxVideos;
-
-  const handleVideoError = useCallback((url: string) => {
-    setPlaybackErrors((prev) => ({ ...prev, [url]: true }));
-  }, []);
-
-  const handleVideoLoad = useCallback((url: string) => {
-    setPlaybackErrors((prev) => ({ ...prev, [url]: false }));
-  }, []);
 
   const handleVideoPress = useCallback((url: string) => {
     setSelectedVideoUrl(url);
@@ -83,8 +72,6 @@ function VideoPreviewComponent({
                 resizeMode="cover"
                 paused={true} // Always paused for preview
                 muted={true} // Always muted for preview
-                onLoad={() => handleVideoLoad(url)}
-                onError={() => handleVideoError(url)}
                 controls={false}
                 repeat={false}
                 poster={url} // Use video URL as poster to show first frame
@@ -97,9 +84,7 @@ function VideoPreviewComponent({
               >
                 <View style={styles.videoOverlay}>
                   <View style={styles.videoPlayButton}>
-                    <Text style={styles.videoPlayButtonText}>
-                      {playbackErrors[url] ? '🌐' : '▶️'}
-                    </Text>
+                    <Text style={styles.videoPlayButtonText}>▶️</Text>
                   </View>
                 </View>
               </TouchableOpacity>

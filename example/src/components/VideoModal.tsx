@@ -268,7 +268,7 @@ export function VideoModal({ visible, videoUrl, onClose }: VideoModalProps) {
                           {playbackError
                             ? retryCount < 3
                               ? '🔄'
-                              : '🌐'
+                              : '▶️'
                             : '▶️'}
                         </Text>
                         {playbackError && retryCount < 3 && (
