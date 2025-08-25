@@ -5,7 +5,12 @@ import {
   PublicKey,
   extractRelayList,
   RelayMetadata,
+  EventBuilder,
+  Keys,
+  SecretKey,
 } from 'kashir';
+
+import { LoginType } from './NostrClient';
 
 export interface UserRelayInfo {
   url: string;
@@ -156,5 +161,61 @@ export class RelayListService {
       return 'Write Only';
     }
     return 'Unknown';
+  }
+
+  /**
+   * Publish user's relay list to the network as a NIP-65 event
+   */
+  async publishRelayList(
+    client: Client,
+    loginType: LoginType,
+    relayUrls: string[]
+  ): Promise<void> {
+    try {
+      console.log(
+        'RelayListService: Publishing relay list with relays:',
+        relayUrls
+      );
+
+      // Create a Map for the relay list - all relays as read/write (no metadata)
+      const relayMap = new Map<string, RelayMetadata | undefined>();
+      relayUrls.forEach((url) => {
+        relayMap.set(url, undefined); // undefined means read/write
+      });
+
+      // Create the NIP-65 relay list event
+      const eventBuilder = EventBuilder.relayList(relayMap);
+
+      // Sign the event based on login type (same pattern as PostActionService)
+      let signedEvent;
+      if (loginType === LoginType.Amber) {
+        const signer = await client.signer();
+        if (!signer) {
+          throw new Error('Amber signer not available');
+        }
+        signedEvent = await eventBuilder.sign(signer);
+      } else if (loginType === LoginType.PrivateKey) {
+        const { SecureStorageService } = await import('./SecureStorageService');
+        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
+        if (!privateKeyHex) {
+          throw new Error('Private key not found in secure storage');
+        }
+        const secretKey = SecretKey.parse(privateKeyHex);
+        const keys = new Keys(secretKey);
+        signedEvent = eventBuilder.signWithKeys(keys);
+      } else {
+        throw new Error('No signing method available');
+      }
+
+      // Publish to the network
+      await client.sendEvent(signedEvent);
+
+      console.log(
+        'RelayListService: Successfully published relay list to network'
+      );
+    } catch (error) {
+      console.error('RelayListService: Failed to publish relay list:', error);
+      throw error;
+    }
   }
 }

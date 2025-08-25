@@ -18,6 +18,7 @@ import { EnhancedRelaysList, RelayUrlModal } from './nostr';
 import { SecureStorageService, StorageService } from '../services';
 import type { UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
+import { RelayListService } from '../services/RelayListService';
 import { ProfileService } from '../services/ProfileService';
 import packageInfo from '../../package.json';
 
@@ -63,6 +64,7 @@ export function SettingsScreen({
   // Navigation and profile service
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const profileService = useMemo(() => new ProfileService(), []);
+  const relayListService = useMemo(() => RelayListService.getInstance(), []);
 
   // Load relays for display only (don't affect client initialization)
   const loadRelaysForDisplay = async () => {
@@ -86,6 +88,43 @@ export function SettingsScreen({
       setRelays(defaultRelays);
       setHasUserRelayList(false);
       setUserRelayInfo([]);
+    }
+  };
+
+  // Helper function to publish relay list if user is logged in
+  const publishRelayListIfLoggedIn = async (relayUrls: string[]) => {
+    try {
+      // Only publish if user is logged in (has npub)
+      if (!userNpub) {
+        console.log(
+          'SettingsScreen: Not publishing relay list - user not logged in'
+        );
+        return;
+      }
+
+      // Get Nostr client
+      const clientService = NostrClientService.getInstance();
+      if (!clientService.isReady()) {
+        console.log(
+          'SettingsScreen: Not publishing relay list - client not ready'
+        );
+        return;
+      }
+
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+
+      if (!session) {
+        console.log('SettingsScreen: Not publishing relay list - no session');
+        return;
+      }
+
+      // Publish the relay list using the current login type
+      await relayListService.publishRelayList(client, session.type, relayUrls);
+      console.log('SettingsScreen: Successfully published relay list');
+    } catch (error) {
+      console.error('SettingsScreen: Failed to publish relay list:', error);
+      // Don't throw error - relay list publishing is optional
     }
   };
 
@@ -260,6 +299,9 @@ export function SettingsScreen({
       const clientService = NostrClientService.getInstance();
       await clientService.reconnectWithNewRelays();
 
+      // Publish updated relay list to network (NIP-65)
+      await publishRelayListIfLoggedIn(updatedRelays);
+
       Alert.alert('Success', 'Relay added successfully');
     } catch {
       Alert.alert('Error', 'Failed to add relay');
@@ -281,6 +323,9 @@ export function SettingsScreen({
       // Reconnect Nostr client with updated relays
       const clientService = NostrClientService.getInstance();
       await clientService.reconnectWithNewRelays();
+
+      // Publish updated relay list to network (NIP-65)
+      await publishRelayListIfLoggedIn(updatedRelays);
 
       Alert.alert('Success', 'Relay removed successfully');
     } else {
