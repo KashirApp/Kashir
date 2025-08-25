@@ -18,7 +18,7 @@ interface VideoModalProps {
 
 export function VideoModal({ visible, videoUrl, onClose }: VideoModalProps) {
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [isBuffering, setIsBuffering] = useState(true);
   const [playbackError, setPlaybackError] = useState(false);
   const [showControls, setShowControls] = useState(true);
