@@ -1086,6 +1086,26 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  videoModalRetryText: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  videoModalInfo: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  videoModalTimeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   // Reply Modal Styles
   replyPreviewContainer: {
     backgroundColor: '#333',
