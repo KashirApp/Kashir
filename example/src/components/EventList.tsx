@@ -338,7 +338,14 @@ export function EventList({
               onPress={onCalendarModePress}
               activeOpacity={onCalendarModePress ? 0.7 : 1}
             >
-              <Text style={[styles.tabText, !onCalendarModePress && styles.tabTextDisabled]}>📅</Text>
+              <Text
+                style={[
+                  styles.tabText,
+                  !onCalendarModePress && styles.tabTextDisabled,
+                ]}
+              >
+                📅
+              </Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.headerText}>

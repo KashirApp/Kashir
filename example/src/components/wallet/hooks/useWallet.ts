@@ -371,7 +371,11 @@ export function useWallet() {
   // Function to handle mint URL submission
   const handleMintUrlSubmit = async (url: string) => {
     await addMintUrl(url);
+
+    // Properly activate the new mint (not just UI state)
     walletManager.setActiveMintUrl(url);
+    await setActiveMint(url);
+
     setShowMintUrlModal(false);
 
     // If we should create wallet after setting mint, set loading state

@@ -70,7 +70,9 @@ export function MintItem({
         <View style={styles.balanceContainer}>
           <Text style={styles.balanceLabel}>Balance: </Text>
           <Text style={styles.balanceValue}>
-            {balance !== undefined ? formatSats(balance) : formatSats(BigInt(0))}
+            {balance !== undefined
+              ? formatSats(balance)
+              : formatSats(BigInt(0))}
           </Text>
         </View>
 

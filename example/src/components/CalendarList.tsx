@@ -95,7 +95,14 @@ export function CalendarList({
               onPress={onEventsModePress}
               activeOpacity={onEventsModePress ? 0.7 : 1}
             >
-              <Text style={[styles.tabText, !onEventsModePress && styles.tabTextDisabled]}>🍻</Text>
+              <Text
+                style={[
+                  styles.tabText,
+                  !onEventsModePress && styles.tabTextDisabled,
+                ]}
+              >
+                🍻
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
