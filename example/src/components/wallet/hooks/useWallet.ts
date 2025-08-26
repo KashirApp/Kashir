@@ -21,6 +21,7 @@ import {
   getCachedMintBalance,
   updateCachedMintBalance,
   loadCachedBalances,
+  syncMintBalance,
 } from '../utils/mintBalanceUtils';
 
 const MINT_URLS_STORAGE_KEY = '@cashu_mint_urls';
@@ -74,6 +75,9 @@ export function useWallet() {
 
   // Ref to prevent duplicate payment calls
   const isProcessingPayment = useRef(false);
+
+  // Ref to prevent concurrent swaps
+  const isSwapping = useRef(false);
 
   // Subscribe to WalletManager state changes
   useEffect(() => {
@@ -1534,8 +1538,161 @@ export function useWallet() {
     }
   };
 
+  const handleSwapBetweenMints = async (
+    fromMintUrl: string,
+    toMintUrl: string,
+    amount: bigint
+  ) => {
+    if (!wallet || !cdkModule) {
+      throw new Error('Wallet or CDK module not initialized');
+    }
+
+    if (fromMintUrl === toMintUrl) {
+      throw new Error('Cannot swap to the same mint');
+    }
+
+    // Prevent concurrent swaps using a simple blocking mechanism
+    if (isSwapping.current) {
+      Alert.alert(
+        'Swap in Progress',
+        'Another swap is already in progress. Please wait for it to complete.'
+      );
+      return;
+    }
+
+    isSwapping.current = true;
+    const originalActiveMintUrl = walletManager.getState().activeMintUrl;
+
+    try {
+      // Step 1: Create separate wallet instances for both mints
+      const fromWallet = await createWalletForMint(fromMintUrl);
+      const toWallet = await createWalletForMint(toMintUrl);
+
+      if (!fromWallet || !toWallet) {
+        throw new Error('Failed to create wallet instances for mints');
+      }
+
+      // Step 2: Get current balance and validate
+      const fromBalance = fromWallet.balance();
+      if (fromBalance.value < amount) {
+        throw new Error(
+          `Insufficient balance. Available: ${formatSats(fromBalance.value)}, Required: ${formatSats(amount)}`
+        );
+      }
+
+      // Step 3: Create mint quote at destination mint
+      const amountObj = { value: amount };
+      const mintQuote = await toWallet.mintQuote(amountObj, 'Cross-mint swap');
+      const swapLightningInvoice = mintQuote.request;
+
+      // Step 4: Create melt quote at source mint
+      const meltQuote = await fromWallet.meltQuote(swapLightningInvoice);
+
+      // Calculate total cost including fees
+      const totalCost =
+        meltQuote.amount.value + (meltQuote.feeReserve?.value || BigInt(0));
+      if (fromBalance.value < totalCost) {
+        throw new Error(
+          `Insufficient balance for swap including fees. Available: ${formatSats(fromBalance.value)}, Required: ${formatSats(totalCost)}`
+        );
+      }
+
+      // Step 5: Execute the melt operation (pay Lightning invoice)
+      await fromWallet.melt(meltQuote.id);
+
+      // Step 6: Check if the Lightning payment succeeded and mint tokens at destination
+      // Wait a bit for Lightning payment to settle
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Check the mint quote status and mint if paid
+      await checkAndMintTokens(toWallet, mintQuote.id);
+
+      // Step 7: Update cached balances for both mints
+      await syncMintBalance(fromMintUrl);
+      await syncMintBalance(toMintUrl);
+
+      // Update total balance display
+      await updateTotalBalance();
+
+      Alert.alert(
+        'Swap Successful',
+        `Successfully swapped ${formatSats(amount)} between mints`
+      );
+    } catch (error) {
+      console.error('Swap failed:', error);
+      throw new Error(`Swap failed: ${getErrorMessage(error)}`);
+    } finally {
+      // Always restore original active mint and reset blocking flag
+      try {
+        if (originalActiveMintUrl) {
+          walletManager.setActiveMintUrl(originalActiveMintUrl);
+          await setActiveMint(originalActiveMintUrl);
+        }
+      } catch (restoreError) {
+        console.warn('Failed to restore original active mint:', restoreError);
+      }
+      isSwapping.current = false;
+    }
+  };
+
+  // Helper function to create wallet instances for specific mints
+  const createWalletForMint = async (mintUrl: string) => {
+    try {
+      const dbPath = getMintDbPath(mintUrl);
+      const localStore = FfiLocalStore.newWithPath(dbPath);
+
+      const storedSeedPhrase = await SecureStorageService.getSeedPhrase();
+      if (!storedSeedPhrase) {
+        throw new Error('No seed phrase available for wallet creation');
+      }
+
+      return FfiWallet.fromMnemonic(
+        mintUrl,
+        FfiCurrencyUnit.Sat,
+        localStore,
+        storedSeedPhrase
+      );
+    } catch (error) {
+      console.error(`Failed to create wallet for mint ${mintUrl}:`, error);
+      return null;
+    }
+  };
+
+  // Helper function to check Lightning payment and mint tokens
+  const checkAndMintTokens = async (
+    mintWallet: any,
+    swapQuoteId: string,
+    maxRetries = 5
+  ) => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const quoteState = await mintWallet.mintQuoteState(swapQuoteId);
+
+        if (quoteState.state === FfiMintQuoteState.Paid) {
+          // Quote is paid, mint the tokens
+          await mintWallet.mint(swapQuoteId, FfiSplitTarget.Default);
+          return;
+        } else if (quoteState.state === FfiMintQuoteState.Unpaid) {
+          throw new Error('Lightning payment failed or expired');
+        }
+
+        // If still pending, wait and retry
+        if (i < maxRetries - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      } catch (error) {
+        if (i === maxRetries - 1) {
+          throw error;
+        }
+        // Wait before retry
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
+
+    throw new Error('Lightning payment check timed out');
+  };
+
   return {
-    // State
     balance,
     moduleStatus,
     wallet,
@@ -1596,5 +1753,6 @@ export function useWallet() {
     handleWalletRecovery,
     setShowRecoverModal,
     updateTotalBalance,
+    handleSwapBetweenMints,
   };
 }

@@ -13,13 +13,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../App';
-import { MintsList, MintUrlModal, useWallet } from './wallet';
+import { MintsList, MintUrlModal, useWallet, SwapModal } from './wallet';
 import { EnhancedRelaysList, RelayUrlModal } from './nostr';
 import { SecureStorageService, StorageService } from '../services';
 import type { UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
 import { RelayListService } from '../services/RelayListService';
 import { ProfileService } from '../services/ProfileService';
+import { loadCachedBalances } from './wallet/utils/mintBalanceUtils';
+import type { MintBalance } from './wallet/utils/mintBalanceUtils';
 import packageInfo from '../../package.json';
 
 interface SettingsScreenProps {
@@ -47,6 +49,8 @@ export function SettingsScreen({
   const [lastRelayCheck, setLastRelayCheck] = useState<string>(''); // Track last relay state
   const [_zapAmount, setZapAmount] = useState<number>(21);
   const [zapAmountInput, setZapAmountInput] = useState<string>('21');
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [mintBalances, setMintBalances] = useState<MintBalance[]>([]);
 
   const {
     mintUrls,
@@ -59,12 +63,36 @@ export function SettingsScreen({
     setActiveMint,
     removeMintUrl,
     updateTotalBalance,
+    handleSwapBetweenMints,
   } = useWallet();
 
   // Navigation and profile service
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const profileService = useMemo(() => new ProfileService(), []);
   const relayListService = useMemo(() => RelayListService.getInstance(), []);
+
+  // Load cached mint balances for swap functionality
+  useEffect(() => {
+    const loadMintBalances = async () => {
+      try {
+        const balances = await loadCachedBalances();
+        const validBalances = balances.filter(
+          (balance) =>
+            balance && balance.mintUrl && mintUrls.includes(balance.mintUrl)
+        );
+        setMintBalances(validBalances);
+      } catch (error) {
+        console.warn('Failed to load mint balances for swap:', error);
+        setMintBalances([]);
+      }
+    };
+
+    if (mintUrls.length > 0) {
+      loadMintBalances();
+    } else {
+      setMintBalances([]);
+    }
+  }, [mintUrls]);
 
   // Load relays for display only (don't affect client initialization)
   const loadRelaysForDisplay = async () => {
@@ -378,6 +406,7 @@ export function SettingsScreen({
               onRemove={removeMintUrl}
               onAddMint={promptForMintUrl}
               onUpdateTotalBalance={updateTotalBalance}
+              onSwap={() => setShowSwapModal(true)}
             />
           </View>
         </View>
@@ -488,6 +517,13 @@ export function SettingsScreen({
         visible={showMintUrlModal}
         onClose={handleMintUrlModalClose}
         onSubmit={handleMintUrlSubmit}
+      />
+
+      <SwapModal
+        visible={showSwapModal}
+        onClose={() => setShowSwapModal(false)}
+        mintBalances={mintBalances}
+        onSwap={handleSwapBetweenMints}
       />
 
       <RelayUrlModal

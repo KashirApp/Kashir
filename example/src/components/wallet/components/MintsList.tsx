@@ -21,6 +21,7 @@ interface MintsListProps {
   onRemove: (url: string) => void;
   onAddMint: () => void;
   onUpdateTotalBalance?: () => Promise<void>;
+  onSwap?: () => void;
 }
 
 export function MintsList({
@@ -30,6 +31,7 @@ export function MintsList({
   onRemove,
   onAddMint,
   onUpdateTotalBalance,
+  onSwap,
 }: MintsListProps) {
   const [mintBalances, setMintBalances] = useState<MintBalance[]>([]);
 
@@ -157,6 +159,13 @@ export function MintsList({
           );
         })}
 
+        {/* Show swap button if there are at least 2 mints */}
+        {mintUrls.length >= 2 && onSwap && (
+          <TouchableOpacity onPress={onSwap} style={styles.swapButton}>
+            <Text style={styles.swapButtonText}>⇄ Swap Between Mints</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity onPress={onAddMint} style={styles.addMintButton}>
           <Text style={styles.addMintButtonText}>+ Add Another Mint</Text>
         </TouchableOpacity>
@@ -195,6 +204,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   addMintButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  swapButton: {
+    backgroundColor: '#ff9500',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  swapButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
