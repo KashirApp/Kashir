@@ -69,11 +69,9 @@ export function MintItem({
 
         <View style={styles.balanceContainer}>
           <Text style={styles.balanceLabel}>Balance: </Text>
-          {balance !== undefined ? (
-            <Text style={styles.balanceValue}>{formatSats(balance)}</Text>
-          ) : (
-            <Text style={styles.balanceValue}>Loading...</Text>
-          )}
+          <Text style={styles.balanceValue}>
+            {balance !== undefined ? formatSats(balance) : formatSats(BigInt(0))}
+          </Text>
         </View>
 
         {isActive && (
