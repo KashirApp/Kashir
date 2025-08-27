@@ -14,7 +14,7 @@ type UserPostsScreenProps = NativeStackScreenProps<
 >;
 
 export function UserPostsScreen({ route }: UserPostsScreenProps) {
-  const { userNpub } = route.params;
+  const { userNpub, userName } = route.params;
   const [client, _setClient] = useState(
     NostrClientService.getInstance().getClient()
   );
@@ -39,7 +39,9 @@ export function UserPostsScreen({ route }: UserPostsScreenProps) {
         loading={loading}
         showAuthor={false}
         profileService={profileService}
-        title={loading ? 'Fetching your posts...' : 'Your posts'}
+        title={
+          loading ? `Fetching ${userName}'s posts...` : `${userName}'s posts`
+        }
       />
     </SafeAreaView>
   );

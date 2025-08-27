@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Text, View, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { EventInterface, TimestampInterface } from 'kashir';
 import { styles } from '../App.styles';
 import { PostActionService } from '../services/PostActionService';
@@ -9,6 +10,7 @@ import { StorageService } from '../services/StorageService';
 import { walletManager } from '../services/WalletManager';
 import type { PostWithStats } from '../types/EventStats';
 import type { NostrStackParamList } from './NostrNavigator';
+import type { RootStackParamList } from '../App';
 import { ImagePreview } from './ImagePreview';
 import { VideoPreview } from './VideoPreview';
 import { ReplyModal } from './ReplyModal';
@@ -50,7 +52,12 @@ const PostComponent = ({
   onReplyPosted,
 }: PostProps) => {
   const navigation =
-    useNavigation<NativeStackNavigationProp<NostrStackParamList>>();
+    useNavigation<
+      CompositeNavigationProp<
+        NativeStackNavigationProp<NostrStackParamList>,
+        NativeStackNavigationProp<RootStackParamList>
+      >
+    >();
   // All posts are PostWithStats with originalEvent for actions
   const eventData = post.event;
   const stats = post.stats;
@@ -219,11 +226,28 @@ const PostComponent = ({
     onReplyPosted?.();
   };
 
+  const handleAuthorPress = () => {
+    try {
+      const authorPubkey = originalEvent.author();
+      const authorNpub = authorPubkey.toBech32();
+
+      navigation.navigate('UserPosts', {
+        userNpub: authorNpub,
+        userName: authorName || 'Loading...',
+      });
+    } catch (error) {
+      console.error('Failed to navigate to user posts:', error);
+      Alert.alert('Error', 'Failed to load user profile');
+    }
+  };
+
   return (
     <View key={postId} style={styles.postCard}>
       <TouchableOpacity onPress={handlePostPress} activeOpacity={0.7}>
         {showAuthor && authorName && (
-          <Text style={styles.postAuthor}>@{authorName}</Text>
+          <TouchableOpacity onPress={handleAuthorPress} activeOpacity={0.7}>
+            <Text style={styles.postAuthor}>@{authorName}</Text>
+          </TouchableOpacity>
         )}
         <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
         <Text style={styles.postContent}>{postContent}</Text>
