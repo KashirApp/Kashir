@@ -13,6 +13,7 @@ import {
   MintRecommendationService,
   type MintRecommendation,
 } from '../../../services';
+import { MintCommentsModal } from './MintCommentsModal';
 
 interface MintRecommendationsModalProps {
   visible: boolean;
@@ -29,6 +30,8 @@ export function MintRecommendationsModal({
     []
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedMint, setSelectedMint] = useState<MintRecommendation | null>(null);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -52,6 +55,16 @@ export function MintRecommendationsModal({
   const handleSelectMint = (url: string) => {
     onSelectMint(url);
     onClose();
+  };
+
+  const handleShowComments = (rec: MintRecommendation) => {
+    setSelectedMint(rec);
+    setShowCommentsModal(true);
+  };
+
+  const handleCloseCommentsModal = () => {
+    setShowCommentsModal(false);
+    setSelectedMint(null);
   };
 
   return (
@@ -82,22 +95,26 @@ export function MintRecommendationsModal({
           ) : recommendations.length > 0 ? (
             <View style={styles.recommendationsList}>
               {recommendations.map((rec, _index) => (
-                <TouchableOpacity
-                  key={rec.url}
-                  style={styles.recommendationItem}
-                  onPress={() => handleSelectMint(rec.url)}
-                >
-                  <View style={styles.recommendationContent}>
+                <View key={rec.url} style={styles.recommendationItem}>
+                  <TouchableOpacity
+                    style={styles.recommendationContent}
+                    onPress={() => handleShowComments(rec)}
+                    activeOpacity={0.7}
+                  >
                     <Text style={styles.recommendationUrl}>{rec.url}</Text>
                     <Text style={styles.recommendationCount}>
                       Recommended by {rec.count}{' '}
                       {rec.count === 1 ? 'user' : 'users'}
                     </Text>
-                  </View>
-                  <View style={styles.selectButton}>
+                    <Text style={styles.tapHint}>Tap to see reviews</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    onPress={() => handleSelectMint(rec.url)}
+                  >
                     <Text style={styles.selectButtonText}>Select</Text>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
               ))}
             </View>
           ) : (
@@ -111,6 +128,16 @@ export function MintRecommendationsModal({
             </View>
           )}
         </ScrollView>
+
+        {/* Comments Modal */}
+        {selectedMint && (
+          <MintCommentsModal
+            visible={showCommentsModal}
+            onClose={handleCloseCommentsModal}
+            mintUrl={selectedMint.url}
+            comments={selectedMint.comments}
+          />
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -194,6 +221,12 @@ const styles = StyleSheet.create({
   recommendationCount: {
     fontSize: 13,
     color: '#888888',
+    marginBottom: 4,
+  },
+  tapHint: {
+    fontSize: 11,
+    color: '#666666',
+    fontStyle: 'italic',
   },
   selectButton: {
     backgroundColor: '#007AFF',

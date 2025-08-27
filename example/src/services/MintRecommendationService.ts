@@ -1,10 +1,20 @@
-import { Filter, Kind } from 'kashir';
+import { Filter, Kind, PublicKey } from 'kashir';
 import { NostrClientService } from './NostrClient';
 import { tagsToArray } from './NostrUtils';
+
+export interface MintComment {
+  pubkey: string;
+  content: string;
+  createdAt: number;
+  npub: string;
+  rating?: number;
+  review?: string;
+}
 
 export interface MintRecommendation {
   url: string;
   count: number;
+  comments: MintComment[];
 }
 
 export class MintRecommendationService {
@@ -45,38 +55,110 @@ export class MintRecommendationService {
 
       const filter = new Filter().kinds([new Kind(38000)]).limit(2000n);
 
-      console.log('Fetching mint recommendations...');
-
       const events = await client.fetchEvents(filter, 30000 as any);
       const eventArray = events.toVec();
 
-      console.log(`Found ${eventArray.length} mint announcement events`);
-
       const mintUrls: string[] = [];
+      const mintComments = new Map<string, MintComment[]>();
 
-      // Process events to extract mint URLs
+      // Process events to extract mint URLs AND collect comments
       for (const event of eventArray) {
         try {
           const tags = event.tags();
           const tagArrays = tagsToArray(tags);
 
-          // Look for tags with k=38172 and u=mintUrl
+          // Look for NIP-87 recommendation events (kind 38000) that reference mint info events
           let hasCorrectKind = false;
-          let mintUrl = '';
+          const eventMintUrls: string[] = [];
 
           for (const tagData of tagArrays) {
             if (tagData.length >= 2) {
-              if (tagData[0] === 'k' && tagData[1] === '38172') {
-                hasCorrectKind = true;
+              // 'a' tag format: "38172:pubkey:identifier" or "38173:pubkey:identifier"
+              if (tagData[0] === 'a' && typeof tagData[1] === 'string') {
+                const aParts = tagData[1].split(':');
+                if (aParts[0] === '38172' || aParts[0] === '38173') {
+                  hasCorrectKind = true;
+                  if (mintUrls.length < 3) console.log(`Found 'a' tag: ${tagData[1]}`);
+                }
               } else if (tagData[0] === 'u' && typeof tagData[1] === 'string') {
-                mintUrl = tagData[1];
+                // For Cashu mints, u tag should be HTTPS URL
+                // For Fedimint, u tag could be invite code, but we're focusing on Cashu for now
+                if (tagData[1].startsWith('https://')) {
+                  eventMintUrls.push(tagData[1]);
+                  if (mintUrls.length < 3) console.log(`Found u tag: ${tagData[1]}`);
+                }
               }
             }
           }
 
-          // If both conditions are met, add the mint URL
-          if (hasCorrectKind && mintUrl && mintUrl.startsWith('https://')) {
-            mintUrls.push(mintUrl);
+          if (hasCorrectKind && eventMintUrls.length > 0) {
+            for (const mintUrl of eventMintUrls) {
+              mintUrls.push(mintUrl);
+
+              // Collect comment data
+              let pubkey;
+              try {
+                pubkey = event.author().toHex();
+              } catch (error) {
+                pubkey = null;
+              }
+              const content = event.content() || '';
+              
+              if (pubkey && typeof pubkey === 'string' && pubkey.length > 0) {
+                try {
+                  const npub = PublicKey.parse(pubkey).toBech32();
+                  const createdAt = Number(event.createdAt().asSecs());
+                  
+                  // Parse rating and review from content
+                  const ratingMatch = content.match(/\[(\d)\/5\]/);
+                  const rating = ratingMatch ? parseInt(ratingMatch[1]) : undefined;
+                  const review = content.replace(/\[(\d)\/5\]/, '').trim();
+
+                  // Skip comments that have neither rating nor review text
+                  if (!rating && (!review || review.length === 0)) {
+                    continue;
+                  }
+
+                  const comment: MintComment = {
+                    pubkey,
+                    content,
+                    createdAt,
+                    npub,
+                    rating,
+                    review: review.length > 0 ? review : undefined,
+                  };
+
+                  if (!mintComments.has(mintUrl)) {
+                    mintComments.set(mintUrl, []);
+                  }
+                  mintComments.get(mintUrl)!.push(comment);
+                } catch (parseError) {
+                  // Fallback for invalid pubkey format
+                  const ratingMatch = content.match(/\[(\d)\/5\]/);
+                  const rating = ratingMatch ? parseInt(ratingMatch[1]) : undefined;
+                  const review = content.replace(/\[(\d)\/5\]/, '').trim();
+                  
+                  // Skip comments that have neither rating nor review text
+                  if (!rating && (!review || review.length === 0)) {
+                    continue;
+                  }
+                  
+                  const comment: MintComment = {
+                    pubkey,
+                    content,
+                    createdAt: Number(event.createdAt().asSecs()),
+                    npub: pubkey.substring(0, 16) + '...',
+                    rating,
+                    review: review.length > 0 ? review : undefined,
+                  };
+                  
+                  if (!mintComments.has(mintUrl)) {
+                    mintComments.set(mintUrl, []);
+                  }
+                  mintComments.get(mintUrl)!.push(comment);
+                }
+              }
+            }
           }
         } catch (error) {
           console.error('Error processing event:', error);
@@ -89,17 +171,22 @@ export class MintRecommendationService {
         mintUrlCounts.set(url, (mintUrlCounts.get(url) || 0) + 1);
       }
 
-      // Convert to array and sort by count (show all with at least 1 recommendation)
+      // Convert to array and sort by count, adding comments
       const recommendations: MintRecommendation[] = Array.from(
         mintUrlCounts.entries()
       )
-        .map(([url, count]) => ({ url, count }))
-        .filter(({ count }) => count >= 1) // Only include mints with at least 1 recommendation
-        .sort((a, b) => b.count - a.count); // Sort by recommendation count (highest first)
+        .map(([url, count]) => {
+          const comments = (mintComments.get(url) || []).sort((a, b) => b.createdAt - a.createdAt);
+          return { 
+            url, 
+            count,
+            comments
+          };
+        })
+        .filter(({ count }) => count >= 1)
+        .sort((a, b) => b.count - a.count);
 
       this.recommendations = recommendations;
-      console.log(`Generated ${recommendations.length} mint recommendations`);
-
       return recommendations;
     } catch (error) {
       console.error('Error fetching mint recommendations:', error);
