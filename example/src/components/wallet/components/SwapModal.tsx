@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   TextInput,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { formatSats } from '../utils/formatUtils';
 import type { MintBalance } from '../utils/mintBalanceUtils';
@@ -146,7 +148,11 @@ export function SwapModal({
       supportedOrientations={['portrait']}
       hardwareAccelerated={true}
     >
-      <View style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Swap Between Mints</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -157,8 +163,6 @@ export function SwapModal({
         <ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={!isSwapping}
-          removeClippedSubviews={true}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={isSwapping ? styles.fixedContent : undefined}
           pointerEvents={isSwapping ? 'none' : 'auto'}
@@ -275,7 +279,7 @@ export function SwapModal({
             </View>
           </View>
         )}
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
