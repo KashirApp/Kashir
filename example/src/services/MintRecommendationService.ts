@@ -31,9 +31,17 @@ export class MintRecommendationService {
     return MintRecommendationService.instance;
   }
 
-  async fetchMintRecommendations(): Promise<MintRecommendation[]> {
-    if (this.isFetching) {
+  async fetchMintRecommendations(
+    forceRefresh: boolean = false
+  ): Promise<MintRecommendation[]> {
+    if (this.isFetching && !forceRefresh) {
       return this.recommendations;
+    }
+
+    // If force refresh, clear cache first
+    if (forceRefresh) {
+      this.recommendations = [];
+      this.isFetching = false;
     }
 
     this.isFetching = true;
@@ -73,19 +81,21 @@ export class MintRecommendationService {
 
           for (const tagData of tagArrays) {
             if (tagData.length >= 2) {
-              // 'a' tag format: "38172:pubkey:identifier" or "38173:pubkey:identifier"
+              // 'a' tag format: "38172:pubkey:identifier" for Cashu mint info
               if (tagData[0] === 'a' && typeof tagData[1] === 'string') {
                 const aParts = tagData[1].split(':');
-                if (aParts[0] === '38172' || aParts[0] === '38173') {
+                if (aParts[0] === '38172') {
                   hasCorrectKind = true;
-                  if (mintUrls.length < 3) console.log(`Found 'a' tag: ${tagData[1]}`);
+                }
+              } else if (tagData[0] === 'k' && typeof tagData[1] === 'string') {
+                // 'k' tag for kind being recommended (38172 for Cashu mint info)
+                if (tagData[1] === '38172') {
+                  hasCorrectKind = true;
                 }
               } else if (tagData[0] === 'u' && typeof tagData[1] === 'string') {
                 // For Cashu mints, u tag should be HTTPS URL
-                // For Fedimint, u tag could be invite code, but we're focusing on Cashu for now
                 if (tagData[1].startsWith('https://')) {
                   eventMintUrls.push(tagData[1]);
-                  if (mintUrls.length < 3) console.log(`Found u tag: ${tagData[1]}`);
                 }
               }
             }
@@ -99,19 +109,21 @@ export class MintRecommendationService {
               let pubkey;
               try {
                 pubkey = event.author().toHex();
-              } catch (error) {
+              } catch {
                 pubkey = null;
               }
               const content = event.content() || '';
-              
+
               if (pubkey && typeof pubkey === 'string' && pubkey.length > 0) {
                 try {
                   const npub = PublicKey.parse(pubkey).toBech32();
                   const createdAt = Number(event.createdAt().asSecs());
-                  
+
                   // Parse rating and review from content
                   const ratingMatch = content.match(/\[(\d)\/5\]/);
-                  const rating = ratingMatch ? parseInt(ratingMatch[1]) : undefined;
+                  const rating = ratingMatch
+                    ? parseInt(ratingMatch[1], 10)
+                    : undefined;
                   const review = content.replace(/\[(\d)\/5\]/, '').trim();
 
                   // Skip comments that have neither rating nor review text
@@ -132,17 +144,19 @@ export class MintRecommendationService {
                     mintComments.set(mintUrl, []);
                   }
                   mintComments.get(mintUrl)!.push(comment);
-                } catch (parseError) {
+                } catch {
                   // Fallback for invalid pubkey format
                   const ratingMatch = content.match(/\[(\d)\/5\]/);
-                  const rating = ratingMatch ? parseInt(ratingMatch[1]) : undefined;
+                  const rating = ratingMatch
+                    ? parseInt(ratingMatch[1], 10)
+                    : undefined;
                   const review = content.replace(/\[(\d)\/5\]/, '').trim();
-                  
+
                   // Skip comments that have neither rating nor review text
                   if (!rating && (!review || review.length === 0)) {
                     continue;
                   }
-                  
+
                   const comment: MintComment = {
                     pubkey,
                     content,
@@ -151,7 +165,7 @@ export class MintRecommendationService {
                     rating,
                     review: review.length > 0 ? review : undefined,
                   };
-                  
+
                   if (!mintComments.has(mintUrl)) {
                     mintComments.set(mintUrl, []);
                   }
@@ -176,11 +190,13 @@ export class MintRecommendationService {
         mintUrlCounts.entries()
       )
         .map(([url, count]) => {
-          const comments = (mintComments.get(url) || []).sort((a, b) => b.createdAt - a.createdAt);
-          return { 
-            url, 
+          const comments = (mintComments.get(url) || []).sort(
+            (a, b) => b.createdAt - a.createdAt
+          );
+          return {
+            url,
             count,
-            comments
+            comments,
           };
         })
         .filter(({ count }) => count >= 1)
@@ -198,5 +214,11 @@ export class MintRecommendationService {
 
   getRecommendations(): MintRecommendation[] {
     return this.recommendations;
+  }
+
+  // Clear cached data to force fresh fetch
+  clearCache(): void {
+    this.recommendations = [];
+    this.isFetching = false;
   }
 }

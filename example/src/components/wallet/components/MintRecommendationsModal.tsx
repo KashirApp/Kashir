@@ -30,7 +30,9 @@ export function MintRecommendationsModal({
     []
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedMint, setSelectedMint] = useState<MintRecommendation | null>(null);
+  const [selectedMint, setSelectedMint] = useState<MintRecommendation | null>(
+    null
+  );
   const [showCommentsModal, setShowCommentsModal] = useState(false);
 
   useEffect(() => {

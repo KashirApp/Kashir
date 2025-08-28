@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -30,44 +30,53 @@ export function MintCommentsModal({
 }: MintCommentsModalProps) {
   const [usernames, setUsernames] = useState<Map<string, string>>(new Map());
   const [showUserPostsModal, setShowUserPostsModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<{npub: string; name: string} | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{
+    npub: string;
+    name: string;
+  } | null>(null);
+
+  const fetchUsernames = useCallback(async () => {
+    const clientService = NostrClientService.getInstance();
+    const client = clientService.getClient();
+
+    if (!client) return;
+
+    const newUsernames = new Map<string, string>();
+
+    for (const comment of comments) {
+      try {
+        const name = await sharedProfileService.fetchUserProfile(
+          client,
+          comment.npub
+        );
+        newUsernames.set(
+          comment.pubkey,
+          name || comment.npub.substring(0, 16) + '...'
+        );
+      } catch {
+        newUsernames.set(comment.pubkey, comment.npub.substring(0, 16) + '...');
+      }
+    }
+
+    setUsernames(newUsernames);
+  }, [comments]);
 
   useEffect(() => {
     if (visible && comments.length > 0) {
       fetchUsernames();
     }
-  }, [visible, comments]);
-
-  const fetchUsernames = async () => {
-    const clientService = NostrClientService.getInstance();
-    const client = clientService.getClient();
-    
-    if (!client) return;
-
-    const newUsernames = new Map<string, string>();
-    
-    for (const comment of comments) {
-      try {
-        const name = await sharedProfileService.fetchUserProfile(client, comment.npub);
-        newUsernames.set(comment.pubkey, name || comment.npub.substring(0, 16) + '...');
-      } catch (error) {
-        newUsernames.set(comment.pubkey, comment.npub.substring(0, 16) + '...');
-      }
-    }
-    
-    setUsernames(newUsernames);
-  };
+  }, [visible, comments, fetchUsernames]);
 
   const formatDate = (timestamp: number) => {
     if (!timestamp || timestamp <= 0) {
       return '';
     }
-    
+
     const date = new Date(timestamp * 1000);
     if (isNaN(date.getTime())) {
       return '';
     }
-    
+
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -76,7 +85,9 @@ export function MintCommentsModal({
   };
 
   const getDisplayName = (comment: MintComment) => {
-    return usernames.get(comment.pubkey) || comment.npub.substring(0, 8) + '...';
+    return (
+      usernames.get(comment.pubkey) || comment.npub.substring(0, 8) + '...'
+    );
   };
 
   const handleAuthorPress = (comment: MintComment) => {
@@ -84,7 +95,7 @@ export function MintCommentsModal({
       const authorPubkey = PublicKey.parse(comment.pubkey);
       const authorNpub = authorPubkey.toBech32();
       const authorName = getDisplayName(comment);
-      
+
       setSelectedUser({ npub: authorNpub, name: authorName });
       setShowUserPostsModal(true);
     } catch (error) {
@@ -100,19 +111,23 @@ export function MintCommentsModal({
 
   const renderRating = (rating?: number) => {
     if (!rating) return null;
-    
+
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
-        <Text key={i} style={[styles.star, i <= rating ? styles.filledStar : styles.emptyStar]}>
+        <Text
+          key={i}
+          style={[
+            styles.star,
+            i <= rating ? styles.filledStar : styles.emptyStar,
+          ]}
+        >
           {i <= rating ? '★' : '☆'}
         </Text>
       );
     }
-    
-    return (
-      <View style={styles.starsContainer}>{stars}</View>
-    );
+
+    return <View style={styles.starsContainer}>{stars}</View>;
   };
 
   return (
@@ -143,10 +158,16 @@ export function MintCommentsModal({
           {comments.length > 0 ? (
             <View style={styles.commentsList}>
               {comments.map((comment, index) => (
-                <View key={`${comment.pubkey}-${comment.createdAt}`} style={styles.commentItem}>
+                <View
+                  key={`${comment.pubkey}-${comment.createdAt}`}
+                  style={styles.commentItem}
+                >
                   <View style={styles.commentHeader}>
                     <View style={styles.userInfo}>
-                      <TouchableOpacity onPress={() => handleAuthorPress(comment)} activeOpacity={0.7}>
+                      <TouchableOpacity
+                        onPress={() => handleAuthorPress(comment)}
+                        activeOpacity={0.7}
+                      >
                         <Text style={styles.username} numberOfLines={1}>
                           @{getDisplayName(comment)}
                         </Text>
@@ -159,14 +180,14 @@ export function MintCommentsModal({
                       {renderRating(comment.rating)}
                     </View>
                   </View>
-                  
+
                   {comment.review && (
-                    <Text style={styles.commentContent}>
-                      {comment.review}
-                    </Text>
+                    <Text style={styles.commentContent}>{comment.review}</Text>
                   )}
-                  
-                  {index < comments.length - 1 && <View style={styles.separator} />}
+
+                  {index < comments.length - 1 && (
+                    <View style={styles.separator} />
+                  )}
                 </View>
               ))}
             </View>

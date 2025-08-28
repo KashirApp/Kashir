@@ -51,9 +51,7 @@ export function UserPostsModal({
     >
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>
-            {userName}'s posts
-          </Text>
+          <Text style={styles.title}>{userName}'s posts</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeText}>Close</Text>
           </TouchableOpacity>
@@ -65,6 +63,7 @@ export function UserPostsModal({
             loading={loading}
             showAuthor={false}
             profileService={profileService}
+            title="User Posts"
           />
         </View>
       </SafeAreaView>

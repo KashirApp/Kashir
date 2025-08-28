@@ -13,7 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../App';
-import { MintsList, MintUrlModal, useWallet, SwapModal } from './wallet';
+import {
+  MintsList,
+  MintUrlModal,
+  useWallet,
+  SwapModal,
+  MintReviewModal,
+} from './wallet';
 import { EnhancedRelaysList, RelayUrlModal } from './nostr';
 import { SecureStorageService, StorageService } from '../services';
 import type { UserRelayInfo } from '../services';
@@ -51,6 +57,8 @@ export function SettingsScreen({
   const [zapAmountInput, setZapAmountInput] = useState<string>('21');
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [mintBalances, setMintBalances] = useState<MintBalance[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewMintUrl, setReviewMintUrl] = useState<string>('');
 
   const {
     mintUrls,
@@ -388,6 +396,20 @@ export function SettingsScreen({
     }
   };
 
+  const handleReviewMint = (mintUrl: string) => {
+    if (!userNpub) {
+      Alert.alert('Login Required', 'Please login to review mints');
+      return;
+    }
+    setReviewMintUrl(mintUrl);
+    setShowReviewModal(true);
+  };
+
+  const handleReviewModalClose = () => {
+    setShowReviewModal(false);
+    setReviewMintUrl('');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -407,6 +429,7 @@ export function SettingsScreen({
               onAddMint={promptForMintUrl}
               onUpdateTotalBalance={updateTotalBalance}
               onSwap={() => setShowSwapModal(true)}
+              onReview={handleReviewMint}
             />
           </View>
         </View>
@@ -530,6 +553,13 @@ export function SettingsScreen({
         visible={showRelayModal}
         onClose={() => setShowRelayModal(false)}
         onSubmit={handleAddRelay}
+      />
+
+      <MintReviewModal
+        visible={showReviewModal}
+        mintUrl={reviewMintUrl}
+        onClose={handleReviewModalClose}
+        userNpub={userNpub}
       />
     </SafeAreaView>
   );

@@ -16,6 +16,7 @@ interface MintItemProps {
   onSetActive: (url: string) => void;
   onRemove: (url: string) => void;
   onRefresh?: (url: string) => Promise<void>;
+  onReview?: (url: string) => void;
 }
 
 export function MintItem({
@@ -25,6 +26,7 @@ export function MintItem({
   onSetActive,
   onRemove,
   onRefresh,
+  onReview,
 }: MintItemProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -62,6 +64,12 @@ export function MintItem({
     }
   };
 
+  const handleReview = () => {
+    if (onReview) {
+      onReview(mintUrl);
+    }
+  };
+
   return (
     <View style={[styles.container, isActive && styles.activeContainer]}>
       <View style={styles.leftSection}>
@@ -84,43 +92,59 @@ export function MintItem({
       </View>
 
       <View style={styles.rightSection}>
-        {onRefresh && (
-          <TouchableOpacity
-            onPress={handleRefresh}
-            style={styles.refreshButton}
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.refreshButtonText}>Sync</Text>
-            )}
-          </TouchableOpacity>
-        )}
+        <View style={styles.buttonRow}>
+          {onRefresh && (
+            <TouchableOpacity
+              onPress={handleRefresh}
+              style={styles.refreshButton}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.refreshButtonText}>Sync</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
-        {!isActive && (
-          <TouchableOpacity
-            onPress={handleSetActive}
-            style={styles.setActiveButton}
-          >
-            <Text style={styles.setActiveButtonText}>Set Active</Text>
-          </TouchableOpacity>
-        )}
+          {!isActive && (
+            <TouchableOpacity
+              onPress={handleSetActive}
+              style={styles.setActiveButton}
+            >
+              <Text style={styles.setActiveButtonText}>Set Active</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-        <TouchableOpacity
-          onPress={handleRemove}
-          style={[styles.removeButton, isActive && styles.removeButtonDisabled]}
-          disabled={isActive}
-        >
-          <Text
+        <View style={styles.buttonRow}>
+          {onReview && (
+            <TouchableOpacity
+              onPress={handleReview}
+              style={styles.reviewButton}
+            >
+              <Text style={styles.reviewButtonText}>Review</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            onPress={handleRemove}
             style={[
-              styles.removeButtonText,
-              isActive && styles.removeButtonTextDisabled,
+              styles.removeButton,
+              isActive && styles.removeButtonDisabled,
             ]}
+            disabled={isActive}
           >
-            Remove
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.removeButtonText,
+                isActive && styles.removeButtonTextDisabled,
+              ]}
+            >
+              Remove
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -135,7 +159,7 @@ const styles = StyleSheet.create({
     borderColor: '#444',
     marginBottom: 12,
     flexDirection: 'row',
-    alignItems: 'flex-start', // Changed from 'center' to handle multi-line URLs
+    alignItems: 'center', // Changed back to center for better alignment
     justifyContent: 'space-between',
   },
   activeContainer: {
@@ -152,7 +176,6 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     marginBottom: 4,
     lineHeight: 18, // Better line spacing for multi-line URLs
-    flexWrap: 'wrap', // Allow text to wrap naturally
   },
   activeBadge: {
     backgroundColor: '#007AFF',
@@ -167,11 +190,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   rightSection: {
+    flexDirection: 'column', // Changed to column for stacked button rows
+    alignItems: 'flex-end', // Align buttons to the right
+    gap: 4, // Small gap between button rows
+    flexShrink: 0, // Prevent shrinking
+  },
+  buttonRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start', // Align buttons to top for multi-line URLs
-    gap: 8,
-    paddingTop: 2, // Small offset to align with text baseline
-    flexWrap: 'wrap', // Allow buttons to wrap if needed
+    alignItems: 'center',
+    gap: 6, // Gap between buttons in the same row
   },
   refreshButton: {
     backgroundColor: '#28a745',
@@ -193,6 +220,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   setActiveButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  reviewButton: {
+    backgroundColor: '#ff9500',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  reviewButtonText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '500',
