@@ -31,7 +31,7 @@ export function PostList({
 }: PostListProps) {
   const getAuthorName = useCallback(
     (post: PostWithStats): string => {
-      if (!showAuthor) return '';
+      if (!showAuthor || !post || !post.event) return '';
 
       const pubkey = post.event.pubkey;
 
@@ -49,6 +49,10 @@ export function PostList({
 
   const renderPost = useCallback(
     ({ item, index }: { item: PostWithStats; index: number }) => {
+      if (!item || !item.event) {
+        return null;
+      }
+      
       return (
         <Post
           key={item.event.id}
@@ -92,9 +96,9 @@ export function PostList({
   return (
     <FlatList
       style={styles.postsContainer}
-      data={posts}
+      data={posts.filter(post => post && post.event)}
       renderItem={renderPost}
-      keyExtractor={(item) => item.event.id}
+      keyExtractor={(item) => item?.event?.id || `unknown-${Math.random()}`}
       ListHeaderComponent={renderHeader}
       removeClippedSubviews={false}
       maxToRenderPerBatch={5}
