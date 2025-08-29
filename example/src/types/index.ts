@@ -11,6 +11,7 @@ export interface CalendarEventData {
   location?: string;
   imageUrl?: string;
   isDateBased: boolean; // true for kind 31922 (date-based), false for kind 31923 (time-based)
+  dTag?: string; // Optional d tag for replaceable events (required for editing existing events)
 }
 
 // Calendar creation types

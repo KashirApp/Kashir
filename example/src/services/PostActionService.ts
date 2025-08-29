@@ -7,6 +7,7 @@ import {
   ZapRequestData,
   NostrSigner,
 } from 'kashir';
+import uuid from 'react-native-uuid';
 import { NostrClientService, LoginType } from './NostrClient';
 import { SecureStorageService } from './SecureStorageService';
 import { ProfileService } from './ProfileService';
@@ -329,6 +330,10 @@ export class PostActionService {
     }
   }
 
+  private generateUUID(): string {
+    return uuid.v4() as string;
+  }
+
   async createCalendarEvent(eventData: CalendarEventData): Promise<void> {
     try {
       const clientService = NostrClientService.getInstance();
@@ -348,6 +353,10 @@ export class PostActionService {
 
       // Prepare event tags according to NIP-52
       const tags: Tag[] = [];
+
+      // D tag (required for replaceable events - kinds 31922/31923)
+      const dTagValue = eventData.dTag || this.generateUUID();
+      tags.push(Tag.parse(['d', dTagValue]));
 
       // Title tag (required)
       tags.push(Tag.parse(['title', eventData.title]));
@@ -453,24 +462,7 @@ export class PostActionService {
       tags.push(Tag.parse(['title', calendarData.title]));
 
       // Generate a unique identifier for this calendar
-      const generateUUID = (): string => {
-        // Try to use crypto.randomUUID() if available (modern browsers/React Native)
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-          return crypto.randomUUID();
-        }
-
-        // Fallback to a simple UUID v4 implementation
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
-          /[xy]/g,
-          function (c) {
-            const r = Math.floor(Math.random() * 16);
-            const v = c === 'x' ? r : Math.floor(r / 4) * 4 + 8;
-            return v.toString(16);
-          }
-        );
-      };
-
-      const uuid = generateUUID();
+      const uuid = this.generateUUID();
       tags.push(Tag.parse(['d', uuid]));
 
       // Image tag (optional)

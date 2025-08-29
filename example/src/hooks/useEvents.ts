@@ -18,6 +18,7 @@ export interface CalendarEvent {
   endDate?: string;
   image?: string;
   categories?: string[];
+  dTag?: string; // d tag for replaceable events
 }
 
 export function useEvents(
@@ -75,6 +76,7 @@ export function useEvents(
           const startDate = tags.find((tag) => tag[0] === 'start')?.[1] || '';
           const endDate = tags.find((tag) => tag[0] === 'end')?.[1] || '';
           const image = tags.find((tag) => tag[0] === 'image')?.[1] || '';
+          const dTag = tags.find((tag) => tag[0] === 'd')?.[1] || '';
           const categories = tags
             .filter((tag) => tag[0] === 't')
             .map((tag) => tag[1]);
@@ -92,6 +94,7 @@ export function useEvents(
             startDate,
             endDate,
             image,
+            dTag,
             categories,
           };
         });

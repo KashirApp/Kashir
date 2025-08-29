@@ -173,6 +173,7 @@ export function CreateEventModal({
         location: location.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
         isDateBased,
+        dTag: existingEvent?.dTag, // Pass the d tag for editing existing events
       };
 
       const postActionService = PostActionService.getInstance();

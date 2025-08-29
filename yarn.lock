@@ -7974,6 +7974,7 @@ __metadata:
     react-native-safe-area-context: ^5.5.2
     react-native-screens: ^4.13.1
     react-native-svg: ^15.8.1
+    react-native-uuid: ^2.0.3
     react-native-video: ^6.16.1
   languageName: unknown
   linkType: soft
@@ -10337,6 +10338,13 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 5761d3b37e5adb4e58945146b210009decf0a436c194fc3dc5c025581aa5c602b5698d7eea493ddf9d31b4d90433fa54eaf1ed0cec721ab820cf895e1cf9614a
+  languageName: node
+  linkType: hard
+
+"react-native-uuid@npm:^2.0.3":
+  version: 2.0.3
+  resolution: "react-native-uuid@npm:2.0.3"
+  checksum: e47774481feaed5d38f75fb4b03f5189c03e7452038f1b0fa56677add8a8bdef64ec7ad5e83f9fa761d8788cac5c8e554ade07e82a2818145337df7c883e2124
   languageName: node
   linkType: hard
 
