@@ -148,8 +148,8 @@ export function SwapModal({
       supportedOrientations={['portrait']}
       hardwareAccelerated={true}
     >
-      <KeyboardAvoidingView 
-        style={styles.container} 
+      <KeyboardAvoidingView
+        style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >

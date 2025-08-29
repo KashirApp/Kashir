@@ -52,7 +52,7 @@ export function PostList({
       if (!item || !item.event) {
         return null;
       }
-      
+
       return (
         <Post
           key={item.event.id}
@@ -96,7 +96,7 @@ export function PostList({
   return (
     <FlatList
       style={styles.postsContainer}
-      data={posts.filter(post => post && post.event)}
+      data={posts.filter((post) => post && post.event)}
       renderItem={renderPost}
       keyExtractor={(item) => item?.event?.id || `unknown-${Math.random()}`}
       ListHeaderComponent={renderHeader}

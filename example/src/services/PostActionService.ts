@@ -462,8 +462,8 @@ export class PostActionService {
       tags.push(Tag.parse(['title', calendarData.title]));
 
       // Generate a unique identifier for this calendar
-      const uuid = this.generateUUID();
-      tags.push(Tag.parse(['d', uuid]));
+      const calendarId = this.generateUUID();
+      tags.push(Tag.parse(['d', calendarId]));
 
       // Image tag (optional)
       if (calendarData.imageUrl?.trim()) {
@@ -544,13 +544,13 @@ export class PostActionService {
       const existingDTag = existingCalendar.tags.find(
         (tag: string[]) => tag[0] === 'd'
       );
-      const uuid = existingDTag ? existingDTag[1] : existingCalendar.uuid;
+      const calendarId = existingDTag ? existingDTag[1] : existingCalendar.uuid;
 
-      if (!uuid) {
+      if (!calendarId) {
         throw new Error('Cannot update calendar: no identifier found');
       }
 
-      tags.push(Tag.parse(['d', uuid]));
+      tags.push(Tag.parse(['d', calendarId]));
 
       // Image tag (optional)
       if (calendarData.imageUrl?.trim()) {
