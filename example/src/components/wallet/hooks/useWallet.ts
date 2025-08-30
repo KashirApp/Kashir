@@ -378,7 +378,12 @@ export function useWallet() {
 
     // Properly activate the new mint (not just UI state)
     walletManager.setActiveMintUrl(url);
-    await setActiveMint(url);
+
+    // ONLY call setActiveMint if we're NOT creating a wallet
+    // This prevents restoreExistingWallet from being called during wallet creation
+    if (!shouldCreateWalletAfterMint) {
+      await setActiveMint(url);
+    }
 
     setShowMintUrlModal(false);
 
@@ -540,6 +545,7 @@ export function useWallet() {
       const createWalletDirectly = async () => {
         // Check if wallet already exists first
         const walletExists = await checkWalletExists(activeMintUrl);
+
         if (walletExists) {
           // Try to restore existing wallet instead of creating new one
           const restored = await restoreExistingWallet(activeMintUrl);
@@ -562,38 +568,39 @@ export function useWallet() {
             seedView[i] = Math.floor(Math.random() * 256);
           }
 
-          let localStore;
-          try {
-            const dbPath = getMintDbPath(activeMintUrl);
-            localStore = FfiLocalStore.newWithPath(dbPath);
-          } catch (storeError) {
-            console.error('FfiLocalStore creation failed:', storeError);
-            const errorMsg = getErrorMessage(storeError);
-
-            try {
-              localStore = new FfiLocalStore();
-            } catch (fallbackError) {
-              const fallbackErrorMsg = getErrorMessage(fallbackError);
-              setModuleStatus(
-                `CDK storage failed: ${errorMsg}. Fallback failed: ${fallbackErrorMsg}`
-              );
-              setShouldCreateWalletAfterMint(false); // Reset flag on error
-              return;
-            }
-          }
-
-          if (!localStore) {
-            console.error('LocalStore is undefined, cannot create wallet');
-            setShouldCreateWalletAfterMint(false); // Reset flag on error
-            return;
-          }
-
-          // Generate mnemonic and create wallet
+          // Generate mnemonic FIRST, before creating any database files
           const mnemonic = generateMnemonic();
 
           // Store wallet creation callback for when modal is closed
           setPendingWalletCreation(() => async () => {
             try {
+              // NOW create the LocalStore after user confirms mnemonic
+              let localStore;
+              try {
+                const dbPath = getMintDbPath(activeMintUrl);
+                localStore = FfiLocalStore.newWithPath(dbPath);
+              } catch (storeError) {
+                console.error('FfiLocalStore creation failed:', storeError);
+                const errorMsg = getErrorMessage(storeError);
+
+                try {
+                  localStore = new FfiLocalStore();
+                } catch (fallbackError) {
+                  const fallbackErrorMsg = getErrorMessage(fallbackError);
+                  setModuleStatus(
+                    `CDK storage failed: ${errorMsg}. Fallback failed: ${fallbackErrorMsg}`
+                  );
+                  setShouldCreateWalletAfterMint(false); // Reset flag on error
+                  return;
+                }
+              }
+
+              if (!localStore) {
+                console.error('LocalStore is undefined, cannot create wallet');
+                setShouldCreateWalletAfterMint(false); // Reset flag on error
+                return;
+              }
+
               // Store the seed phrase securely before creating the wallet
               const stored =
                 await SecureStorageService.storeSeedPhrase(mnemonic);
