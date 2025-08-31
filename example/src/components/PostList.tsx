@@ -64,6 +64,7 @@ export function PostList({
           userKeys={userKeys}
           loginType={loginType}
           onReplyPosted={onReplyPosted}
+          profileService={profileService}
         />
       );
     },
@@ -74,6 +75,7 @@ export function PostList({
       userKeys,
       loginType,
       onReplyPosted,
+      profileService,
     ]
   );
 

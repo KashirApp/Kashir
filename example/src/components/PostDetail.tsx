@@ -195,6 +195,7 @@ export function PostDetail({
             totalPosts={1}
             authorName={post.authorName}
             showAuthor={true}
+            profileService={profileService}
           />
         </View>
 
@@ -227,6 +228,7 @@ export function PostDetail({
                 totalPosts={replies.length}
                 authorName={getAuthorName(reply)}
                 showAuthor={true}
+                profileService={profileService}
               />
             </View>
           ))}

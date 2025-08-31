@@ -244,6 +244,9 @@ export const styles = StyleSheet.create({
     color: '#81b0ff',
     marginBottom: 4,
   },
+  mentionText: {
+    color: '#81b0ff',
+  },
   // Floating Action Button Styles
   fab: {
     position: 'absolute',

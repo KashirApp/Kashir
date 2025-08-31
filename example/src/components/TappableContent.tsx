@@ -1,0 +1,129 @@
+import React from 'react';
+import { Text } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { NostrStackParamList } from './NostrNavigator';
+import type { RootStackParamList } from '../App';
+import { PublicKey } from 'kashir';
+import { ProfileService } from '../services/ProfileService';
+import { styles } from '../App.styles';
+
+interface TappableContentProps {
+  content: string;
+  textStyle: any;
+  profileService: ProfileService;
+}
+
+type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<NostrStackParamList>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+/**
+ * Component that renders text content with tappable @username mentions
+ */
+export function TappableContent({
+  content,
+  textStyle,
+  profileService,
+}: TappableContentProps) {
+  const navigation = useNavigation<NavigationProp>();
+
+  // Parse content to find @username mentions
+  const parseContent = (text: string) => {
+    const mentionRegex = /@([a-zA-Z0-9_]+)/g;
+    const parts: Array<{
+      text: string;
+      isMention: boolean;
+      username?: string;
+    }> = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mentionRegex.exec(text)) !== null) {
+      // Add text before the mention
+      if (match.index > lastIndex) {
+        parts.push({
+          text: text.slice(lastIndex, match.index),
+          isMention: false,
+        });
+      }
+
+      // Add the mention
+      parts.push({
+        text: match[0], // Full match including @
+        isMention: true,
+        username: match[1], // Username without @
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push({
+        text: text.slice(lastIndex),
+        isMention: false,
+      });
+    }
+
+    return parts;
+  };
+
+  const handleMentionPress = (username: string) => {
+    // Try to find the user's pubkey from the profile cache
+    const profileCache = profileService.getProfileCache();
+    let userNpub: string | null = null;
+
+    // Search through cached profiles to find matching username
+    for (const [pubkeyHex, profile] of profileCache.entries()) {
+      if (profile.name === username) {
+        try {
+          // Convert hex pubkey to npub format using Kashir's PublicKey
+          const publicKey = PublicKey.fromHex(pubkeyHex);
+          userNpub = publicKey.toBech32();
+          break;
+        } catch {
+          // Fall back to using hex directly
+          userNpub = pubkeyHex;
+          break;
+        }
+      }
+    }
+
+    if (userNpub) {
+      navigation.navigate('UserPosts', {
+        userNpub: userNpub,
+        userName: username,
+      });
+    }
+    // If we can't find the user in cache, silently ignore the tap
+  };
+
+  const contentParts = parseContent(content);
+
+  return (
+    <Text style={textStyle}>
+      {contentParts.map((part, index) => {
+        if (part.isMention && part.username) {
+          return (
+            <Text
+              key={index}
+              style={[textStyle, styles.mentionText]}
+              onPress={() => handleMentionPress(part.username!)}
+            >
+              {part.text}
+            </Text>
+          );
+        } else {
+          return (
+            <Text key={index} style={textStyle}>
+              {part.text}
+            </Text>
+          );
+        }
+      })}
+    </Text>
+  );
+}

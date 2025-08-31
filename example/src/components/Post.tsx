@@ -22,6 +22,8 @@ import {
   extractVideoUrls,
   removeVideoUrlsFromContent,
 } from '../utils/videoUtils';
+import { parseNostrContent } from '../utils/nostrUtils';
+import { TappableContent } from './TappableContent';
 
 interface PostProps {
   post: PostWithStats;
@@ -33,6 +35,7 @@ interface PostProps {
   userKeys?: any;
   loginType?: any;
   onReplyPosted?: () => void;
+  profileService: any; // ProfileService for nprofile parsing
 }
 
 const formatTimestamp = (timestamp: TimestampInterface) => {
@@ -50,6 +53,7 @@ const PostComponent = ({
   userKeys,
   loginType,
   onReplyPosted,
+  profileService,
 }: PostProps) => {
   const navigation =
     useNavigation<
@@ -78,6 +82,11 @@ const PostComponent = ({
   const postContent = useMemo(() => {
     let cleanedContent = originalPostContent;
 
+    // Parse nostr:nprofile URIs and replace with @username
+    if (profileService) {
+      cleanedContent = parseNostrContent(cleanedContent, profileService);
+    }
+
     // Remove image URLs
     if (imageUrls.length > 0) {
       cleanedContent = removeImageUrlsFromContent(cleanedContent, imageUrls);
@@ -89,7 +98,7 @@ const PostComponent = ({
     }
 
     return cleanedContent;
-  }, [originalPostContent, imageUrls, videoUrls]);
+  }, [originalPostContent, imageUrls, videoUrls, profileService]);
 
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
@@ -239,7 +248,11 @@ const PostComponent = ({
           </TouchableOpacity>
         )}
         <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
-        <Text style={styles.postContent}>{postContent}</Text>
+        <TappableContent
+          content={postContent}
+          textStyle={styles.postContent}
+          profileService={profileService}
+        />
         <ImagePreview imageUrls={imageUrls} />
         <VideoPreview videoUrls={videoUrls} />
       </TouchableOpacity>
@@ -323,6 +336,7 @@ export const Post = memo(PostComponent, (prevProps, nextProps) => {
     prevProps.onPress === nextProps.onPress &&
     prevProps.userKeys === nextProps.userKeys &&
     prevProps.loginType === nextProps.loginType &&
-    prevProps.onReplyPosted === nextProps.onReplyPosted
+    prevProps.onReplyPosted === nextProps.onReplyPosted &&
+    prevProps.profileService === nextProps.profileService
   );
 });
