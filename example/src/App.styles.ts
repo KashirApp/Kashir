@@ -196,6 +196,12 @@ export const styles = StyleSheet.create({
     backgroundColor: '#333',
     borderWidth: 1,
     borderColor: '#444',
+    overflow: 'hidden',
+  },
+  embeddedImageContainer: {
+    marginTop: 8,
+    marginHorizontal: 0,
+    alignItems: 'center',
   },
   postDate: {
     fontSize: 12,

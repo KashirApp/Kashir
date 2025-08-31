@@ -286,7 +286,7 @@ const EmbeddedPostComponent = ({
           textStyle={styles.postContent}
           profileService={profileService}
         />
-        <ImagePreview imageUrls={imageUrls} />
+        <ImagePreview imageUrls={imageUrls} isEmbedded={true} />
         <VideoPreview videoUrls={videoUrls} />
         {urls.map((url, urlIndex) => (
           <UrlPreview key={`${url}-${urlIndex}`} url={url} />

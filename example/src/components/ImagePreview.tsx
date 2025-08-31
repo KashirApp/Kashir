@@ -6,14 +6,18 @@ import { ImageModal } from './ImageModal';
 interface ImagePreviewProps {
   imageUrls: string[];
   maxImages?: number;
+  isEmbedded?: boolean;
 }
 
 // Calculate content width: screen width minus post card margins (20px) and padding (30px)
 const contentWidth = Dimensions.get('window').width - 50;
+// For embedded posts: screen width minus outer post margins/padding (50px) and embedded post padding (30px)
+const embeddedContentWidth = Dimensions.get('window').width - 80;
 
 function ImagePreviewComponent({
   imageUrls,
   maxImages = 4,
+  isEmbedded = false,
 }: ImagePreviewProps) {
   const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
   const [imageDimensions, setImageDimensions] = useState<
@@ -24,6 +28,9 @@ function ImagePreviewComponent({
 
   const displayUrls = imageUrls.slice(0, maxImages);
   const remainingCount = imageUrls.length - maxImages;
+  const effectiveContentWidth = isEmbedded
+    ? embeddedContentWidth
+    : contentWidth;
 
   const handleImageError = useCallback((url: string) => {
     console.warn('Failed to load image:', url);
@@ -46,26 +53,26 @@ function ImagePreviewComponent({
       return [
         styles.imageLargeWrapper,
         styles.imageSingleWrapper,
-        { width: contentWidth },
+        { width: effectiveContentWidth },
       ];
     } else if (displayUrls.length === 2) {
       return styles.imageMediumWrapper;
     } else {
       return styles.imageSmallWrapper;
     }
-  }, [displayUrls.length]);
+  }, [displayUrls.length, effectiveContentWidth]);
 
   const getImageStyle = useCallback(
     (url?: string) => {
       if (displayUrls.length === 1 && url && imageDimensions[url]) {
         const { width, height } = imageDimensions[url];
         const aspectRatio = width / height;
-        const calculatedHeight = contentWidth / aspectRatio;
+        const calculatedHeight = effectiveContentWidth / aspectRatio;
         return [
           styles.imageLarge,
           styles.postImageSingle,
           {
-            width: contentWidth,
+            width: effectiveContentWidth,
             height: calculatedHeight,
           },
         ];
@@ -73,7 +80,7 @@ function ImagePreviewComponent({
         return [
           styles.imageLarge,
           styles.postImageSingle,
-          { width: contentWidth },
+          { width: effectiveContentWidth },
         ];
       } else if (displayUrls.length === 2) {
         return styles.imageMedium;
@@ -81,7 +88,7 @@ function ImagePreviewComponent({
         return styles.imageSmall;
       }
     },
-    [displayUrls.length, imageDimensions]
+    [displayUrls.length, imageDimensions, effectiveContentWidth]
   );
 
   const getContainerStyle = useCallback(() => {
@@ -179,7 +186,8 @@ export const ImagePreview = memo(
       prevProps.imageUrls.every(
         (url, index) => url === nextProps.imageUrls[index]
       ) &&
-      prevProps.maxImages === nextProps.maxImages
+      prevProps.maxImages === nextProps.maxImages &&
+      prevProps.isEmbedded === nextProps.isEmbedded
     );
   }
 );
