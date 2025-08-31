@@ -30,3 +30,15 @@ export function removeImageUrlsFromContent(
   });
   return cleanedContent.replace(/\s+/g, ' ').trim(); // Clean up extra whitespace
 }
+
+/**
+ * Check if a URL is an image URL
+ * @param url - The URL to check
+ * @returns true if the URL is an image URL
+ */
+export function isImageUrl(url: string): boolean {
+  // Create a new regex instance to avoid global state issues
+  const imageRegex =
+    /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|svg)(?:\?[^\s]*)?)/i;
+  return imageRegex.test(url);
+}

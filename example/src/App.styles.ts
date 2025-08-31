@@ -247,6 +247,74 @@ export const styles = StyleSheet.create({
   mentionText: {
     color: '#81b0ff',
   },
+  urlText: {
+    color: '#4da6ff',
+    textDecorationLine: 'underline',
+  },
+  // URL Preview Styles
+  urlPreviewContainer: {
+    marginTop: 12,
+  },
+  urlPreviewCard: {
+    backgroundColor: '#333',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+    overflow: 'hidden',
+  },
+  urlPreviewImage: {
+    width: '100%',
+    height: 120,
+  },
+  urlPreviewContent: {
+    padding: 12,
+  },
+  urlPreviewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  urlPreviewDescription: {
+    fontSize: 14,
+    color: '#ccc',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  urlPreviewUrl: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  urlPreviewLoading: {
+    padding: 16,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+    alignItems: 'center',
+  },
+  urlPreviewLoadingText: {
+    color: '#999',
+    fontSize: 14,
+  },
+  urlPreviewError: {
+    padding: 12,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  urlPreviewErrorText: {
+    color: '#4da6ff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  urlPreviewErrorSubtext: {
+    color: '#999',
+    fontSize: 12,
+    marginTop: 2,
+  },
   // Floating Action Button Styles
   fab: {
     position: 'absolute',

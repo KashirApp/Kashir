@@ -22,8 +22,10 @@ import {
   extractVideoUrls,
   removeVideoUrlsFromContent,
 } from '../utils/videoUtils';
+import { extractUrls, removeUrlsFromContent } from '../utils/urlUtils';
 import { parseNostrContent } from '../utils/nostrUtils';
 import { TappableContent } from './TappableContent';
+import { UrlPreview } from './UrlPreview';
 
 interface PostProps {
   post: PostWithStats;
@@ -79,6 +81,10 @@ const PostComponent = ({
   const videoUrls = useMemo(() => {
     return extractVideoUrls(originalPostContent);
   }, [originalPostContent]);
+  const urls = useMemo(
+    () => extractUrls(originalPostContent),
+    [originalPostContent]
+  );
   const postContent = useMemo(() => {
     let cleanedContent = originalPostContent;
 
@@ -97,8 +103,13 @@ const PostComponent = ({
       cleanedContent = removeVideoUrlsFromContent(cleanedContent, videoUrls);
     }
 
+    // Remove regular URLs (they'll be shown as previews)
+    if (urls.length > 0) {
+      cleanedContent = removeUrlsFromContent(cleanedContent, urls);
+    }
+
     return cleanedContent;
-  }, [originalPostContent, imageUrls, videoUrls, profileService]);
+  }, [originalPostContent, imageUrls, videoUrls, urls, profileService]);
 
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
@@ -255,6 +266,9 @@ const PostComponent = ({
         />
         <ImagePreview imageUrls={imageUrls} />
         <VideoPreview videoUrls={videoUrls} />
+        {urls.map((url, urlIndex) => (
+          <UrlPreview key={`${url}-${urlIndex}`} url={url} />
+        ))}
       </TouchableOpacity>
 
       <View style={styles.postActions} pointerEvents="box-none">
@@ -329,6 +343,7 @@ const PostComponent = ({
 export const Post = memo(PostComponent, (prevProps, nextProps) => {
   return (
     prevProps.post.event.id === nextProps.post.event.id &&
+    prevProps.post.event.content === nextProps.post.event.content &&
     prevProps.index === nextProps.index &&
     prevProps.totalPosts === nextProps.totalPosts &&
     prevProps.authorName === nextProps.authorName &&

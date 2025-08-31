@@ -38,5 +38,8 @@ export function removeVideoUrlsFromContent(
  * @returns true if the URL is a video URL
  */
 export function isVideoUrl(url: string): boolean {
-  return VIDEO_URL_REGEX.test(url);
+  // Create a new regex instance to avoid global state issues
+  const videoRegex =
+    /(https?:\/\/[^\s]+\.(?:mp4|webm|ogg|avi|mov|wmv|flv|m4v|3gp|mkv)(?:\?[^\s]*)?)/i;
+  return videoRegex.test(url);
 }
