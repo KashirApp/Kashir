@@ -94,7 +94,6 @@ const PostComponent = ({
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
-  const [zapAmount, setZapAmount] = useState(21);
   const [isReplyModalVisible, setIsReplyModalVisible] = useState(false);
   const postActionService = PostActionService.getInstance();
 
@@ -108,19 +107,6 @@ const PostComponent = ({
     });
 
     return unsubscribe;
-  }, []);
-
-  // Load zap amount from storage
-  useEffect(() => {
-    const loadZapAmount = async () => {
-      try {
-        const amount = await StorageService.loadZapAmount();
-        setZapAmount(amount);
-      } catch (error) {
-        console.warn('Failed to load zap amount:', error);
-      }
-    };
-    loadZapAmount();
   }, []);
 
   const handleLike = async () => {
@@ -158,6 +144,9 @@ const PostComponent = ({
 
     setIsZapping(true);
     try {
+      // Load the current zap amount from storage
+      const zapAmount = await StorageService.loadZapAmount();
+
       // Create a payment callback that uses WalletManager
       const sendPaymentCallback = async (invoice: string): Promise<boolean> => {
         try {
