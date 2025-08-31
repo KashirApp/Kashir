@@ -7,7 +7,6 @@ import {
   Alert,
   Clipboard,
   ScrollView,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +20,7 @@ import {
   MintReviewModal,
 } from './wallet';
 import { EnhancedRelaysList, RelayUrlModal } from './nostr';
+import { ZapAmountModal } from './ZapAmountModal';
 import { SecureStorageService, StorageService } from '../services';
 import type { UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
@@ -53,8 +53,8 @@ export function SettingsScreen({
   const [isLoadingUserRelays, _setIsLoadingUserRelays] = useState(false);
   const [hasUserRelayList, setHasUserRelayList] = useState(false);
   const [lastRelayCheck, setLastRelayCheck] = useState<string>(''); // Track last relay state
-  const [_zapAmount, setZapAmount] = useState<number>(21);
-  const [zapAmountInput, setZapAmountInput] = useState<string>('21');
+  const [zapAmount, setZapAmount] = useState<number>(21);
+  const [showZapAmountModal, setShowZapAmountModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [mintBalances, setMintBalances] = useState<MintBalance[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -211,7 +211,6 @@ export function SettingsScreen({
       try {
         const amount = await StorageService.loadZapAmount();
         setZapAmount(amount);
-        setZapAmountInput(amount.toString());
       } catch (error) {
         console.warn('Failed to load zap amount from storage:', error);
       }
@@ -369,31 +368,22 @@ export function SettingsScreen({
     }
   };
 
-  const handleZapAmountChange = (text: string) => {
-    setZapAmountInput(text);
+  const handleZapAmountTap = () => {
+    setShowZapAmountModal(true);
   };
 
-  const handleZapAmountSave = async () => {
+  const handleZapAmountSubmit = async (amount: number) => {
     try {
-      const amount = parseInt(zapAmountInput, 10);
-      if (isNaN(amount) || amount <= 0) {
-        Alert.alert('Invalid Amount', 'Please enter a valid positive number');
-        return;
-      }
-      if (amount > 1000000) {
-        Alert.alert(
-          'Amount Too Large',
-          'Please enter an amount less than 1,000,000 sats'
-        );
-        return;
-      }
-
       await StorageService.saveZapAmount(amount);
       setZapAmount(amount);
-      Alert.alert('Success', `Default zap amount set to ${amount} sats`);
+      setShowZapAmountModal(false);
     } catch {
       Alert.alert('Error', 'Failed to save zap amount');
     }
+  };
+
+  const handleZapAmountModalClose = () => {
+    setShowZapAmountModal(false);
   };
 
   const handleReviewMint = (mintUrl: string) => {
@@ -453,23 +443,14 @@ export function SettingsScreen({
           <Text style={styles.sectionTitle}>Zap Settings</Text>
 
           <View style={styles.zapAmountContainer}>
-            <Text style={styles.zapAmountLabel}>Default Zap Amount (sats)</Text>
-            <View style={styles.zapAmountInputContainer}>
-              <TextInput
-                style={styles.zapAmountInput}
-                value={zapAmountInput}
-                onChangeText={handleZapAmountChange}
-                keyboardType="numeric"
-                placeholder="21"
-                placeholderTextColor="#666"
-              />
-              <TouchableOpacity
-                style={styles.zapAmountSaveButton}
-                onPress={handleZapAmountSave}
-              >
-                <Text style={styles.zapAmountSaveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.zapAmountLabel}>Default Zap Amount</Text>
+            <TouchableOpacity
+              style={styles.zapAmountButton}
+              onPress={handleZapAmountTap}
+            >
+              <Text style={styles.zapAmountValue}>{zapAmount} sats</Text>
+              <Text style={styles.zapAmountHint}>Tap to change</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -547,6 +528,13 @@ export function SettingsScreen({
         onClose={() => setShowSwapModal(false)}
         mintBalances={mintBalances}
         onSwap={handleSwapBetweenMints}
+      />
+
+      <ZapAmountModal
+        visible={showZapAmountModal}
+        currentAmount={zapAmount}
+        onClose={handleZapAmountModalClose}
+        onSubmit={handleZapAmountSubmit}
       />
 
       <RelayUrlModal
@@ -640,35 +628,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontWeight: '500',
   },
-  zapAmountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  zapAmountInput: {
-    flex: 1,
+  zapAmountButton: {
     backgroundColor: '#333',
-    color: '#fff',
-    padding: 12,
-    borderRadius: 6,
-    fontSize: 16,
+    padding: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#555',
+    alignItems: 'center',
   },
-  zapAmountSaveButton: {
-    backgroundColor: '#81b0ff',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 6,
-  },
-  zapAmountSaveButtonText: {
+  zapAmountValue: {
+    fontSize: 18,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginBottom: 4,
   },
-  zapAmountDescription: {
-    fontSize: 14,
+  zapAmountHint: {
+    fontSize: 12,
     color: '#888',
     fontStyle: 'italic',
   },
