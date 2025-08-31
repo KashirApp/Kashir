@@ -41,6 +41,9 @@ export function TappableContent({
     let lastIndex = 0;
     let match;
 
+    // Get profile cache to check if mentions are valid
+    const profileCache = profileService.getProfileCache();
+
     while ((match = mentionRegex.exec(text)) !== null) {
       // Add text before the mention
       if (match.index > lastIndex) {
@@ -50,12 +53,32 @@ export function TappableContent({
         });
       }
 
-      // Add the mention
-      parts.push({
-        text: match[0], // Full match including @
-        isMention: true,
-        username: match[1], // Username without @
-      });
+      const username = match[1];
+      const fullMatch = match[0]; // @username
+
+      // Check if this username exists in the profile cache
+      let isValidMention = false;
+      for (const [, profile] of profileCache.entries()) {
+        if (profile.name === username) {
+          isValidMention = true;
+          break;
+        }
+      }
+
+      // Only treat as mention if the username exists in profile cache
+      if (isValidMention) {
+        parts.push({
+          text: fullMatch,
+          isMention: true,
+          username: username,
+        });
+      } else {
+        // Treat as regular text if username not found in cache
+        parts.push({
+          text: fullMatch,
+          isMention: false,
+        });
+      }
 
       lastIndex = match.index + match[0].length;
     }
