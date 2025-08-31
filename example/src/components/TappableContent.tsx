@@ -74,31 +74,32 @@ export function TappableContent({
   const handleMentionPress = (username: string) => {
     // Try to find the user's pubkey from the profile cache
     const profileCache = profileService.getProfileCache();
-    let userNpub: string | null = null;
 
     // Search through cached profiles to find matching username
     for (const [pubkeyHex, profile] of profileCache.entries()) {
       if (profile.name === username) {
         try {
           // Convert hex pubkey to npub format using Kashir's PublicKey
-          const publicKey = PublicKey.fromHex(pubkeyHex);
-          userNpub = publicKey.toBech32();
-          break;
+          const publicKey = PublicKey.parse('hex:' + pubkeyHex);
+          const userNpub = publicKey.toBech32();
+
+          navigation.navigate('UserPosts', {
+            userNpub: userNpub,
+            userName: username, // Always use the original @username we clicked on
+          });
+          return;
         } catch {
           // Fall back to using hex directly
-          userNpub = pubkeyHex;
-          break;
+          navigation.navigate('UserPosts', {
+            userNpub: pubkeyHex,
+            userName: username, // Always use the original @username we clicked on
+          });
+          return;
         }
       }
     }
 
-    if (userNpub) {
-      navigation.navigate('UserPosts', {
-        userNpub: userNpub,
-        userName: username,
-      });
-    }
-    // If we can't find the user in cache, silently ignore the tap
+    // If profile not found in cache, we can't navigate since we don't know the npub
   };
 
   const contentParts = parseContent(content);

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService } from '../services/NostrClient';
-import { ProfileService } from '../services/ProfileService';
+import { sharedProfileService } from '../services/ProfileService';
 import { usePosts } from '../hooks/usePosts';
 import { PostList } from './PostList';
 import { styles } from '../App.styles';
@@ -19,8 +19,8 @@ export function UserPostsScreen({ route }: UserPostsScreenProps) {
     NostrClientService.getInstance().getClient()
   );
 
-  // Initialize services
-  const profileService = useMemo(() => new ProfileService(), []);
+  // Use the shared ProfileService instance instead of creating a new one
+  const profileService = sharedProfileService;
 
   // Custom hooks
   const { posts, loading, fetchPosts } = usePosts(client);
