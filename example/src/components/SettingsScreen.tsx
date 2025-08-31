@@ -59,6 +59,7 @@ export function SettingsScreen({
   const [mintBalances, setMintBalances] = useState<MintBalance[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewMintUrl, setReviewMintUrl] = useState<string>('');
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
   const {
     mintUrls,
@@ -400,6 +401,17 @@ export function SettingsScreen({
     setReviewMintUrl('');
   };
 
+  const handleLogout = async () => {
+    if (!onLogout || isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    try {
+      await onLogout();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -501,9 +513,13 @@ export function SettingsScreen({
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingButton} onPress={onLogout}>
+            <TouchableOpacity 
+              style={[styles.settingButton, isLoggingOut && styles.disabledButton]} 
+              onPress={handleLogout}
+              disabled={isLoggingOut}
+            >
               <Text style={[styles.settingButtonText, styles.dangerText]}>
-                Logout
+                {isLoggingOut ? 'Logging out...' : 'Logout'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -601,6 +617,9 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     color: '#ff6b6b',
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   noSeedPhraseText: {
     fontSize: 14,
