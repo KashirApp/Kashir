@@ -301,8 +301,20 @@ export class CacheService {
             stats,
           } as PostWithStats & { originalEvent: EventInterface };
         } else {
-          // Return as-is if no stats available
-          return event;
+          // Convert EventInterface to PostWithStats format even without stats
+          return {
+            originalEvent: event,
+            event: {
+              id: eventId,
+              pubkey: event.author().toHex(),
+              created_at: Number(event.createdAt().asSecs()),
+              kind: Number(event.kind()),
+              content: event.content(),
+              tags: [],
+              sig: '',
+            },
+            stats: undefined,
+          } as PostWithStats & { originalEvent: EventInterface };
         }
       } catch (error) {
         console.error(

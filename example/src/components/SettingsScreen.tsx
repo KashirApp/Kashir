@@ -403,7 +403,7 @@ export function SettingsScreen({
 
   const handleLogout = async () => {
     if (!onLogout || isLoggingOut) return;
-    
+
     setIsLoggingOut(true);
     try {
       await onLogout();
@@ -513,8 +513,11 @@ export function SettingsScreen({
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.settingButton, isLoggingOut && styles.disabledButton]} 
+            <TouchableOpacity
+              style={[
+                styles.settingButton,
+                isLoggingOut && styles.disabledButton,
+              ]}
               onPress={handleLogout}
               disabled={isLoggingOut}
             >
