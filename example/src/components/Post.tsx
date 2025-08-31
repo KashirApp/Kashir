@@ -229,7 +229,7 @@ const PostComponent = ({
       const authorPubkey = originalEvent.author();
       const authorNpub = authorPubkey.toBech32();
 
-      navigation.navigate('UserPosts', {
+      navigation.push('UserPosts', {
         userNpub: authorNpub,
         userName: authorName || 'Loading...',
       });

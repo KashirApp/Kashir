@@ -83,14 +83,14 @@ export function TappableContent({
           const publicKey = PublicKey.parse('hex:' + pubkeyHex);
           const userNpub = publicKey.toBech32();
 
-          navigation.navigate('UserPosts', {
+          navigation.push('UserPosts', {
             userNpub: userNpub,
             userName: username, // Always use the original @username we clicked on
           });
           return;
         } catch {
           // Fall back to using hex directly
-          navigation.navigate('UserPosts', {
+          navigation.push('UserPosts', {
             userNpub: pubkeyHex,
             userName: username, // Always use the original @username we clicked on
           });
