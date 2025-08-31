@@ -3,6 +3,7 @@ import type { Client, Keys, PublicKey } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
 import { CacheService } from '../services/CacheService';
+import { fetchNprofileUsers } from '../utils/nostrUtils';
 import type { PostWithStats } from '../types/EventStats';
 
 interface UseTrendingResult {
@@ -54,9 +55,6 @@ export function useTrending(
           if (events.length > 0) {
             // Enhance posts with engagement statistics
             try {
-              console.log(
-                `Enhancing ${events.length} trending posts with stats...`
-              );
               const eventIds = events.map((event) => event.id().toHex());
               const eventStats = await cacheService.fetchEventStats(eventIds);
 
@@ -64,12 +62,15 @@ export function useTrending(
                 events,
                 eventStats
               );
-              console.log(
-                `Successfully enhanced ${eventStats.length}/${events.length} trending posts`
-              );
 
               // Keep DVM trending order (don't sort by time)
               setTrendingPosts(enhancedPosts);
+
+              // Fetch profiles for users mentioned in nprofiles/npub URIs
+              await fetchNprofileUsers(client, profileService, enhancedPosts);
+
+              // Force re-render by setting posts again after profiles are loaded
+              setTrendingPosts([...enhancedPosts]); // Spread to create new array reference
             } catch (error) {
               console.warn(
                 'Failed to enhance trending posts with stats:',
@@ -87,6 +88,12 @@ export function useTrending(
                 stats: undefined,
               }));
               setTrendingPosts(fallbackPosts);
+
+              // Fetch profiles for users mentioned in nprofiles/npub URIs even in fallback
+              await fetchNprofileUsers(client, profileService, fallbackPosts);
+
+              // Force re-render by setting posts again after profiles are loaded
+              setTrendingPosts([...fallbackPosts]); // Spread to create new array reference
             }
 
             // Fetch profiles in background - don't block the UI

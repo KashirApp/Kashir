@@ -4,7 +4,7 @@ import { Client, PublicKey, Filter, Kind } from 'kashir';
 import type { EventInterface } from 'kashir';
 import { CacheService } from '../services/CacheService';
 import { sharedProfileService } from '../services/ProfileService';
-import { extractPubkeysFromNprofiles } from '../utils/nostrUtils';
+import { fetchNprofileUsers } from '../utils/nostrUtils';
 import type { PostWithStats } from '../types/EventStats';
 
 export function usePosts(client: Client | null) {
@@ -12,66 +12,6 @@ export function usePosts(client: Client | null) {
   const [loading, setLoading] = useState(false);
 
   const cacheService = CacheService.getInstance();
-
-  // Helper function to extract nprofiles from content and fetch their profiles
-  const fetchNprofileUsers = useCallback(
-    async (postsToProcess: PostWithStats[]) => {
-      if (!client) return;
-
-      const pubkeysToFetch = new Set<string>();
-
-      // Extract all nprofiles from post contents using the shared utility
-      postsToProcess.forEach((post) => {
-        const pubkeys = extractPubkeysFromNprofiles(post.event.content);
-        pubkeys.forEach((pubkey) => pubkeysToFetch.add(pubkey));
-      });
-
-      // Convert hex strings back to PublicKey objects and fetch profiles
-      if (pubkeysToFetch.size > 0) {
-        try {
-          const validPubkeys: string[] = [];
-
-          // Validate each pubkey before trying to parse it
-          Array.from(pubkeysToFetch).forEach((hex) => {
-            if (hex && hex.length === 64 && /^[0-9a-fA-F]{64}$/.test(hex)) {
-              validPubkeys.push(hex);
-            }
-          });
-
-          if (validPubkeys.length > 0) {
-            // Parse hex strings to PublicKey objects
-            const pubkeyObjects: any[] = [];
-
-            for (const hex of validPubkeys) {
-              try {
-                // Try with 'hex:' prefix first
-                const pk = PublicKey.parse('hex:' + hex);
-                pubkeyObjects.push(pk);
-              } catch {
-                try {
-                  // Fallback to parsing directly as hex
-                  const pk = PublicKey.parse(hex);
-                  pubkeyObjects.push(pk);
-                } catch {
-                  // Skip invalid pubkeys silently
-                }
-              }
-            }
-
-            if (pubkeyObjects.length > 0) {
-              await sharedProfileService.fetchProfilesForPubkeys(
-                client,
-                pubkeyObjects
-              );
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching nprofile user profiles:', error);
-        }
-      }
-    },
-    [client]
-  );
 
   const fetchPosts = useCallback(
     async (userNpub: string) => {
@@ -101,7 +41,6 @@ export function usePosts(client: Client | null) {
           const events = await client.fetchEvents(filter, timeoutMs as any);
 
           const eventArray = events.toVec();
-          console.log(`Fetched ${eventArray.length} events`);
 
           if (eventArray.length > 0) {
             allEvents = eventArray;
@@ -145,9 +84,6 @@ export function usePosts(client: Client | null) {
 
           // Enhance posts with engagement statistics
           try {
-            console.log(
-              `Enhancing ${postsWithStats.length} user posts with stats...`
-            );
             const eventIds = postsWithStats.map((post) => post.event.id);
             const eventStats = await cacheService.fetchEventStats(eventIds);
 
@@ -155,20 +91,27 @@ export function usePosts(client: Client | null) {
               allEvents,
               eventStats
             );
-            console.log(
-              `Successfully enhanced ${eventStats.length}/${postsWithStats.length} user posts`
-            );
 
             // Fetch profiles for users mentioned in nprofiles
-            await fetchNprofileUsers(enhancedPosts);
+            await fetchNprofileUsers(
+              client,
+              sharedProfileService,
+              enhancedPosts
+            );
 
-            setPosts(enhancedPosts);
+            // Force re-render by setting posts again after profiles are loaded
+            setPosts([...enhancedPosts]); // Spread to create new array reference
           } catch (error) {
             console.warn('Failed to enhance user posts with stats:', error);
             // Fetch profiles for users mentioned in nprofiles even in fallback
-            await fetchNprofileUsers(postsWithStats);
-            // Fallback to posts without stats
-            setPosts(postsWithStats);
+            await fetchNprofileUsers(
+              client,
+              sharedProfileService,
+              postsWithStats
+            );
+
+            // Force re-render by setting posts again after profiles are loaded
+            setPosts([...postsWithStats]); // Spread to create new array reference
           }
         } else {
           Alert.alert(
@@ -190,7 +133,7 @@ export function usePosts(client: Client | null) {
         setLoading(false);
       }
     },
-    [client, cacheService, fetchNprofileUsers]
+    [client, cacheService]
   );
 
   return {
