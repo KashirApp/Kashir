@@ -189,6 +189,14 @@ export const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  embeddedPostCard: {
+    marginTop: 12,
+    marginHorizontal: 0,
+    marginVertical: 0,
+    backgroundColor: '#333',
+    borderWidth: 1,
+    borderColor: '#444',
+  },
   postDate: {
     fontSize: 12,
     color: '#999',
