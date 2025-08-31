@@ -48,6 +48,7 @@ interface EmbeddedPostProps {
       score24h: number;
     };
     originalEvent: any;
+    isLoadingStats?: boolean;
   };
   authorName?: string;
   profileService: ProfileService;
@@ -78,6 +79,7 @@ const EmbeddedPostComponent = ({
   const eventData = post.event;
   const stats = post.stats;
   const originalEvent = post.originalEvent;
+  const isLoadingStats = post.isLoadingStats;
 
   const postId = eventData.id;
   const originalPostContent = eventData.content;
@@ -301,7 +303,11 @@ const EmbeddedPostComponent = ({
         >
           <Text style={styles.actionButtonText}>
             💬
-            {stats && stats.replies > 0 && ` ${stats.replies.toLocaleString()}`}
+            {isLoadingStats
+              ? ' ⏳'
+              : stats &&
+                stats.replies > 0 &&
+                ` ${stats.replies.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -314,7 +320,9 @@ const EmbeddedPostComponent = ({
         >
           <Text style={styles.actionButtonText}>
             {isLiking ? '⏳' : '👍'}
-            {stats && stats.likes > 0 && ` ${stats.likes.toLocaleString()}`}
+            {isLoadingStats
+              ? ' ⏳'
+              : stats && stats.likes > 0 && ` ${stats.likes.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -327,7 +335,11 @@ const EmbeddedPostComponent = ({
         >
           <Text style={styles.actionButtonText}>
             {isReposting ? '⏳' : '🔄'}
-            {stats && stats.reposts > 0 && ` ${stats.reposts.toLocaleString()}`}
+            {isLoadingStats
+              ? ' ⏳'
+              : stats &&
+                stats.reposts > 0 &&
+                ` ${stats.reposts.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -340,9 +352,11 @@ const EmbeddedPostComponent = ({
         >
           <Text style={styles.actionButtonText}>
             {isZapping ? '⏳' : '⚡'}
-            {stats &&
-              stats.satszapped > 0 &&
-              ` ${stats.satszapped.toLocaleString()}`}
+            {isLoadingStats
+              ? ' ⏳'
+              : stats &&
+                stats.satszapped > 0 &&
+                ` ${stats.satszapped.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
       </View>

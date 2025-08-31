@@ -1,5 +1,6 @@
 import { Nip19, Nip19Enum_Tags, PublicKey, EventId, Filter } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
+import { CacheService } from '../services/CacheService';
 import type { PostWithStats } from '../types/EventStats';
 import type { Client } from 'kashir';
 
@@ -272,10 +273,12 @@ export async function fetchNprofileUsers(
 
 /**
  * Fetches embedded posts referenced by nevent URIs
+ * Returns posts immediately with loading state, then updates with stats asynchronously
  */
 export async function fetchEmbeddedPosts(
   client: Client,
-  eventIds: string[]
+  eventIds: string[],
+  onStatsUpdate?: (updatedPosts: Map<string, any>) => void
 ): Promise<Map<string, any>> {
   const embeddedPosts = new Map<string, any>();
 
@@ -303,6 +306,7 @@ export async function fetchEmbeddedPosts(
     }
 
     // Fetch events one by one (following DVMService pattern)
+    const validEventIds: string[] = [];
     for (let i = 0; i < eventIdObjects.length; i++) {
       try {
         const eventIdObj = eventIdObjects[i];
@@ -326,9 +330,22 @@ export async function fetchEmbeddedPosts(
                     pubkey: authorHex,
                     kind: Number(event.kind()),
                   },
+                  stats: {
+                    event_id: eventId,
+                    likes: 0,
+                    reposts: 0,
+                    replies: 0,
+                    mentions: 0,
+                    zaps: 0,
+                    satszapped: 0,
+                    score: 0,
+                    score24h: 0,
+                  },
                   originalEvent: event,
+                  isLoadingStats: true,
                 };
                 embeddedPosts.set(eventId, postData);
+                validEventIds.push(eventId);
               } catch (error) {
                 console.error('Error processing embedded post:', error);
               }
@@ -338,6 +355,46 @@ export async function fetchEmbeddedPosts(
       } catch (fetchError) {
         console.error('Error during single event fetch:', fetchError);
       }
+    }
+
+    // Fetch stats in background after returning posts
+    if (validEventIds.length > 0 && onStatsUpdate) {
+      setTimeout(async () => {
+        try {
+          const cacheService = CacheService.getInstance();
+          const eventStats = await cacheService.fetchEventStats(validEventIds);
+
+          // Create stats map for quick lookup
+          const statsMap = new Map();
+          eventStats.forEach((stat) => {
+            statsMap.set(stat.event_id, stat);
+          });
+
+          // Update posts with real stats
+          let hasUpdates = false;
+          for (const [_eventId, postData] of embeddedPosts.entries()) {
+            const stats = statsMap.get(_eventId);
+            if (stats) {
+              postData.stats = stats;
+              hasUpdates = true;
+            }
+            postData.isLoadingStats = false;
+          }
+
+          // Notify caller of updates if any stats were fetched
+          if (hasUpdates) {
+            onStatsUpdate(embeddedPosts);
+          }
+        } catch (statsError) {
+          console.error('Error fetching embedded post stats:', statsError);
+          // Mark as not loading even if failed
+          for (const [_eventId, postData] of embeddedPosts.entries()) {
+            postData.isLoadingStats = false;
+          }
+          // Still notify to update UI to remove loading indicators
+          onStatsUpdate(embeddedPosts);
+        }
+      }, 100); // Small delay to allow UI to render first
     }
   } catch (error) {
     console.error('Error fetching embedded posts:', error);

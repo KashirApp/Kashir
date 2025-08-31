@@ -152,7 +152,14 @@ const PostComponent = ({
         try {
           const client = NostrClientService.getInstance().getClient();
           if (client) {
-            const posts = await fetchEmbeddedPosts(client, neventIds);
+            const posts = await fetchEmbeddedPosts(
+              client,
+              neventIds,
+              (updatedPosts) => {
+                // Update state when stats are loaded
+                setEmbeddedPosts(new Map(updatedPosts));
+              }
+            );
             setEmbeddedPosts(posts);
 
             // Fetch profiles for embedded post authors
