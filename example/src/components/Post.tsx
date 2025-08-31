@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { EventInterface, TimestampInterface } from 'kashir';
+import { PublicKey } from 'kashir';
 import { styles } from '../App.styles';
 import { PostActionService } from '../services/PostActionService';
 import { StorageService } from '../services/StorageService';
@@ -23,9 +24,15 @@ import {
   removeVideoUrlsFromContent,
 } from '../utils/videoUtils';
 import { extractUrls, removeUrlsFromContent } from '../utils/urlUtils';
-import { parseNostrContent } from '../utils/nostrUtils';
+import {
+  parseNostrContent,
+  extractEventIdsFromNevents,
+  fetchEmbeddedPosts,
+} from '../utils/nostrUtils';
 import { TappableContent } from './TappableContent';
 import { UrlPreview } from './UrlPreview';
+import { EmbeddedPost } from './EmbeddedPost';
+import { NostrClientService } from '../services/NostrClient';
 
 interface PostProps {
   post: PostWithStats;
@@ -85,6 +92,12 @@ const PostComponent = ({
     () => extractUrls(originalPostContent),
     [originalPostContent]
   );
+
+  // Extract nevent IDs for embedded posts
+  const neventIds = useMemo(() => {
+    return extractEventIdsFromNevents(originalPostContent);
+  }, [originalPostContent]);
+
   const postContent = useMemo(() => {
     let cleanedContent = originalPostContent;
 
@@ -115,6 +128,9 @@ const PostComponent = ({
   const [isReposting, setIsReposting] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
   const [isReplyModalVisible, setIsReplyModalVisible] = useState(false);
+  const [embeddedPosts, setEmbeddedPosts] = useState<Map<string, any>>(
+    new Map()
+  );
   const postActionService = PostActionService.getInstance();
 
   // Access wallet functionality for payments via WalletManager
@@ -128,6 +144,65 @@ const PostComponent = ({
 
     return unsubscribe;
   }, []);
+
+  // Fetch embedded posts when nevent IDs are present
+  useEffect(() => {
+    if (neventIds.length > 0) {
+      const fetchEmbedded = async () => {
+        try {
+          const client = NostrClientService.getInstance().getClient();
+          if (client) {
+            const posts = await fetchEmbeddedPosts(client, neventIds);
+            setEmbeddedPosts(posts);
+
+            // Fetch profiles for embedded post authors
+            if (posts.size > 0) {
+              const authorPubkeys: string[] = [];
+              for (const embeddedPostData of posts.values()) {
+                if (embeddedPostData.event.pubkey) {
+                  authorPubkeys.push(embeddedPostData.event.pubkey);
+                }
+              }
+
+              if (authorPubkeys.length > 0 && profileService) {
+                // Convert hex pubkeys to PublicKey objects for profile fetching
+                try {
+                  const pubkeyObjects = authorPubkeys
+                    .map((hex) => {
+                      try {
+                        return PublicKey.parse('hex:' + hex);
+                      } catch {
+                        try {
+                          return PublicKey.parse(hex);
+                        } catch {
+                          return null;
+                        }
+                      }
+                    })
+                    .filter(Boolean);
+
+                  if (pubkeyObjects.length > 0) {
+                    await profileService.fetchProfilesForPubkeys(
+                      client,
+                      pubkeyObjects
+                    );
+                  }
+                } catch (error) {
+                  console.error(
+                    'Failed to fetch embedded post author profiles:',
+                    error
+                  );
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch embedded posts:', error);
+        }
+      };
+      fetchEmbedded();
+    }
+  }, [neventIds, profileService]);
 
   const handleLike = async () => {
     if (isLiking) return;
@@ -269,6 +344,25 @@ const PostComponent = ({
         {urls.map((url, urlIndex) => (
           <UrlPreview key={`${url}-${urlIndex}`} url={url} />
         ))}
+        {/* Embedded posts from nevents */}
+        {Array.from(embeddedPosts.values()).map(
+          (embeddedPost, embeddedIndex) => {
+            // Get author name from profile service
+            const authorProfile = profileService
+              ?.getProfileCache()
+              ?.get(embeddedPost.event.pubkey);
+            const embeddedAuthorName = authorProfile?.name;
+
+            return (
+              <EmbeddedPost
+                key={`embedded-${embeddedPost.event.id}-${embeddedIndex}`}
+                post={embeddedPost}
+                authorName={embeddedAuthorName}
+                profileService={profileService}
+              />
+            );
+          }
+        )}
       </TouchableOpacity>
 
       <View style={styles.postActions} pointerEvents="box-none">

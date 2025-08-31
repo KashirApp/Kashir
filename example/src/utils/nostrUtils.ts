@@ -1,4 +1,4 @@
-import { Nip19, Nip19Enum_Tags, PublicKey } from 'kashir';
+import { Nip19, Nip19Enum_Tags, PublicKey, EventId, Filter } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import type { PostWithStats } from '../types/EventStats';
 import type { Client } from 'kashir';
@@ -43,7 +43,43 @@ export function extractPubkeysFromNprofiles(content: string): string[] {
 }
 
 /**
- * Parses nostr:nprofile and nostr:npub URIs and replaces them with @username format
+ * Extracts event IDs from nostr:nevent URIs in content
+ */
+export function extractEventIdsFromNevents(content: string): string[] {
+  const neventRegex = /nostr:nevent1[a-z0-9]+/g;
+  const eventIds: string[] = [];
+  const matches = content.match(neventRegex);
+
+  if (!matches) {
+    return eventIds;
+  }
+
+  matches.forEach((nostrUri) => {
+    try {
+      const bech32 = nostrUri.replace('nostr:', '');
+      const nip19 = Nip19.fromBech32(bech32);
+      const nip19Enum = nip19.asEnum();
+
+      if (nip19Enum.tag === Nip19Enum_Tags.Event) {
+        // Handle nevent format - the property is 'event', not 'nevent'
+        const event = nip19Enum.inner.event;
+        if (event && typeof event.eventId === 'function') {
+          const eventId = event.eventId();
+          const eventIdHex = eventId.toHex();
+          eventIds.push(eventIdHex);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing nevent URI:', nostrUri, error);
+    }
+  });
+
+  return eventIds;
+}
+
+/**
+ * Parses nostr:nprofile, nostr:npub, and nostr:nevent URIs
+ * Replaces nprofile/npub with @username format and removes nevents (they'll be shown as embedded posts)
  */
 export function parseNostrContent(
   content: string,
@@ -84,6 +120,13 @@ export function parseNostrContent(
       }
     });
   }
+
+  // Handle nevent format - remove them since they'll be shown as embedded posts
+  const neventRegex = /nostr:nevent1[a-z0-9]+/g;
+  parsedContent = parsedContent.replace(neventRegex, '').trim();
+
+  // Clean up multiple spaces and newlines
+  parsedContent = parsedContent.replace(/\s+/g, ' ').trim();
 
   return parsedContent;
 }
@@ -225,4 +268,80 @@ export async function fetchNprofileUsers(
       console.error('Error fetching nprofile user profiles:', error);
     }
   }
+}
+
+/**
+ * Fetches embedded posts referenced by nevent URIs
+ */
+export async function fetchEmbeddedPosts(
+  client: Client,
+  eventIds: string[]
+): Promise<Map<string, any>> {
+  const embeddedPosts = new Map<string, any>();
+
+  if (!client || eventIds.length === 0) {
+    return embeddedPosts;
+  }
+
+  try {
+    // Convert hex event IDs to EventId objects
+    const eventIdObjects: any[] = [];
+
+    eventIds.forEach((hexId) => {
+      try {
+        if (hexId && hexId.length === 64 && /^[0-9a-fA-F]{64}$/.test(hexId)) {
+          const eventId = EventId.parse(hexId);
+          eventIdObjects.push(eventId);
+        }
+      } catch (error) {
+        console.error('Failed to parse event ID:', hexId, error);
+      }
+    });
+
+    if (eventIdObjects.length === 0) {
+      return embeddedPosts;
+    }
+
+    // Fetch events one by one (following DVMService pattern)
+    for (let i = 0; i < eventIdObjects.length; i++) {
+      try {
+        const eventIdObj = eventIdObjects[i];
+        const singleFilter = new Filter().id(eventIdObj).limit(BigInt(1));
+        const responseEvents = await client.fetchEvents(singleFilter, 15000);
+
+        if (responseEvents) {
+          const eventsArray = responseEvents.toVec();
+
+          if (eventsArray.length === 1) {
+            const event = eventsArray[0];
+            if (event) {
+              try {
+                const eventId = event.id().toHex();
+                const authorHex = event.author().toHex();
+                const postData = {
+                  event: {
+                    id: eventId,
+                    content: event.content(),
+                    created_at: Number(event.createdAt().asSecs()),
+                    pubkey: authorHex,
+                    kind: Number(event.kind()),
+                  },
+                  originalEvent: event,
+                };
+                embeddedPosts.set(eventId, postData);
+              } catch (error) {
+                console.error('Error processing embedded post:', error);
+              }
+            }
+          }
+        }
+      } catch (fetchError) {
+        console.error('Error during single event fetch:', fetchError);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching embedded posts:', error);
+  }
+
+  return embeddedPosts;
 }
