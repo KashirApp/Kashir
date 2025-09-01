@@ -215,6 +215,33 @@ const PostComponent = ({
     }
   }, [neventIds, profileService]);
 
+  // Re-check cached stats when parent post changes (triggered after batch stats loading)
+  useEffect(() => {
+    if (embeddedPosts.size > 0) {
+      const updatedPosts = new Map<string, any>();
+      let hasUpdates = false;
+
+      for (const [eventId, embeddedPost] of embeddedPosts.entries()) {
+        if (embeddedPost.isLoadingStats) {
+          // Check if stats are now available in cache
+          const client = NostrClientService.getInstance().getClient();
+          if (client) {
+            fetchEmbeddedPosts(client, [eventId]).then((refreshedPosts) => {
+              const refreshedPost = refreshedPosts.get(eventId);
+              if (refreshedPost && !refreshedPost.isLoadingStats) {
+                setEmbeddedPosts((prevPosts) => {
+                  const newPosts = new Map(prevPosts);
+                  newPosts.set(eventId, refreshedPost);
+                  return newPosts;
+                });
+              }
+            });
+          }
+        }
+      }
+    }
+  }, [post.isLoadingStats]); // Trigger when parent post stats loading state changes
+
   const handleLike = async () => {
     if (isLiking || !originalEvent) return;
 

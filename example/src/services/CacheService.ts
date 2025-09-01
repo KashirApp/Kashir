@@ -14,6 +14,7 @@ export class CacheService {
   private wsClient: WebSocket | null = null;
   private readonly CACHE_URL = 'wss://cache1.primal.net/v1';
   private readonly EVENT_STATS_KIND = 10000100;
+  private embeddedStatsCache = new Map<string, ContentEventStats>(); // Cache for embedded post stats
 
   static getInstance(): CacheService {
     if (!CacheService.instance) {
@@ -226,6 +227,8 @@ export class CacheService {
               // Only include stats for events we requested
               if (eventIds.includes(stats.event_id)) {
                 eventStats.push(stats);
+                // Cache stats for embedded posts
+                this.embeddedStatsCache.set(stats.event_id, stats);
               }
             } catch (error) {
               console.error('Error parsing event stats:', error);
@@ -328,6 +331,20 @@ export class CacheService {
         return event; // Return as-is if there's an error
       }
     });
+  }
+
+  /**
+   * Get cached stats for embedded posts
+   */
+  getEmbeddedStats(eventId: string): ContentEventStats | undefined {
+    return this.embeddedStatsCache.get(eventId);
+  }
+
+  /**
+   * Clear cached embedded stats
+   */
+  clearEmbeddedStatsCache(): void {
+    this.embeddedStatsCache.clear();
   }
 
   /**

@@ -4,7 +4,7 @@ import { EventId, Filter } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
 import { CacheService } from '../services/CacheService';
-import { fetchNprofileUsers } from '../utils/nostrUtils';
+import { fetchNprofileUsers, extractEventIdsFromNevents } from '../utils/nostrUtils';
 import type { PostWithStats } from '../types/EventStats';
 
 interface UseTrendingResult {
@@ -136,8 +136,20 @@ export function useTrending(
           const fetchedEventIds = fetchedEvents.map((event) =>
             event.id().toHex()
           );
+
+          // Collect embedded post event IDs from all posts
+          const allEmbeddedEventIds = new Set<string>();
+          fetchedEvents.forEach((event) => {
+            const eventContent = event.content();
+            const embeddedIds = extractEventIdsFromNevents(eventContent);
+            embeddedIds.forEach((id) => allEmbeddedEventIds.add(id));
+          });
+
+          // Combine main post IDs with embedded post IDs for batch stats request
+          const allEventIdsForStats = [...fetchedEventIds, ...Array.from(allEmbeddedEventIds)];
+
           const eventStats =
-            await cacheService.fetchEventStats(fetchedEventIds);
+            await cacheService.fetchEventStats(allEventIdsForStats);
 
           const enhancedPosts = cacheService.enhanceEventsWithStats(
             fetchedEvents,
@@ -158,7 +170,11 @@ export function useTrending(
           await profilePromise;
 
           // Final render with both profiles and stats loaded
-          setTrendingPosts((currentPosts) => [...currentPosts]);
+          // Force a re-render to update embedded posts with stats
+          setTrendingPosts((currentPosts) => {
+            // Create a new array to trigger re-render and allow embedded posts to check cached stats
+            return currentPosts.map((post) => ({ ...post }));
+          });
         } catch (error) {
           console.warn('Failed to enhance trending posts with stats:', error);
           // Mark posts as not loading stats since we failed
