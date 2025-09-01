@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Client, Keys, PublicKey } from 'kashir';
+import { EventId, Filter } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
 import { CacheService } from '../services/CacheService';
@@ -25,6 +26,153 @@ export function useTrending(
 
   const dvmService = useMemo(() => new DVMService(), []);
   const cacheService = CacheService.getInstance();
+
+  const fetchEventsProgressively = useCallback(
+    async (clientInstance: Client, eventIds: string[]) => {
+      const fetchedEvents: any[] = [];
+      const allAuthorPubkeys = new Set<string>();
+
+      for (let i = 0; i < eventIds.length; i++) {
+        const eventId = eventIds[i];
+        if (!eventId) continue;
+
+        try {
+          // Fetch single event (reusing DVMService logic)
+          const parsedEventId = EventId.parse(eventId);
+          const workingFilter = new Filter().id(parsedEventId).limit(BigInt(1));
+
+          const fetchedEventsResult = await clientInstance.fetchEvents(
+            workingFilter,
+            5000
+          );
+
+          if (fetchedEventsResult) {
+            const eventsArray = fetchedEventsResult.toVec();
+
+            if (eventsArray.length > 0) {
+              const event = eventsArray[0];
+              if (event) {
+                fetchedEvents.push(event);
+                allAuthorPubkeys.add(event.author().toHex());
+
+                // Create the new post
+                const eventIdHex = event.id().toHex();
+                const newPost = {
+                  event: {
+                    id: eventIdHex,
+                    pubkey: event.author().toHex(),
+                    content: event.content(),
+                    created_at: Number(event.createdAt().asSecs()),
+                  },
+                  originalEvent: event,
+                  stats: undefined,
+                  isLoadingStats: true,
+                  isLoadingContent: false, // Content is now loaded
+                };
+
+                // Fetch profiles for this specific post's nprofile mentions BEFORE updating state
+                await fetchNprofileUsers(clientInstance, profileService, [
+                  newPost,
+                ]);
+
+                // Update posts immediately with this new event (now with nprofiles loaded)
+                setTrendingPosts((currentPosts) => {
+                  const updatedPosts = [...currentPosts];
+                  const postIndex = updatedPosts.findIndex(
+                    (post) => post.event.id === eventId
+                  );
+
+                  if (postIndex !== -1) {
+                    updatedPosts[postIndex] = newPost;
+                  }
+
+                  return updatedPosts;
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch event ${eventId}:`, error);
+        }
+
+        // Small delay between requests
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      // After all events are loaded, fetch profiles and stats in background
+      if (fetchedEvents.length > 0) {
+        // Fetch profiles for all authors
+        setProfilesLoading(true);
+        const authorPubkeys = Array.from(allAuthorPubkeys)
+          .map((hex) => {
+            try {
+              return fetchedEvents
+                .find((e) => e.author().toHex() === hex)
+                ?.author();
+            } catch {
+              return null;
+            }
+          })
+          .filter((pk) => pk !== null && pk !== undefined) as PublicKey[];
+
+        const profilePromise =
+          authorPubkeys.length > 0
+            ? profileService
+                .fetchProfilesForPubkeys(client, authorPubkeys)
+                .then(() => {
+                  setProfilesLoading(false);
+                  // Force re-render to pick up loaded profiles
+                  setTrendingPosts((currentPosts) => [...currentPosts]);
+                })
+                .catch((_err) => {
+                  setProfilesLoading(false);
+                })
+            : Promise.resolve().then(() => {
+                setProfilesLoading(false);
+              });
+
+        // Enhance posts with engagement statistics
+        try {
+          const fetchedEventIds = fetchedEvents.map((event) =>
+            event.id().toHex()
+          );
+          const eventStats =
+            await cacheService.fetchEventStats(fetchedEventIds);
+
+          const enhancedPosts = cacheService.enhanceEventsWithStats(
+            fetchedEvents,
+            eventStats
+          );
+
+          // Update posts with stats
+          setTrendingPosts((currentPosts) => {
+            return currentPosts.map((post) => {
+              const enhanced = enhancedPosts.find(
+                (ep) => ep.event.id === post.event.id
+              );
+              return enhanced || { ...post, isLoadingStats: false };
+            });
+          });
+
+          // Wait for profiles to complete
+          await profilePromise;
+
+          // Final render with both profiles and stats loaded
+          setTrendingPosts((currentPosts) => [...currentPosts]);
+        } catch (error) {
+          console.warn('Failed to enhance trending posts with stats:', error);
+          // Mark posts as not loading stats since we failed
+          setTrendingPosts((currentPosts) =>
+            currentPosts.map((post) => ({ ...post, isLoadingStats: false }))
+          );
+
+          // Still wait for profiles to complete
+          await profilePromise;
+        }
+      }
+    },
+    [client, profileService, cacheService]
+  );
 
   const fetchTrendingPosts = useCallback(
     async (_keys: Keys | null) => {
@@ -68,121 +216,52 @@ export function useTrending(
           // Set loading to false so PostList renders posts instead of loading spinner
           setTrendingLoading(false);
 
-          // Fetch the actual events in background
-          const events = await dvmService.fetchEventsByIds(
-            client,
-            dvmResponse.eventIds
-          );
-
-          if (events.length > 0) {
-            // Create real posts with actual event content (no longer loading content)
-            const realPosts = events.map((event) => ({
-              event: {
-                id: event.id().toHex(),
-                pubkey: event.author().toHex(),
-                content: event.content(),
-                created_at: Number(event.createdAt().asSecs()),
-              },
-              originalEvent: event,
-              stats: undefined,
-              isLoadingStats: true,
-              isLoadingContent: false, // Content is now loaded
-            }));
-
-            // Fetch profiles for users mentioned in nprofiles/npub URIs BEFORE setting posts
-            await fetchNprofileUsers(client, profileService, realPosts);
-
-            // Update posts with real content (profiles now loaded)
-            setTrendingPosts(realPosts);
-
-            // Fetch profiles in background - don't block the UI but start immediately
-            setProfilesLoading(true);
-            const uniqueAuthors = new Set<string>();
-            events.forEach((event) => {
-              uniqueAuthors.add(event.author().toHex());
-            });
-
-            const authorPubkeys = Array.from(uniqueAuthors)
-              .map((hex) => {
-                try {
-                  return events
-                    .find((e) => e.author().toHex() === hex)
-                    ?.author();
-                } catch {
-                  return null;
-                }
-              })
-              .filter((pk) => pk !== null && pk !== undefined) as PublicKey[];
-
-            // Start profile fetching in parallel with stats loading
-            const profilePromise =
-              authorPubkeys.length > 0
-                ? profileService
-                    .fetchProfilesForPubkeys(client, authorPubkeys)
-                    .then(() => {
-                      setProfilesLoading(false);
-                      // Force re-render to pick up loaded profiles
-                      setTrendingPosts((currentPosts) => [...currentPosts]);
-                    })
-                    .catch((_err) => {
-                      setProfilesLoading(false);
-                    })
-                : Promise.resolve().then(() => {
-                    setProfilesLoading(false);
-                  });
-
-            // Enhance posts with engagement statistics in parallel with profile loading
-            try {
-              const eventIds = events.map((event) => event.id().toHex());
-              const eventStats = await cacheService.fetchEventStats(eventIds);
-
-              const enhancedPosts = cacheService.enhanceEventsWithStats(
-                events,
-                eventStats
-              );
-
-              // Keep DVM trending order (don't sort by time)
-              setTrendingPosts(enhancedPosts);
-
-              // Wait for profiles to complete before final render
-              await profilePromise;
-
-              // Force re-render by setting posts again after both profiles and stats are loaded
-              setTrendingPosts([...enhancedPosts]); // Spread to create new array reference
-            } catch (error) {
-              console.warn(
-                'Failed to enhance trending posts with stats:',
-                error
-              );
-              // Mark real posts as not loading stats since we failed to fetch them
-              const fallbackPosts = realPosts.map((post) => ({
-                ...post,
-                isLoadingStats: false,
-              }));
-              setTrendingPosts(fallbackPosts);
-
-              // Still wait for profiles to complete
-              await profilePromise;
-
-              // Force re-render by setting posts again after profiles are loaded
-              setTrendingPosts([...fallbackPosts]); // Spread to create new array reference
-            }
-          } else {
-            setTrendingPosts([]);
-          }
+          // Fetch events progressively - update UI as each event loads
+          await fetchEventsProgressively(client, dvmResponse.eventIds);
         } else {
-          setTrendingPosts([]);
+          // Show a single informational post when no trending data is available
+          const fallbackPost = {
+            event: {
+              id: 'fallback-trending',
+              pubkey: '',
+              content:
+                '📈 No trending content available at this time.\n\nTrending data is provided by Data Vending Machines (DVMs) on the Nostr network. Please check back later for trending posts.',
+              created_at: Math.floor(Date.now() / 1000),
+            },
+            originalEvent: null,
+            stats: undefined,
+            isLoadingStats: false,
+            isLoadingContent: false,
+          };
+
+          setTrendingPosts([fallbackPost]);
           setTrendingEventIds([]);
         }
       } catch (error) {
         console.error('Error fetching trending posts:', error);
-        setTrendingPosts([]);
+
+        // Show error message instead of empty state
+        const errorPost = {
+          event: {
+            id: 'error-trending',
+            pubkey: '',
+            content:
+              '⚠️ Error loading trending content.\n\nPlease check your connection and try again.',
+            created_at: Math.floor(Date.now() / 1000),
+          },
+          originalEvent: null,
+          stats: undefined,
+          isLoadingStats: false,
+          isLoadingContent: false,
+        };
+
+        setTrendingPosts([errorPost]);
         setTrendingEventIds([]);
       } finally {
         setTrendingLoading(false);
       }
     },
-    [client, dvmService, profileService, cacheService]
+    [client, dvmService, fetchEventsProgressively]
   );
 
   return {
