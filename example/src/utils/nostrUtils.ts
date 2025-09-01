@@ -278,7 +278,7 @@ export async function fetchNprofileUsers(
 export async function fetchEmbeddedPosts(
   client: Client,
   eventIds: string[],
-  onStatsUpdate?: (updatedPosts: Map<string, any>) => void
+  _onStatsUpdate?: (updatedPosts: Map<string, any>) => void
 ): Promise<Map<string, any>> {
   const embeddedPosts = new Map<string, any>();
 
@@ -323,10 +323,10 @@ export async function fetchEmbeddedPosts(
               try {
                 const eventId = event.id().toHex();
                 const authorHex = event.author().toHex();
-                
+
                 // Check if stats are already cached from the batch request
                 const cachedStats = cacheService.getEmbeddedStats(eventId);
-                
+
                 const postData = {
                   event: {
                     id: eventId,

@@ -218,9 +218,6 @@ const PostComponent = ({
   // Re-check cached stats when parent post changes (triggered after batch stats loading)
   useEffect(() => {
     if (embeddedPosts.size > 0) {
-      const updatedPosts = new Map<string, any>();
-      let hasUpdates = false;
-
       for (const [eventId, embeddedPost] of embeddedPosts.entries()) {
         if (embeddedPost.isLoadingStats) {
           // Check if stats are now available in cache
@@ -240,7 +237,7 @@ const PostComponent = ({
         }
       }
     }
-  }, [post.isLoadingStats]); // Trigger when parent post stats loading state changes
+  }, [post.isLoadingStats, embeddedPosts]); // Trigger when parent post stats loading state changes
 
   const handleLike = async () => {
     if (isLiking || !originalEvent) return;

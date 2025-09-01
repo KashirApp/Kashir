@@ -1,17 +1,19 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { Client, Keys, PublicKey } from 'kashir';
+import type { Client, Keys } from 'kashir';
 import { EventId, Filter } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
 import { CacheService } from '../services/CacheService';
-import { fetchNprofileUsers, extractEventIdsFromNevents } from '../utils/nostrUtils';
+import {
+  fetchNprofileUsers,
+  extractEventIdsFromNevents,
+} from '../utils/nostrUtils';
 import type { PostWithStats } from '../types/EventStats';
 
 interface UseTrendingResult {
   trendingPosts: PostWithStats[];
   trendingEventIds: string[];
   trendingLoading: boolean;
-  profilesLoading: boolean;
   fetchTrendingPosts: (keys: Keys | null) => Promise<void>;
 }
 
@@ -22,7 +24,6 @@ export function useTrending(
   const [trendingPosts, setTrendingPosts] = useState<PostWithStats[]>([]);
   const [trendingEventIds, setTrendingEventIds] = useState<string[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
-  const [profilesLoading, setProfilesLoading] = useState(false);
 
   const dvmService = useMemo(() => new DVMService(), []);
   const cacheService = CacheService.getInstance();
@@ -53,14 +54,16 @@ export function useTrending(
               const event = eventsArray[0];
               if (event) {
                 fetchedEvents.push(event);
-                allAuthorPubkeys.add(event.author().toHex());
+                const authorPubkey = event.author();
+                const authorHex = authorPubkey.toHex();
+                allAuthorPubkeys.add(authorHex);
 
                 // Create the new post
                 const eventIdHex = event.id().toHex();
                 const newPost = {
                   event: {
                     id: eventIdHex,
-                    pubkey: event.author().toHex(),
+                    pubkey: authorHex,
                     content: event.content(),
                     created_at: Number(event.createdAt().asSecs()),
                   },
@@ -75,7 +78,19 @@ export function useTrending(
                   newPost,
                 ]);
 
-                // Update posts immediately with this new event (now with nprofiles loaded)
+                // Fetch profile for the post author individually
+                try {
+                  await profileService.fetchProfilesForPubkeys(clientInstance, [
+                    authorPubkey,
+                  ]);
+                } catch (error) {
+                  console.warn(
+                    `Failed to fetch profile for author ${authorHex}:`,
+                    error
+                  );
+                }
+
+                // Update posts immediately with this new event (now with nprofiles and author profile loaded)
                 setTrendingPosts((currentPosts) => {
                   const updatedPosts = [...currentPosts];
                   const postIndex = updatedPosts.findIndex(
@@ -99,38 +114,8 @@ export function useTrending(
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      // After all events are loaded, fetch profiles and stats in background
+      // After all events are loaded, fetch stats in batch
       if (fetchedEvents.length > 0) {
-        // Fetch profiles for all authors
-        setProfilesLoading(true);
-        const authorPubkeys = Array.from(allAuthorPubkeys)
-          .map((hex) => {
-            try {
-              return fetchedEvents
-                .find((e) => e.author().toHex() === hex)
-                ?.author();
-            } catch {
-              return null;
-            }
-          })
-          .filter((pk) => pk !== null && pk !== undefined) as PublicKey[];
-
-        const profilePromise =
-          authorPubkeys.length > 0
-            ? profileService
-                .fetchProfilesForPubkeys(client, authorPubkeys)
-                .then(() => {
-                  setProfilesLoading(false);
-                  // Force re-render to pick up loaded profiles
-                  setTrendingPosts((currentPosts) => [...currentPosts]);
-                })
-                .catch((_err) => {
-                  setProfilesLoading(false);
-                })
-            : Promise.resolve().then(() => {
-                setProfilesLoading(false);
-              });
-
         // Enhance posts with engagement statistics
         try {
           const fetchedEventIds = fetchedEvents.map((event) =>
@@ -146,7 +131,10 @@ export function useTrending(
           });
 
           // Combine main post IDs with embedded post IDs for batch stats request
-          const allEventIdsForStats = [...fetchedEventIds, ...Array.from(allEmbeddedEventIds)];
+          const allEventIdsForStats = [
+            ...fetchedEventIds,
+            ...Array.from(allEmbeddedEventIds),
+          ];
 
           const eventStats =
             await cacheService.fetchEventStats(allEventIdsForStats);
@@ -166,11 +154,7 @@ export function useTrending(
             });
           });
 
-          // Wait for profiles to complete
-          await profilePromise;
-
-          // Final render with both profiles and stats loaded
-          // Force a re-render to update embedded posts with stats
+          // Final render to ensure all profiles and stats are applied
           setTrendingPosts((currentPosts) => {
             // Create a new array to trigger re-render and allow embedded posts to check cached stats
             return currentPosts.map((post) => ({ ...post }));
@@ -181,13 +165,10 @@ export function useTrending(
           setTrendingPosts((currentPosts) =>
             currentPosts.map((post) => ({ ...post, isLoadingStats: false }))
           );
-
-          // Still wait for profiles to complete
-          await profilePromise;
         }
       }
     },
-    [client, profileService, cacheService]
+    [profileService, cacheService]
   );
 
   const fetchTrendingPosts = useCallback(
@@ -284,7 +265,6 @@ export function useTrending(
     trendingPosts,
     trendingEventIds,
     trendingLoading,
-    profilesLoading,
     fetchTrendingPosts,
   };
 }
