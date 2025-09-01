@@ -83,7 +83,14 @@ export function usePosts(client: Client | null) {
             isLoadingStats: true,
           }));
 
-          // Set posts immediately with loading state
+          // Fetch profiles for users mentioned in nprofiles BEFORE setting posts
+          await fetchNprofileUsers(
+            client,
+            sharedProfileService,
+            postsWithStats
+          );
+
+          // Set posts immediately with loading state (profiles now loaded)
           setPosts(postsWithStats);
 
           // Enhance posts with engagement statistics
@@ -96,12 +103,12 @@ export function usePosts(client: Client | null) {
               eventStats
             );
 
-            // Fetch profiles for users mentioned in nprofiles
-            await fetchNprofileUsers(
-              client,
-              sharedProfileService,
-              enhancedPosts
-            );
+            // Profiles already fetched above, just update posts with stats
+            // await fetchNprofileUsers(
+            //   client,
+            //   sharedProfileService,
+            //   enhancedPosts
+            // );
 
             // Force re-render by setting posts again after profiles are loaded
             setPosts([...enhancedPosts]); // Spread to create new array reference
@@ -113,12 +120,12 @@ export function usePosts(client: Client | null) {
               isLoadingStats: false,
             }));
 
-            // Fetch profiles for users mentioned in nprofiles even in fallback
-            await fetchNprofileUsers(
-              client,
-              sharedProfileService,
-              postsWithFailedStats
-            );
+            // Profiles were already fetched above, no need to fetch again
+            // await fetchNprofileUsers(
+            //   client,
+            //   sharedProfileService,
+            //   postsWithFailedStats
+            // );
 
             // Force re-render by setting posts again after profiles are loaded
             setPosts([...postsWithFailedStats]); // Spread to create new array reference

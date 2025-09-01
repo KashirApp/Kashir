@@ -126,7 +126,7 @@ const PostComponent = ({
     }
 
     return cleanedContent;
-  }, [originalPostContent, imageUrls, videoUrls, urls, profileService]);
+  }, [originalPostContent, imageUrls, videoUrls, urls, profileService, post]);
 
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);

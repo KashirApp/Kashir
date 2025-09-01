@@ -161,7 +161,7 @@ function getUsernameFromNprofile(
         return cachedProfile.name;
       }
 
-      // Return null if no name is available - let the caller decide fallback
+      // Return null if no name is available - profiles should have been fetched already
       return null;
     }
 
@@ -200,7 +200,7 @@ function getUsernameFromNpub(
         return cachedProfile.name;
       }
 
-      // Return null if no name is available - let the caller decide fallback
+      // Return null if no name is available - profiles should have been fetched already
       return null;
     }
 

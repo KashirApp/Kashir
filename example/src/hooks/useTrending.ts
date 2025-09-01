@@ -89,7 +89,10 @@ export function useTrending(
               isLoadingContent: false, // Content is now loaded
             }));
 
-            // Update posts with real content
+            // Fetch profiles for users mentioned in nprofiles/npub URIs BEFORE setting posts
+            await fetchNprofileUsers(client, profileService, realPosts);
+
+            // Update posts with real content (profiles now loaded)
             setTrendingPosts(realPosts);
 
             // Enhance posts with engagement statistics in background
@@ -105,8 +108,8 @@ export function useTrending(
               // Keep DVM trending order (don't sort by time)
               setTrendingPosts(enhancedPosts);
 
-              // Fetch profiles for users mentioned in nprofiles/npub URIs
-              await fetchNprofileUsers(client, profileService, enhancedPosts);
+              // Profiles already fetched above
+              // await fetchNprofileUsers(client, profileService, enhancedPosts);
 
               // Force re-render by setting posts again after profiles are loaded
               setTrendingPosts([...enhancedPosts]); // Spread to create new array reference
@@ -122,8 +125,8 @@ export function useTrending(
               }));
               setTrendingPosts(fallbackPosts);
 
-              // Fetch profiles for users mentioned in nprofiles/npub URIs even in fallback
-              await fetchNprofileUsers(client, profileService, fallbackPosts);
+              // Profiles were already fetched above
+              // await fetchNprofileUsers(client, profileService, fallbackPosts);
 
               // Force re-render by setting posts again after profiles are loaded
               setTrendingPosts([...fallbackPosts]); // Spread to create new array reference
