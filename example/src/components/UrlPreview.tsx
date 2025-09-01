@@ -72,9 +72,9 @@ export function UrlPreview({ url }: UrlPreviewProps) {
 
       setMetadata(extractedMetadata);
     } catch (err) {
-      console.error('Failed to fetch URL metadata:', err);
-      setError('Failed to load preview');
-      // Fallback to basic URL display
+      // Log failed URL for debugging
+      console.log('URL preview fetch failed for:', urlToFetch);
+      setError(null);
       setMetadata({
         url: urlToFetch,
         title: urlToFetch,
