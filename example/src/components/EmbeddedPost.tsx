@@ -125,7 +125,7 @@ const EmbeddedPostComponent = ({
     }
 
     return cleanedContent;
-  }, [originalPostContent, imageUrls, videoUrls, urls, profileService, post]);
+  }, [originalPostContent, imageUrls, videoUrls, urls, profileService]);
 
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);

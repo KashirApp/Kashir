@@ -95,44 +95,7 @@ export function useTrending(
             // Update posts with real content (profiles now loaded)
             setTrendingPosts(realPosts);
 
-            // Enhance posts with engagement statistics in background
-            try {
-              const eventIds = events.map((event) => event.id().toHex());
-              const eventStats = await cacheService.fetchEventStats(eventIds);
-
-              const enhancedPosts = cacheService.enhanceEventsWithStats(
-                events,
-                eventStats
-              );
-
-              // Keep DVM trending order (don't sort by time)
-              setTrendingPosts(enhancedPosts);
-
-              // Profiles already fetched above
-              // await fetchNprofileUsers(client, profileService, enhancedPosts);
-
-              // Force re-render by setting posts again after profiles are loaded
-              setTrendingPosts([...enhancedPosts]); // Spread to create new array reference
-            } catch (error) {
-              console.warn(
-                'Failed to enhance trending posts with stats:',
-                error
-              );
-              // Mark real posts as not loading stats since we failed to fetch them
-              const fallbackPosts = realPosts.map((post) => ({
-                ...post,
-                isLoadingStats: false,
-              }));
-              setTrendingPosts(fallbackPosts);
-
-              // Profiles were already fetched above
-              // await fetchNprofileUsers(client, profileService, fallbackPosts);
-
-              // Force re-render by setting posts again after profiles are loaded
-              setTrendingPosts([...fallbackPosts]); // Spread to create new array reference
-            }
-
-            // Fetch profiles in background - don't block the UI
+            // Fetch profiles in background - don't block the UI but start immediately
             setProfilesLoading(true);
             const uniqueAuthors = new Set<string>();
             events.forEach((event) => {
@@ -151,18 +114,58 @@ export function useTrending(
               })
               .filter((pk) => pk !== null && pk !== undefined) as PublicKey[];
 
-            // Fetch profiles in background without affecting main loading state
-            if (authorPubkeys.length > 0) {
-              profileService
-                .fetchProfilesForPubkeys(client, authorPubkeys)
-                .then(() => {
-                  setProfilesLoading(false);
-                })
-                .catch((_err) => {
-                  setProfilesLoading(false);
-                });
-            } else {
-              setProfilesLoading(false);
+            // Start profile fetching in parallel with stats loading
+            const profilePromise =
+              authorPubkeys.length > 0
+                ? profileService
+                    .fetchProfilesForPubkeys(client, authorPubkeys)
+                    .then(() => {
+                      setProfilesLoading(false);
+                      // Force re-render to pick up loaded profiles
+                      setTrendingPosts((currentPosts) => [...currentPosts]);
+                    })
+                    .catch((_err) => {
+                      setProfilesLoading(false);
+                    })
+                : Promise.resolve().then(() => {
+                    setProfilesLoading(false);
+                  });
+
+            // Enhance posts with engagement statistics in parallel with profile loading
+            try {
+              const eventIds = events.map((event) => event.id().toHex());
+              const eventStats = await cacheService.fetchEventStats(eventIds);
+
+              const enhancedPosts = cacheService.enhanceEventsWithStats(
+                events,
+                eventStats
+              );
+
+              // Keep DVM trending order (don't sort by time)
+              setTrendingPosts(enhancedPosts);
+
+              // Wait for profiles to complete before final render
+              await profilePromise;
+
+              // Force re-render by setting posts again after both profiles and stats are loaded
+              setTrendingPosts([...enhancedPosts]); // Spread to create new array reference
+            } catch (error) {
+              console.warn(
+                'Failed to enhance trending posts with stats:',
+                error
+              );
+              // Mark real posts as not loading stats since we failed to fetch them
+              const fallbackPosts = realPosts.map((post) => ({
+                ...post,
+                isLoadingStats: false,
+              }));
+              setTrendingPosts(fallbackPosts);
+
+              // Still wait for profiles to complete
+              await profilePromise;
+
+              // Force re-render by setting posts again after profiles are loaded
+              setTrendingPosts([...fallbackPosts]); // Spread to create new array reference
             }
           } else {
             setTrendingPosts([]);
