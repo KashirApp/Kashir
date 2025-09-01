@@ -71,7 +71,7 @@ export function UrlPreview({ url }: UrlPreviewProps) {
       };
 
       setMetadata(extractedMetadata);
-    } catch (err) {
+    } catch {
       // Log failed URL for debugging
       console.log('URL preview fetch failed for:', urlToFetch);
       setError(null);
