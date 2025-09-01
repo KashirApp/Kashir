@@ -80,7 +80,11 @@ export function usePosts(client: Client | null) {
             },
             originalEvent: event,
             stats: undefined,
+            isLoadingStats: true,
           }));
+
+          // Set posts immediately with loading state
+          setPosts(postsWithStats);
 
           // Enhance posts with engagement statistics
           try {
@@ -103,15 +107,21 @@ export function usePosts(client: Client | null) {
             setPosts([...enhancedPosts]); // Spread to create new array reference
           } catch (error) {
             console.warn('Failed to enhance user posts with stats:', error);
+            // Mark posts as not loading stats since we failed to fetch them
+            const postsWithFailedStats = postsWithStats.map((post) => ({
+              ...post,
+              isLoadingStats: false,
+            }));
+
             // Fetch profiles for users mentioned in nprofiles even in fallback
             await fetchNprofileUsers(
               client,
               sharedProfileService,
-              postsWithStats
+              postsWithFailedStats
             );
 
             // Force re-render by setting posts again after profiles are loaded
-            setPosts([...postsWithStats]); // Spread to create new array reference
+            setPosts([...postsWithFailedStats]); // Spread to create new array reference
           }
         } else {
           Alert.alert(

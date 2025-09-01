@@ -75,10 +75,14 @@ const PostComponent = ({
   const eventData = post.event;
   const stats = post.stats;
   const originalEvent = (post as any).originalEvent as EventInterface;
+  const isLoadingStats = post.isLoadingStats;
+  const isLoadingContent = post.isLoadingContent;
 
   const postId = eventData.id;
   const originalPostContent = eventData.content;
-  const postTimestamp = originalEvent.createdAt();
+  const postTimestamp = originalEvent
+    ? originalEvent.createdAt()
+    : { asSecs: () => eventData.created_at };
 
   // Extract images and videos, and clean content
   const imageUrls = useMemo(
@@ -212,7 +216,7 @@ const PostComponent = ({
   }, [neventIds, profileService]);
 
   const handleLike = async () => {
-    if (isLiking) return;
+    if (isLiking || !originalEvent) return;
 
     setIsLiking(true);
     try {
@@ -227,7 +231,7 @@ const PostComponent = ({
   };
 
   const handleRepost = async () => {
-    if (isReposting) return;
+    if (isReposting || !originalEvent) return;
 
     setIsReposting(true);
     try {
@@ -242,7 +246,7 @@ const PostComponent = ({
   };
 
   const handleZap = async () => {
-    if (isZapping) return;
+    if (isZapping || !originalEvent) return;
 
     setIsZapping(true);
     try {
@@ -318,6 +322,8 @@ const PostComponent = ({
   };
 
   const handleAuthorPress = () => {
+    if (!originalEvent) return;
+
     try {
       const authorPubkey = originalEvent.author();
       const authorNpub = authorPubkey.toBech32();
@@ -335,12 +341,14 @@ const PostComponent = ({
   return (
     <View key={postId} style={styles.postCard}>
       <TouchableOpacity onPress={handlePostPress} activeOpacity={0.7}>
-        {showAuthor && authorName && (
+        {showAuthor && authorName && !isLoadingContent && (
           <TouchableOpacity onPress={handleAuthorPress} activeOpacity={0.7}>
             <Text style={styles.postAuthor}>@{authorName}</Text>
           </TouchableOpacity>
         )}
-        <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
+        {!isLoadingContent && (
+          <Text style={styles.postDate}>{formatTimestamp(postTimestamp)}</Text>
+        )}
         <TappableContent
           content={postContent}
           textStyle={styles.postContent}
@@ -374,54 +382,76 @@ const PostComponent = ({
 
       <View style={styles.postActions} pointerEvents="box-none">
         <TouchableOpacity
-          style={[styles.actionButton, styles.enabledButton]}
+          style={[
+            styles.actionButton,
+            !originalEvent ? styles.disabledButton : styles.enabledButton,
+          ]}
           onPress={handleReply}
+          disabled={!originalEvent}
           activeOpacity={0.7}
         >
           <Text style={styles.actionButtonText}>
             💬
-            {stats && stats.replies > 0 && ` ${stats.replies.toLocaleString()}`}
+            {isLoadingStats
+              ? ' ⏳'
+              : stats &&
+                stats.replies > 0 &&
+                ` ${stats.replies.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.actionButton,
-            isLiking ? styles.disabledButton : styles.enabledButton,
+            isLiking || !originalEvent
+              ? styles.disabledButton
+              : styles.enabledButton,
           ]}
           onPress={handleLike}
-          disabled={isLiking}
+          disabled={isLiking || !originalEvent}
         >
           <Text style={styles.actionButtonText}>
             {isLiking ? '⏳' : '👍'}
-            {stats && stats.likes > 0 && ` ${stats.likes.toLocaleString()}`}
+            {isLoadingStats
+              ? ' ⏳'
+              : stats && stats.likes > 0 && ` ${stats.likes.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.actionButton,
-            isReposting ? styles.disabledButton : styles.enabledButton,
+            isReposting || !originalEvent
+              ? styles.disabledButton
+              : styles.enabledButton,
           ]}
           onPress={handleRepost}
-          disabled={isReposting}
+          disabled={isReposting || !originalEvent}
         >
           <Text style={styles.actionButtonText}>
             {isReposting ? '⏳' : '🔄'}
-            {stats && stats.reposts > 0 && ` ${stats.reposts.toLocaleString()}`}
+            {isLoadingStats
+              ? ' ⏳'
+              : stats &&
+                stats.reposts > 0 &&
+                ` ${stats.reposts.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.actionButton,
-            isZapping ? styles.disabledButton : styles.enabledButton,
+            isZapping || !originalEvent
+              ? styles.disabledButton
+              : styles.enabledButton,
           ]}
           onPress={handleZap}
-          disabled={isZapping}
+          disabled={isZapping || !originalEvent}
         >
           <Text style={styles.actionButtonText}>
             {isZapping ? '⏳' : '⚡'}
-            {stats &&
-              stats.satszapped > 0 &&
-              ` ${stats.satszapped.toLocaleString()}`}
+            {isLoadingStats
+              ? ' ⏳'
+              : stats &&
+                stats.satszapped > 0 &&
+                ` ${stats.satszapped.toLocaleString()}`}
           </Text>
         </TouchableOpacity>
       </View>

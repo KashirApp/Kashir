@@ -152,7 +152,11 @@ export function useFollowing(
             },
             originalEvent: event,
             stats: undefined,
+            isLoadingStats: true,
           }));
+
+          // Set posts immediately with loading state
+          setFollowingPosts(postsWithStats);
 
           // Enhance posts with engagement statistics
           try {
@@ -176,8 +180,13 @@ export function useFollowing(
               'Failed to enhance following posts with stats:',
               error
             );
+            // Mark posts as not loading stats since we failed to fetch them
+            const postsWithFailedStats = postsWithStats.map((post) => ({
+              ...post,
+              isLoadingStats: false,
+            }));
             // Fallback to posts without stats
-            setFollowingPosts(postsWithStats);
+            setFollowingPosts(postsWithFailedStats);
           }
 
           // Fetch profiles in background - don't block the UI

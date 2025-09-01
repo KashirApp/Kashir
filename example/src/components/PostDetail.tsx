@@ -109,7 +109,11 @@ export function PostDetail({
           },
           originalEvent: event,
           stats: undefined,
+          isLoadingStats: true,
         }));
+
+        // Set replies immediately with loading state
+        setReplies(repliesWithStats);
 
         // Enhance replies with engagement statistics
         try {
@@ -122,7 +126,12 @@ export function PostDetail({
           setReplies(enhancedReplies);
         } catch (error) {
           console.warn('Failed to enhance replies with stats:', error);
-          setReplies(repliesWithStats);
+          // Mark replies as not loading stats since we failed to fetch them
+          const repliesWithFailedStats = repliesWithStats.map((reply) => ({
+            ...reply,
+            isLoadingStats: false,
+          }));
+          setReplies(repliesWithFailedStats);
         }
 
         // Fetch author profiles for replies

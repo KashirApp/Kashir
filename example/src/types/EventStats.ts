@@ -21,6 +21,8 @@ export interface PostWithStats {
   event: any; // Original Nostr event
   stats?: ContentEventStats;
   authorName?: string;
+  isLoadingStats?: boolean;
+  isLoadingContent?: boolean;
 }
 
 /**

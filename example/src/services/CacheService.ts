@@ -299,6 +299,7 @@ export class CacheService {
               sig: '', // Would need to get signature
             },
             stats,
+            isLoadingStats: false,
           } as PostWithStats & { originalEvent: EventInterface };
         } else {
           // Convert EventInterface to PostWithStats format even without stats
@@ -314,6 +315,7 @@ export class CacheService {
               sig: '',
             },
             stats: undefined,
+            isLoadingStats: false,
           } as PostWithStats & { originalEvent: EventInterface };
         }
       } catch (error) {
