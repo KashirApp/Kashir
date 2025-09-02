@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Button, SafeAreaView, Alert } from 'react-native';
-import { NostrClientService } from '../services/NostrClient';
+import { NostrClient } from '../services/NostrClient';
 import { ProfileService } from '../services/ProfileService';
 import { usePosts } from '../hooks/usePosts';
 import { useFollowing } from '../hooks/useFollowing';
@@ -25,7 +25,7 @@ export function PostsScreen({ userNpub, onLogout }: PostsScreenProps) {
   const hasInitialFetchStarted = useRef(false);
 
   // Initialize services
-  const clientService = useMemo(() => NostrClientService.getInstance(), []);
+  const clientService = useMemo(() => NostrClient.getInstance(), []);
   const profileService = useMemo(() => new ProfileService(), []);
   const [client, setClient] = useState(clientService.getClient());
 
