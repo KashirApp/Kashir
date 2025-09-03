@@ -114,6 +114,7 @@ export function PostDetail({
 
         // Set replies immediately with loading state
         setReplies(repliesWithStats);
+        setLoading(false); // Stop loading indicator as soon as replies are shown
 
         // Enhance replies with engagement statistics
         try {
@@ -164,12 +165,12 @@ export function PostDetail({
         }
       } else {
         setReplies([]);
+        setLoading(false); // Stop loading indicator when no replies found
       }
     } catch (error) {
       console.error('Failed to fetch replies:', error);
       Alert.alert('Error', 'Failed to fetch replies. Please try again.');
-    } finally {
-      setLoading(false);
+      setLoading(false); // Stop loading indicator on error
     }
   }, [client, post, hasLoaded, cacheService, profileService]);
 
