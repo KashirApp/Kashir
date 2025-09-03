@@ -28,6 +28,7 @@ import {
   parseNostrContent,
   extractEventIdsFromNevents,
   fetchEmbeddedPosts,
+  fetchNprofileUsers,
 } from '../utils/nostrUtils';
 import { TappableContent } from './TappableContent';
 import { UrlPreview } from './UrlPreview';
@@ -204,6 +205,17 @@ const PostComponent = ({
                     error
                   );
                 }
+              }
+
+              // ALSO fetch profiles for nprofile mentions within embedded post content
+              try {
+                const postsArray = Array.from(posts.values());
+                await fetchNprofileUsers(client, profileService, postsArray);
+              } catch (error) {
+                console.warn(
+                  'Failed to fetch nprofile users for embedded posts:',
+                  error
+                );
               }
             }
           }
