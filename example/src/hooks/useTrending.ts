@@ -3,11 +3,7 @@ import type { Client, Keys } from 'kashir';
 import { EventId, Filter } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
-import { CacheService } from '../services/CacheService';
-import {
-  fetchNprofileUsers,
-  extractEventIdsFromNevents,
-} from '../utils/nostrUtils';
+import { postProcessingUtils } from '../utils/postProcessingUtils';
 import type { PostWithStats } from '../types/EventStats';
 
 interface UseTrendingResult {
@@ -26,7 +22,6 @@ export function useTrending(
   const [trendingLoading, setTrendingLoading] = useState(false);
 
   const dvmService = useMemo(() => new DVMService(), []);
-  const cacheService = CacheService.getInstance();
 
   const fetchEventsProgressively = useCallback(
     async (clientInstance: Client, eventIds: string[]) => {
@@ -73,22 +68,13 @@ export function useTrending(
                   isLoadingContent: false, // Content is now loaded
                 };
 
-                // Fetch profiles for this specific post's nprofile mentions BEFORE updating state
-                await fetchNprofileUsers(clientInstance, profileService, [
-                  newPost,
-                ]);
-
-                // Fetch profile for the post author individually
-                try {
-                  await profileService.fetchProfilesForPubkeys(clientInstance, [
-                    authorPubkey,
-                  ]);
-                } catch (error) {
-                  console.warn(
-                    `Failed to fetch profile for author ${authorHex}:`,
-                    error
-                  );
-                }
+                // Fetch profiles for this specific post using reusable utility
+                await postProcessingUtils.processSinglePostProfiles(
+                  clientInstance,
+                  profileService,
+                  newPost as any,
+                  { fetchAuthorProfile: true }
+                );
 
                 // Update posts immediately with this new event (now with nprofiles and author profile loaded)
                 setTrendingPosts((currentPosts) => {
@@ -114,34 +100,13 @@ export function useTrending(
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      // After all events are loaded, fetch stats in batch
+      // After all events are loaded, fetch stats in batch using reusable utility
       if (fetchedEvents.length > 0) {
-        // Enhance posts with engagement statistics
         try {
-          const fetchedEventIds = fetchedEvents.map((event) =>
-            event.id().toHex()
-          );
-
-          // Collect embedded post event IDs from all posts
-          const allEmbeddedEventIds = new Set<string>();
-          fetchedEvents.forEach((event) => {
-            const eventContent = event.content();
-            const embeddedIds = extractEventIdsFromNevents(eventContent);
-            embeddedIds.forEach((id) => allEmbeddedEventIds.add(id));
-          });
-
-          // Combine main post IDs with embedded post IDs for batch stats request
-          const allEventIdsForStats = [
-            ...fetchedEventIds,
-            ...Array.from(allEmbeddedEventIds),
-          ];
-
-          const eventStats =
-            await cacheService.fetchEventStats(allEventIdsForStats);
-
-          const enhancedPosts = cacheService.enhanceEventsWithStats(
+          const enhancedPosts = await postProcessingUtils.enhanceWithBatchStats(
+            clientInstance,
             fetchedEvents,
-            eventStats
+            { includeEmbeddedStats: true }
           );
 
           // Update posts with stats
@@ -168,7 +133,7 @@ export function useTrending(
         }
       }
     },
-    [profileService, cacheService]
+    [profileService]
   );
 
   const fetchTrendingPosts = useCallback(

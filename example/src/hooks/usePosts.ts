@@ -2,16 +2,13 @@ import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Client, PublicKey, Filter, Kind } from 'kashir';
 import type { EventInterface } from 'kashir';
-import { CacheService } from '../services/CacheService';
 import { sharedProfileService } from '../services/ProfileService';
-import { fetchNprofileUsers } from '../utils/nostrUtils';
+import { postProcessingUtils } from '../utils/postProcessingUtils';
 import type { PostWithStats } from '../types/EventStats';
 
 export function usePosts(client: Client | null) {
   const [posts, setPosts] = useState<PostWithStats[]>([]);
   const [loading, setLoading] = useState(false);
-
-  const cacheService = CacheService.getInstance();
 
   const fetchPosts = useCallback(
     async (userNpub: string) => {
@@ -84,50 +81,36 @@ export function usePosts(client: Client | null) {
           }));
 
           // Fetch profiles for users mentioned in nprofiles BEFORE setting posts
-          await fetchNprofileUsers(
+          await postProcessingUtils.processProfilesOnly(
             client,
             sharedProfileService,
-            postsWithStats
+            postsWithStats,
+            { fetchAuthorProfiles: true }
           );
 
           // Set posts immediately with loading state (profiles now loaded)
           setPosts(postsWithStats);
 
-          // Enhance posts with engagement statistics
+          // Process profiles and enhance with stats (including embedded post stats)
           try {
-            const eventIds = postsWithStats.map((post) => post.event.id);
-            const eventStats = await cacheService.fetchEventStats(eventIds);
-
-            const enhancedPosts = cacheService.enhanceEventsWithStats(
-              allEvents,
-              eventStats
-            );
-
-            // Profiles already fetched above, just update posts with stats
-            // await fetchNprofileUsers(
-            //   client,
-            //   sharedProfileService,
-            //   enhancedPosts
-            // );
-
-            // Force re-render by setting posts again after profiles are loaded
+            const enhancedPosts =
+              await postProcessingUtils.processPostsComplete(
+                client,
+                sharedProfileService,
+                postsWithStats as any[], // Cast to match extended interface
+                {
+                  fetchAuthorProfiles: true,
+                  includeEmbeddedStats: true,
+                }
+              );
             setPosts([...enhancedPosts]); // Spread to create new array reference
           } catch (error) {
-            console.warn('Failed to enhance user posts with stats:', error);
+            console.warn('Failed to process user posts:', error);
             // Mark posts as not loading stats since we failed to fetch them
             const postsWithFailedStats = postsWithStats.map((post) => ({
               ...post,
               isLoadingStats: false,
             }));
-
-            // Profiles were already fetched above, no need to fetch again
-            // await fetchNprofileUsers(
-            //   client,
-            //   sharedProfileService,
-            //   postsWithFailedStats
-            // );
-
-            // Force re-render by setting posts again after profiles are loaded
             setPosts([...postsWithFailedStats]); // Spread to create new array reference
           }
         } else {
@@ -150,7 +133,7 @@ export function usePosts(client: Client | null) {
         setLoading(false);
       }
     },
-    [client, cacheService]
+    [client]
   );
 
   return {

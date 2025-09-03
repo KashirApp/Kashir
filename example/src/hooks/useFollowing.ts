@@ -4,7 +4,7 @@ import { Client, PublicKey, Filter, Kind } from 'kashir';
 import type { PublicKeyInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { tagsToArray } from '../services/NostrUtils';
-import { CacheService } from '../services/CacheService';
+import { postProcessingUtils } from '../utils/postProcessingUtils';
 import type { PostWithStats } from '../types/EventStats';
 
 export function useFollowing(
@@ -14,9 +14,7 @@ export function useFollowing(
   const [followingPosts, setFollowingPosts] = useState<PostWithStats[]>([]);
   const [followingList, setFollowingList] = useState<PublicKeyInterface[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
-  const [profilesLoading, setProfilesLoading] = useState(false);
-
-  const cacheService = CacheService.getInstance();
+  const [_profilesLoading, _setProfilesLoading] = useState(false);
 
   const fetchFollowingList = useCallback(
     async (userNpub: string) => {
@@ -158,71 +156,27 @@ export function useFollowing(
           // Set posts immediately with loading state
           setFollowingPosts(postsWithStats);
 
-          // Enhance posts with engagement statistics
+          // Process profiles and enhance with stats (including embedded post stats)
           try {
-            console.log(
-              `Enhancing ${postsWithStats.length} following posts with stats...`
-            );
-            const eventIds = postsWithStats.map((post) => post.event.id);
-            const eventStats = await cacheService.fetchEventStats(eventIds);
-
-            const enhancedPosts = cacheService.enhanceEventsWithStats(
-              eventArray,
-              eventStats
-            );
-            console.log(
-              `Successfully enhanced ${eventStats.length}/${postsWithStats.length} following posts`
-            );
-
+            const enhancedPosts =
+              await postProcessingUtils.processPostsComplete(
+                client,
+                profileService,
+                postsWithStats as any[], // Cast to match extended interface
+                {
+                  fetchAuthorProfiles: true,
+                  includeEmbeddedStats: true,
+                }
+              );
             setFollowingPosts(enhancedPosts);
           } catch (error) {
-            console.warn(
-              'Failed to enhance following posts with stats:',
-              error
-            );
+            console.warn('Failed to process following posts:', error);
             // Mark posts as not loading stats since we failed to fetch them
             const postsWithFailedStats = postsWithStats.map((post) => ({
               ...post,
               isLoadingStats: false,
             }));
-            // Fallback to posts without stats
             setFollowingPosts(postsWithFailedStats);
-          }
-
-          // Fetch profiles in background - don't block the UI
-          setProfilesLoading(true);
-          const uniqueAuthors = new Set<string>();
-          eventArray.forEach((event) => {
-            uniqueAuthors.add(event.author().toHex());
-          });
-
-          const authorPubkeys = Array.from(uniqueAuthors)
-            .map((hex) => {
-              try {
-                return eventArray
-                  .find((e) => e.author().toHex() === hex)
-                  ?.author();
-              } catch {
-                return null;
-              }
-            })
-            .filter(
-              (pk) => pk !== null && pk !== undefined
-            ) as PublicKeyInterface[];
-
-          // Fetch profiles in background without affecting main loading state
-          if (authorPubkeys.length > 0) {
-            profileService
-              .fetchProfilesForPubkeys(client, authorPubkeys)
-              .then(() => {
-                setProfilesLoading(false);
-              })
-              .catch((err) => {
-                console.error('Error fetching profiles:', err);
-                setProfilesLoading(false);
-              });
-          } else {
-            setProfilesLoading(false);
           }
         } else {
           Alert.alert(
@@ -240,14 +194,14 @@ export function useFollowing(
         setFollowingLoading(false);
       }
     },
-    [client, followingList, fetchFollowingList, profileService, cacheService]
+    [client, followingList, fetchFollowingList, profileService]
   );
 
   return {
     followingPosts,
     followingList,
     followingLoading,
-    profilesLoading,
+    profilesLoading: _profilesLoading,
     fetchFollowingList,
     fetchFollowingPosts,
   };
