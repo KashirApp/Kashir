@@ -6,6 +6,7 @@ import { styles } from '../App.styles';
 interface TabNavigationProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  onFollowingPress?: () => void;
   followingCount: number;
   trendingCount?: number;
   currentFollowSetName?: string;
@@ -14,15 +15,26 @@ interface TabNavigationProps {
 export function TabNavigation({
   activeTab,
   onTabChange,
+  onFollowingPress,
   followingCount,
   trendingCount = 0,
   currentFollowSetName,
 }: TabNavigationProps) {
+  const handleFollowingPress = () => {
+    if (activeTab === 'following' && onFollowingPress) {
+      // If already on following tab, open follow set selection
+      onFollowingPress();
+    } else {
+      // If not on following tab, just switch to it
+      onTabChange('following');
+    }
+  };
+
   return (
     <View style={styles.tabContainer}>
       <TouchableOpacity
         style={[styles.tab, activeTab === 'following' && styles.activeTab]}
-        onPress={() => onTabChange('following')}
+        onPress={handleFollowingPress}
       >
         <Text
           style={[
@@ -31,7 +43,7 @@ export function TabNavigation({
           ]}
           numberOfLines={1}
         >
-          {currentFollowSetName && currentFollowSetName !== 'Following'
+          {currentFollowSetName
             ? `${currentFollowSetName} (${followingCount})`
             : `Following ${followingCount > 0 ? `(${followingCount})` : ''}`}
         </Text>

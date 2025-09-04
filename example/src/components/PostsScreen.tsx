@@ -10,6 +10,10 @@ import { Header } from './Header';
 import { TabNavigation } from './TabNavigation';
 import { PostList } from './PostList';
 import { ComposeNoteModal } from './ComposeNoteModal';
+import { FollowSetSelectionModal } from './nostr/FollowSetSelectionModal';
+import { ListService } from '../services/ListService';
+import { StorageService } from '../services/StorageService';
+import type { FollowSet } from '../services/ListService';
 import type { TabType } from '../types';
 import type { NostrStackParamList } from './NostrNavigator';
 import { styles } from '../App.styles';
@@ -30,17 +34,25 @@ export function PostsScreen({
 }: PostsScreenProps) {
   const { userNpub, loginType } = route.params;
   const [isClientReady, setIsClientReady] = useState(false);
-  const [_userName, setUserName] = useState<string>('');
-  const [_profileLoading, setProfileLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [userKeys, setUserKeys] = useState<Keys | null>(null);
   const [isComposeModalVisible, setIsComposeModalVisible] = useState(false);
+  const [isFollowSetSelectionVisible, setIsFollowSetSelectionVisible] =
+    useState(false);
+  const [availableFollowSets, setAvailableFollowSets] = useState<FollowSet[]>(
+    []
+  );
+  const [followSetsLoading, setFollowSetsLoading] = useState(false);
+  const [currentActiveFollowSetId, setCurrentActiveFollowSetId] = useState<
+    string | undefined
+  >();
 
   // Use ref to track if initial fetch has been triggered
   const hasInitialFetchStarted = useRef(false);
 
   // Initialize services
   const clientService = useMemo(() => NostrClientService.getInstance(), []);
+  const listService = useMemo(() => ListService.getInstance(), []);
   const profileService = sharedProfileService;
 
   // Get client from service but only use it when ready
@@ -53,6 +65,8 @@ export function PostsScreen({
     followingLoading,
     fetchFollowingPosts,
     currentFollowSetInfo,
+    setCurrentFollowSetInfo,
+    setFollowingList,
   } = useFollowing(client, profileService);
   const {
     trendingPosts,
@@ -68,7 +82,6 @@ export function PostsScreen({
     const checkClientReadiness = () => {
       if (clientService.isReady()) {
         const readyClient = clientService.getClient();
-        console.log('PostsScreen: Client is ready, updating state');
         setClient(readyClient);
         setIsClientReady(true);
 
@@ -78,7 +91,6 @@ export function PostsScreen({
           interval = null;
         }
       } else {
-        console.log('PostsScreen: Client not ready yet');
         setClient(null);
         setIsClientReady(false);
       }
@@ -100,13 +112,6 @@ export function PostsScreen({
     };
   }, [clientService]);
 
-  // Stop checking once client is ready
-  useEffect(() => {
-    if (isClientReady) {
-      console.log('PostsScreen: Client ready, stopping readiness checks');
-    }
-  }, [isClientReady]);
-
   // Load user keys for signing DVM requests
   useEffect(() => {
     const loadKeys = async () => {
@@ -114,8 +119,6 @@ export function PostsScreen({
         const keys = await getNostrKeys();
         if (keys) {
           setUserKeys(keys);
-        } else {
-          console.log('No Nostr private key found in secure storage');
         }
       } catch (error) {
         console.error('Failed to load user keys:', error);
@@ -125,36 +128,16 @@ export function PostsScreen({
     loadKeys();
   }, []);
 
-  // Fetch user profile
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!client || !isClientReady || !userNpub) return;
-
-      setProfileLoading(true);
-      try {
-        const name = await profileService.fetchUserProfile(client, userNpub);
-        setUserName(name);
-      } finally {
-        setProfileLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [client, isClientReady, userNpub, profileService]);
-
   // Auto-fetch trending DVM data when client is ready (only once)
   useEffect(() => {
     if (isClientReady && userNpub && !hasInitialFetchStarted.current) {
       hasInitialFetchStarted.current = true;
 
-      // Fetch trending content on startup (default tab)
-      // For Amber users, userKeys will be null, but trending doesn't require signing
+      // For Amber users, we can still fetch trending without keys
+      // since it only reads DVM responses, doesn't publish
       if (userKeys) {
         fetchTrendingPosts(userKeys);
       } else {
-        // For Amber users, we can still fetch trending without keys
-        // since it only reads DVM responses, doesn't publish
-        console.log('Fetching trending posts for Amber user (no local keys)');
         fetchTrendingPosts(null);
       }
     }
@@ -198,6 +181,80 @@ export function PostsScreen({
     handleRefresh();
   };
 
+  const handleFollowingPress = async () => {
+    if (!client) return;
+
+    // Show modal immediately with loading state
+    setFollowSetsLoading(true);
+    setAvailableFollowSets([]);
+    setCurrentActiveFollowSetId(undefined);
+    setIsFollowSetSelectionVisible(true);
+
+    try {
+      // Load data in background
+      const [followSets, activeFollowSet] = await Promise.all([
+        listService.fetchUserFollowSets(client, userNpub),
+        StorageService.loadActiveFollowSet(),
+      ]);
+
+      setAvailableFollowSets(followSets);
+      setCurrentActiveFollowSetId(activeFollowSet?.eventId);
+    } catch (error) {
+      console.error('Error loading follow sets for selection:', error);
+    } finally {
+      setFollowSetsLoading(false);
+    }
+  };
+
+  const handleFollowSetSelection = async (followSet: FollowSet | null) => {
+    try {
+      if (followSet) {
+        // Set custom follow set as active
+        await StorageService.saveActiveFollowSet(
+          followSet.identifier,
+          followSet.eventId
+        );
+        // Immediately update the UI with the selected follow set info
+        setCurrentFollowSetInfo({
+          identifier: followSet.identifier,
+          eventId: followSet.eventId,
+        });
+        const combinedKeys = [
+          ...followSet.publicKeys,
+          ...(followSet.privateKeys || []),
+        ];
+        setFollowingList(combinedKeys);
+
+        // Switch to following tab and trigger refresh with the new follow list
+        setActiveTab('following');
+        setTimeout(() => fetchFollowingPosts(userNpub, combinedKeys), 100);
+      } else {
+        // Use main following list (remove active follow set)
+        await StorageService.removeActiveFollowSet();
+        // Find the main following list from available follow sets
+        const mainFollowSet = availableFollowSets.find(
+          (set) => set.identifier === 'Following'
+        );
+        if (mainFollowSet) {
+          setCurrentFollowSetInfo({
+            identifier: 'Following',
+            eventId: 'kind3',
+          });
+          setFollowingList(mainFollowSet.publicKeys);
+
+          // Switch to following tab and trigger refresh with the main follow list
+          setActiveTab('following');
+          setTimeout(
+            () => fetchFollowingPosts(userNpub, mainFollowSet.publicKeys),
+            100
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error setting active follow set:', error);
+    }
+  };
+
   const currentPosts =
     activeTab === 'following'
       ? followingPosts
@@ -214,6 +271,7 @@ export function PostsScreen({
       <TabNavigation
         activeTab={activeTab}
         onTabChange={handleTabChange}
+        onFollowingPress={handleFollowingPress}
         followingCount={followingList.length}
         trendingCount={trendingPosts.length}
         currentFollowSetName={currentFollowSetInfo?.identifier}
@@ -254,6 +312,16 @@ export function PostsScreen({
         userKeys={userKeys}
         loginType={loginType}
         onNotePosted={handleNotePosted}
+      />
+
+      {/* Follow Set Selection Modal */}
+      <FollowSetSelectionModal
+        visible={isFollowSetSelectionVisible}
+        followSets={availableFollowSets}
+        activeFollowSetId={currentActiveFollowSetId}
+        loading={followSetsLoading}
+        onClose={() => setIsFollowSetSelectionVisible(false)}
+        onSelect={handleFollowSetSelection}
       />
     </SafeAreaView>
   );

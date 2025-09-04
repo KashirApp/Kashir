@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Client, Filter, Kind } from 'kashir';
 import type { PublicKeyInterface } from 'kashir';
@@ -15,7 +15,6 @@ export function useFollowing(
   const [followingPosts, setFollowingPosts] = useState<PostWithStats[]>([]);
   const [followingList, setFollowingList] = useState<PublicKeyInterface[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
-  const [_profilesLoading, _setProfilesLoading] = useState(false);
   const [currentFollowSetInfo, setCurrentFollowSetInfo] = useState<{
     identifier: string;
     eventId: string;
@@ -23,39 +22,8 @@ export function useFollowing(
 
   const listService = ListService.getInstance();
 
-  // Watch for changes in active follow set and refresh
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    const checkForActiveFollowSetChanges = async () => {
-      try {
-        const activeSet = await StorageService.loadActiveFollowSet();
-        const newEventId = activeSet ? activeSet.eventId : null;
-        const currentEventId = currentFollowSetInfo
-          ? currentFollowSetInfo.eventId
-          : null;
-
-        // If the active changed, clear the current following list to force refresh
-        if (newEventId !== currentEventId) {
-          setFollowingList([]);
-          setCurrentFollowSetInfo(null);
-        }
-      } catch (error) {
-        console.error('Error checking for active follow set changes:', error);
-      }
-    };
-
-    // Check every 2 seconds for changes (only when client is available)
-    if (client) {
-      interval = setInterval(checkForActiveFollowSetChanges, 2000);
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [client, currentFollowSetInfo]);
+  // Active follow set changes are now handled directly in PostsScreen
+  // No need for polling interval since changes are immediate
 
   const fetchFollowingList = useCallback(
     async (userNpub: string) => {
@@ -78,6 +46,12 @@ export function useFollowing(
           );
 
           if (targetSet) {
+            // Update with actual follow set info
+            setCurrentFollowSetInfo({
+              identifier: targetSet.identifier,
+              eventId: targetSet.eventId,
+            });
+
             // Combine both public and private keys for the following list
             const allKeys = [
               ...targetSet.publicKeys,
@@ -86,9 +60,6 @@ export function useFollowing(
             setFollowingList(allKeys);
             return allKeys;
           } else {
-            console.warn(
-              `Configured follow set not found, falling back to main following list`
-            );
             // Fall through to kind 3 logic
           }
         } else {
@@ -114,8 +85,7 @@ export function useFollowing(
         }
 
         return [];
-      } catch (error) {
-        console.error('Error fetching following list:', error);
+      } catch {
         return [];
       }
     },
@@ -123,7 +93,7 @@ export function useFollowing(
   );
 
   const fetchFollowingPosts = useCallback(
-    async (userNpub: string) => {
+    async (userNpub: string, forcedFollowingList?: PublicKeyInterface[]) => {
       if (!client) {
         Alert.alert('Error', 'Client not ready. Please wait and try again.');
         return;
@@ -133,8 +103,8 @@ export function useFollowing(
       setFollowingPosts([]);
 
       try {
-        // First fetch the following list if we don't have it
-        let following = followingList;
+        // Use forced following list if provided, otherwise use current or fetch new
+        let following = forcedFollowingList || followingList;
         if (following.length === 0) {
           const fetchedFollowing = await fetchFollowingList(userNpub);
           following = fetchedFollowing || [];
@@ -191,8 +161,7 @@ export function useFollowing(
                 }
               );
             setFollowingPosts(enhancedPosts);
-          } catch (error) {
-            console.warn('Failed to process following posts:', error);
+          } catch {
             // Mark posts as not loading stats since we failed to fetch them
             const postsWithFailedStats = postsWithStats.map((post) => ({
               ...post,
@@ -207,7 +176,6 @@ export function useFollowing(
           );
         }
       } catch (error) {
-        console.error('Error fetching following posts:', error);
         Alert.alert(
           'Error',
           `Failed to fetch posts from following: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -223,9 +191,10 @@ export function useFollowing(
     followingPosts,
     followingList,
     followingLoading,
-    profilesLoading: _profilesLoading,
     fetchFollowingList,
     fetchFollowingPosts,
     currentFollowSetInfo,
+    setCurrentFollowSetInfo,
+    setFollowingList,
   };
 }
