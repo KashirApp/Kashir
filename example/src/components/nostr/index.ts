@@ -5,3 +5,4 @@ export { RelayUrlModal } from './RelayUrlModal';
 export { FollowSetItem } from './FollowSetItem';
 export { FollowSetsList } from './FollowSetsList';
 export { FollowSetModal } from './FollowSetModal';
+export { PrivatePill } from './PrivatePill';

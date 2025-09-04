@@ -9,17 +9,24 @@ import {
   Keys,
   EventId,
   EventDeletionRequest,
+  Tag,
+  nip44Encrypt,
+  nip44Decrypt,
+  Nip44Version,
 } from 'kashir';
 
 import { LoginType } from './NostrClient';
 import { tagsToArray } from './NostrUtils';
 import { getNostrKeys } from '../utils/nostrUtils';
+import AmberService from './AmberService';
 
 export interface FollowSet {
   identifier: string;
   publicKeys: PublicKeyInterface[];
+  privateKeys?: PublicKeyInterface[]; // New: private keys from encrypted content
   createdAt: number;
   eventId: string;
+  isPrivate?: boolean; // New: indicates if this is a private-only follow set
 }
 
 export class ListService {
@@ -36,10 +43,12 @@ export class ListService {
 
   /**
    * Fetch user's contact list (kind 3) and NIP-51 follow sets (kind 30000)
+   * If loginType is provided, will attempt to decrypt private members
    */
   async fetchUserFollowSets(
     client: Client,
-    npub: string
+    npub: string,
+    loginType?: LoginType
   ): Promise<FollowSet[]> {
     try {
       console.log('ListService: Creating public key from npub:', npub);
@@ -131,11 +140,21 @@ export class ListService {
 
       for (const event of eventArray) {
         try {
+          console.log(
+            `ListService: Processing event ${eventArray.indexOf(event) + 1}/${eventArray.length}, id: ${event.id().toHex().substring(0, 8)}...`
+          );
+
           // Extract identifier from 'd' tag
           const tags = event.tags();
           const tagArrays = tagsToArray(tags);
           let identifier = '';
           const publicKeys: PublicKey[] = [];
+
+          // Check content before processing
+          const content = event.content();
+          console.log(
+            `ListService: Event content length: ${content.length}, has encrypted content: ${!!content && content.trim().length > 0}`
+          );
 
           for (const tagArray of tagArrays) {
             if (tagArray.length >= 2) {
@@ -158,13 +177,37 @@ export class ListService {
             }
           }
 
+          // Try to decrypt private keys from content field if available
+          let privateKeys: PublicKeyInterface[] = [];
+
+          if (content && content.trim() && loginType) {
+            // Only try to decrypt if we have encrypted content and loginType
+            try {
+              privateKeys = await this.decryptPrivateKeys(
+                content,
+                loginType,
+                client
+              );
+            } catch (error) {
+              console.warn(
+                `ListService: Failed to decrypt private keys for follow set "${identifier}":`,
+                String(error) // Convert error to string to avoid stack getter issues
+              );
+              // Continue with just public keys if decryption fails
+            }
+          }
+
           if (identifier) {
-            followSets.push({
+            const followSet = {
               identifier,
               publicKeys,
+              privateKeys: privateKeys.length > 0 ? privateKeys : undefined,
               createdAt: Number(event.createdAt().asSecs()),
               eventId: event.id().toHex(),
-            });
+              isPrivate: privateKeys.length > 0 && publicKeys.length === 0, // Private-only if no public keys
+            };
+
+            followSets.push(followSet);
           }
         } catch (error) {
           console.warn(
@@ -187,13 +230,133 @@ export class ListService {
         ? [mainFollowing, ...otherSets]
         : otherSets;
 
-      console.log(
-        `ListService: Successfully parsed ${sortedFollowSets.length} follow sets (including main following list)`
-      );
       return sortedFollowSets;
     } catch (error) {
       console.error('ListService: Failed to fetch user follow sets:', error);
       return [];
+    }
+  }
+
+  /**
+   * Create a new follow set with both public and private members
+   * Private members are encrypted using NIP-44 encryption
+   */
+  async createMixedFollowSet(
+    client: Client,
+    loginType: LoginType,
+    identifier: string,
+    publicKeys: PublicKeyInterface[],
+    privateKeys?: PublicKeyInterface[]
+  ): Promise<boolean> {
+    // If no private keys, just create a regular follow set
+    if (!privateKeys || privateKeys.length === 0) {
+      return this.createFollowSet(client, loginType, identifier, publicKeys);
+    }
+
+    try {
+      console.log(
+        `ListService: Creating mixed follow set "${identifier}" with ${publicKeys.length} public and ${privateKeys.length} private users`
+      );
+
+      // Encrypt private keys using NIP-44 self-encryption
+      let encryptedContent: string;
+
+      if (loginType === LoginType.PrivateKey) {
+        // Use stored keys for NIP-44 encryption
+        const keys = await getNostrKeys();
+        if (!keys) {
+          throw new Error(
+            'Private follow set members require stored private key for encryption. Please ensure your private key is available.'
+          );
+        }
+
+        // Create the private keys array for encryption
+        const privateKeysArray = privateKeys.map((pk) => ['p', pk.toHex()]);
+        const privateKeysJson = JSON.stringify(privateKeysArray);
+
+        // Encrypt to self using NIP-44
+        const secretKey = keys.secretKey();
+        const publicKey = keys.publicKey();
+        encryptedContent = nip44Encrypt(
+          secretKey,
+          publicKey,
+          privateKeysJson,
+          Nip44Version.V2
+        );
+      } else if (loginType === LoginType.Amber) {
+        // Use AmberService for NIP-44 encryption (will show Amber overlay if needed)
+        const signer = await client.signer();
+        if (!signer) {
+          throw new Error('Amber signer not available');
+        }
+
+        // Get user's public key for self-encryption
+        const userPublicKey = await signer.getPublicKey();
+        if (!userPublicKey) {
+          throw new Error('Unable to get public key from Amber signer');
+        }
+
+        // Create the private keys array for encryption
+        const privateKeysArray = privateKeys.map((pk) => ['p', pk.toHex()]);
+        const privateKeysJson = JSON.stringify(privateKeysArray);
+
+        // Use AmberService's NIP-44 encryption (should show overlay, not external app)
+        encryptedContent = await AmberService.nip44Encrypt(
+          userPublicKey.toHex(),
+          privateKeysJson,
+          userPublicKey.toHex() // currentUser
+        );
+      } else {
+        throw new Error('Unsupported login type for creating mixed follow set');
+      }
+
+      // Create the follow set event manually with encrypted content
+      // Follow sets use Kind 30000 with 'd' tag for identifier and 'p' tags for public keys
+      const followSetKind = new Kind(30000);
+
+      // Add 'd' tag for identifier (required for replaceable events)
+      const dTag = Tag.parse(['d', identifier]);
+      const tags = [dTag];
+
+      // Add 'p' tags for public keys
+      publicKeys.forEach((pk) => {
+        const pTag = Tag.parse(['p', pk.toHex()]);
+        tags.push(pTag);
+      });
+
+      // Create EventBuilder with chained tags (proper builder pattern)
+      const eventBuilder = new EventBuilder(
+        followSetKind,
+        encryptedContent
+      ).tags(tags);
+
+      let event: any;
+      if (loginType === LoginType.PrivateKey) {
+        // Sign with stored keys
+        const keys = await this.getStoredKeys();
+        if (!keys) {
+          throw new Error('No stored keys found for signing');
+        }
+        event = eventBuilder.signWithKeys(keys);
+      } else if (loginType === LoginType.Amber) {
+        // Sign with Amber
+        const signer = await client.signer();
+        if (!signer) {
+          throw new Error('Amber signer not available');
+        }
+        event = await eventBuilder.sign(signer);
+      } else {
+        throw new Error('Unsupported login type for creating mixed follow set');
+      }
+
+      await client.sendEvent(event);
+      return true;
+    } catch (error) {
+      console.error(
+        'ListService: Failed to create mixed follow set:',
+        String(error)
+      );
+      return false;
     }
   }
 
@@ -207,14 +370,10 @@ export class ListService {
     publicKeys: PublicKeyInterface[]
   ): Promise<boolean> {
     try {
-      console.log(
-        `ListService: Creating follow set "${identifier}" with ${publicKeys.length} users`
-      );
-
       // Create the follow set event
       const eventBuilder = EventBuilder.followSet(identifier, publicKeys);
 
-      let event;
+      let event: any;
       if (loginType === LoginType.PrivateKey) {
         // Sign with stored keys
         const keys = await this.getStoredKeys();
@@ -233,9 +392,7 @@ export class ListService {
         throw new Error('Unsupported login type for creating follow set');
       }
 
-      // Send the event
       await client.sendEvent(event);
-      console.log('ListService: Successfully created and sent follow set');
       return true;
     } catch (error) {
       console.error('ListService: Failed to create follow set:', error);
@@ -249,12 +406,10 @@ export class ListService {
   async deleteFollowSet(
     client: Client,
     loginType: LoginType,
-    identifier: string,
+    _identifier: string,
     eventId: string
   ): Promise<boolean> {
     try {
-      console.log(`ListService: Deleting follow set "${identifier}"`);
-
       // Create deletion request (NIP-09)
       const deletionRequest: EventDeletionRequest = {
         ids: [EventId.parse(eventId)],
@@ -264,7 +419,7 @@ export class ListService {
 
       const eventBuilder = EventBuilder.delete_(deletionRequest);
 
-      let event;
+      let event: any;
       if (loginType === LoginType.PrivateKey) {
         const keys = await this.getStoredKeys();
         if (!keys) {
@@ -282,7 +437,6 @@ export class ListService {
       }
 
       await client.sendEvent(event);
-      console.log('ListService: Successfully deleted follow set');
       return true;
     } catch (error) {
       console.error('ListService: Failed to delete follow set:', error);
@@ -300,10 +454,6 @@ export class ListService {
     publicKeys: PublicKeyInterface[]
   ): Promise<boolean> {
     try {
-      console.log(
-        `ListService: Updating follow set "${identifier}" with ${publicKeys.length} users`
-      );
-
       // Create a new follow set event with the same identifier (replaces the old one)
       return await this.createFollowSet(
         client,
@@ -334,7 +484,6 @@ export class ListService {
       );
 
       if (isAlreadyAdded) {
-        console.log('ListService: User already in follow set');
         return true;
       }
 
@@ -382,8 +531,112 @@ export class ListService {
   }
 
   /**
-   * Helper method to get stored keys (uses reusable utility)
+   * Decrypt private keys from encrypted content using NIP-44
    */
+  private async decryptPrivateKeys(
+    encryptedContent: string,
+    loginType: LoginType,
+    _client: Client
+  ): Promise<PublicKeyInterface[]> {
+    try {
+      let decryptedJson: string;
+
+      if (loginType === LoginType.PrivateKey) {
+        // Use stored keys for NIP-44 decryption
+        const keys = await getNostrKeys();
+        if (!keys) {
+          console.warn('ListService: No stored keys available for decryption');
+          return [];
+        }
+
+        const secretKey = keys.secretKey();
+        const publicKey = keys.publicKey();
+        decryptedJson = nip44Decrypt(secretKey, publicKey, encryptedContent);
+      } else if (loginType === LoginType.Amber) {
+        // Use AmberService for NIP-44 decryption (will show Amber overlay if needed)
+        const signer = await _client.signer();
+        if (!signer) {
+          console.warn(
+            'ListService: Amber signer not available for decryption'
+          );
+          return [];
+        }
+
+        // Get user's public key for self-decryption
+        const userPublicKey = await signer.getPublicKey();
+        if (!userPublicKey) {
+          console.warn(
+            'ListService: Unable to get public key from Amber signer for decryption'
+          );
+          return [];
+        }
+
+        // Use AmberService's NIP-44 decryption (should show overlay, not external app)
+        decryptedJson = await AmberService.nip44Decrypt(
+          userPublicKey.toHex(),
+          encryptedContent,
+          userPublicKey.toHex() // currentUser
+        );
+      } else {
+        console.warn('ListService: Unsupported login type for decryption');
+        return [];
+      }
+
+      // Check if decryption failed
+      if (
+        !decryptedJson ||
+        decryptedJson === 'Could not decrypt the message' ||
+        decryptedJson.startsWith('Could not decrypt') ||
+        decryptedJson.includes('error') ||
+        decryptedJson.includes('Error')
+      ) {
+        console.warn('ListService: Amber decryption failed:', decryptedJson);
+        return []; // Return empty array for failed decryption
+      }
+
+      // Parse the decrypted JSON to get private keys array
+      const privateKeysArray = JSON.parse(decryptedJson) as string[][];
+      const privateKeys: PublicKey[] = [];
+
+      for (const tagArray of privateKeysArray) {
+        if (tagArray.length >= 2 && tagArray[0] === 'p') {
+          try {
+            const hexPubkey = tagArray[1];
+            let pubkey: PublicKey | null = null;
+
+            try {
+              pubkey = PublicKey.parse(hexPubkey);
+            } catch {
+              try {
+                pubkey = PublicKey.parse('hex:' + hexPubkey);
+              } catch {
+                console.warn(
+                  'ListService: Invalid private key in encrypted content:',
+                  hexPubkey
+                );
+              }
+            }
+
+            if (pubkey) {
+              privateKeys.push(pubkey);
+            }
+          } catch {
+            console.warn(
+              'ListService: Error parsing private key from encrypted content'
+            );
+          }
+        }
+      }
+
+      return privateKeys;
+    } catch (error) {
+      console.error(
+        'ListService: Failed to decrypt private keys:',
+        String(error)
+      );
+      return [];
+    }
+  }
   private async getStoredKeys(): Promise<Keys | null> {
     return getNostrKeys();
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import type { FollowSet } from '../../services/ListService';
+import { PrivatePill } from './PrivatePill';
 
 interface FollowSetItemProps {
   followSet: FollowSet;
@@ -48,10 +49,31 @@ export function FollowSetItem({
       <View style={styles.titleContainer}>
         <View style={styles.identifierRow}>
           <Text style={styles.identifier}>{followSet.identifier}</Text>
+          {followSet.isPrivate && (
+            <View style={styles.privatePillContainer}>
+              <PrivatePill size="small" />
+            </View>
+          )}
         </View>
         <Text style={styles.userCount}>
-          {followSet.publicKeys.length}{' '}
-          {followSet.publicKeys.length === 1 ? 'user' : 'users'}
+          {/* Show combined count of public and private keys */}
+          {followSet.publicKeys.length +
+            (followSet.privateKeys?.length || 0)}{' '}
+          {followSet.publicKeys.length +
+            (followSet.privateKeys?.length || 0) ===
+          1
+            ? 'user'
+            : 'users'}
+          {/* Show breakdown if both exist */}
+          {followSet.privateKeys &&
+            followSet.privateKeys.length > 0 &&
+            followSet.publicKeys.length > 0 && (
+              <Text style={styles.breakdown}>
+                {' '}
+                ({followSet.publicKeys.length} public,{' '}
+                {followSet.privateKeys.length} private)
+              </Text>
+            )}
         </Text>
         <Text style={styles.dateText}>
           {isMainFollowing
@@ -134,6 +156,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  privatePillContainer: {
+    marginLeft: 8,
+  },
+  breakdown: {
+    fontSize: 12,
+    color: '#888',
   },
   identifier: {
     fontSize: 16,

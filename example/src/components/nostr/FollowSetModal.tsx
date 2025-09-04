@@ -19,7 +19,8 @@ interface FollowSetModalProps {
   onClose: () => void;
   onSave: (
     identifier: string,
-    publicKeys: PublicKeyInterface[]
+    publicKeys: PublicKeyInterface[],
+    privateKeys?: PublicKeyInterface[]
   ) => Promise<boolean>;
 }
 
@@ -32,6 +33,8 @@ export function FollowSetModal({
   const [identifier, setIdentifier] = useState('');
   const [publicKeyInput, setPublicKeyInput] = useState('');
   const [publicKeys, setPublicKeys] = useState<PublicKeyInterface[]>([]);
+  const [privateKeys, setPrivateKeys] = useState<PublicKeyInterface[]>([]);
+  const [addingToPrivate, setAddingToPrivate] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [inputError, setInputError] = useState('');
 
@@ -44,12 +47,15 @@ export function FollowSetModal({
         // Editing existing follow set
         setIdentifier(followSet.identifier);
         setPublicKeys([...followSet.publicKeys]);
+        setPrivateKeys([...(followSet.privateKeys || [])]);
       } else {
         // Creating new follow set
         setIdentifier('');
         setPublicKeys([]);
+        setPrivateKeys([]);
       }
       setPublicKeyInput('');
+      setAddingToPrivate(false);
       setInputError('');
     }
   }, [visible, followSet]);
@@ -73,16 +79,36 @@ export function FollowSetModal({
         throw new Error('Invalid format');
       }
 
-      // Check if already in list
-      const alreadyExists = publicKeys.some(
+      const targetArray = addingToPrivate ? privateKeys : publicKeys;
+      const otherArray = addingToPrivate ? publicKeys : privateKeys;
+
+      // Check if already in either list
+      const alreadyInTarget = targetArray.some(
         (pk) => pk.toHex() === publicKey.toHex()
       );
-      if (alreadyExists) {
-        setInputError('This user is already in the list');
+      const alreadyInOther = otherArray.some(
+        (pk) => pk.toHex() === publicKey.toHex()
+      );
+
+      if (alreadyInTarget) {
+        setInputError(
+          `This user is already in the ${addingToPrivate ? 'private' : 'public'} list`
+        );
         return;
       }
 
-      setPublicKeys((prev) => [...prev, publicKey]);
+      if (alreadyInOther) {
+        setInputError(
+          `This user is already in the ${addingToPrivate ? 'public' : 'private'} list`
+        );
+        return;
+      }
+
+      if (addingToPrivate) {
+        setPrivateKeys((prev) => [...prev, publicKey]);
+      } else {
+        setPublicKeys((prev) => [...prev, publicKey]);
+      }
       setPublicKeyInput('');
     } catch {
       setInputError(
@@ -97,6 +123,12 @@ export function FollowSetModal({
     );
   };
 
+  const handleRemovePrivateKey = (publicKeyToRemove: PublicKeyInterface) => {
+    setPrivateKeys((prev) =>
+      prev.filter((pk) => pk.toHex() !== publicKeyToRemove.toHex())
+    );
+  };
+
   const handleSave = async () => {
     const trimmedIdentifier = identifier.trim();
 
@@ -105,14 +137,19 @@ export function FollowSetModal({
       return;
     }
 
-    if (publicKeys.length === 0) {
+    const totalUsers = publicKeys.length + privateKeys.length;
+    if (totalUsers === 0) {
       Alert.alert('Error', 'Please add at least one user to your follow set');
       return;
     }
 
     setIsSaving(true);
     try {
-      const success = await onSave(trimmedIdentifier, publicKeys);
+      const success = await onSave(
+        trimmedIdentifier,
+        publicKeys,
+        privateKeys.length > 0 ? privateKeys : undefined
+      );
       if (success) {
         onClose();
       }
@@ -174,12 +211,49 @@ export function FollowSetModal({
               Enter npub1... addresses or hex public keys
             </Text>
 
+            <View style={styles.addModeToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  !addingToPrivate && styles.toggleButtonActive,
+                ]}
+                onPress={() => setAddingToPrivate(false)}
+                disabled={isSaving}
+              >
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    !addingToPrivate && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  Add Public
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  addingToPrivate && styles.toggleButtonActive,
+                ]}
+                onPress={() => setAddingToPrivate(true)}
+                disabled={isSaving}
+              >
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    addingToPrivate && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  Add Private
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.publicKeyInput}
                 value={publicKeyInput}
                 onChangeText={setPublicKeyInput}
-                placeholder="npub1... or hex public key"
+                placeholder={`${addingToPrivate ? 'Private' : 'Public'} user: npub1... or hex public key`}
                 placeholderTextColor="#666"
                 multiline={true}
                 editable={!isSaving}
@@ -188,7 +262,10 @@ export function FollowSetModal({
                 onSubmitEditing={handleAddPublicKey}
               />
               <TouchableOpacity
-                style={styles.addButton}
+                style={[
+                  styles.addButton,
+                  addingToPrivate && styles.addButtonPrivate,
+                ]}
                 onPress={handleAddPublicKey}
                 disabled={isSaving || !publicKeyInput.trim()}
               >
@@ -203,12 +280,14 @@ export function FollowSetModal({
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Users in Set ({publicKeys.length})
+              Public Users ({publicKeys.length})
             </Text>
 
             {publicKeys.length === 0 ? (
               <View style={styles.emptyUsers}>
-                <Text style={styles.emptyUsersText}>No users added yet</Text>
+                <Text style={styles.emptyUsersText}>
+                  No public users added yet
+                </Text>
               </View>
             ) : (
               <View style={styles.usersList}>
@@ -230,11 +309,42 @@ export function FollowSetModal({
             )}
           </View>
 
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Private Users ({privateKeys.length})
+            </Text>
+
+            {privateKeys.length === 0 ? (
+              <View style={styles.emptyUsers}>
+                <Text style={styles.emptyUsersText}>
+                  No private users added yet
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.usersList}>
+                {privateKeys.map((publicKey, index) => (
+                  <View key={index} style={styles.userItem}>
+                    <Text style={styles.userKey} numberOfLines={1}>
+                      {formatPublicKey(publicKey)}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemovePrivateKey(publicKey)}
+                      disabled={isSaving}
+                      style={styles.removeButton}
+                    >
+                      <Text style={styles.removeButtonText}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
           <View style={styles.helpSection}>
             <Text style={styles.helpText}>
               Follow sets are stored on the Nostr network and can be used by
-              compatible clients to organize your timeline. They're like Twitter
-              lists but decentralized.
+              compatible clients to organize your timeline. Private users are
+              encrypted and only visible to you.
             </Text>
           </View>
         </ScrollView>
@@ -411,5 +521,51 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#fff',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  switchLabel: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  addModeToggle: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    padding: 4,
+    gap: 4,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#6366f1',
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    color: '#999',
+    fontWeight: '500',
+  },
+  toggleButtonTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  addButtonPrivate: {
+    backgroundColor: '#6366f1',
   },
 });

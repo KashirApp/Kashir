@@ -194,9 +194,11 @@ export function SettingsScreen({
       const clientService = NostrClientService.getInstance();
       if (clientService.isReady()) {
         const client = clientService.getClient();
+        const session = clientService.getCurrentSession();
         const userFollowSets = await listService.fetchUserFollowSets(
           client,
-          userNpub
+          userNpub,
+          session?.type // Pass the loginType to enable decryption
         );
         setFollowSets(userFollowSets);
         setHasLoadedFollowSets(true);
@@ -593,7 +595,11 @@ export function SettingsScreen({
     }
   };
 
-  const handleSaveFollowSet = async (identifier: string, publicKeys: any[]) => {
+  const handleSaveFollowSet = async (
+    identifier: string,
+    publicKeys: any[],
+    privateKeys?: any[]
+  ) => {
     try {
       const clientService = NostrClientService.getInstance();
       if (!clientService.isReady()) {
@@ -611,21 +617,41 @@ export function SettingsScreen({
 
       let success;
       if (editingFollowSet) {
-        // Updating existing follow set
-        success = await listService.updateFollowSet(
-          client,
-          session.type,
-          identifier,
-          publicKeys
-        );
+        // Updating existing follow set - for now we'll use the mixed method if we have private keys
+        if (privateKeys && privateKeys.length > 0) {
+          success = await listService.createMixedFollowSet(
+            client,
+            session.type,
+            identifier,
+            publicKeys,
+            privateKeys
+          );
+        } else {
+          success = await listService.updateFollowSet(
+            client,
+            session.type,
+            identifier,
+            publicKeys
+          );
+        }
       } else {
         // Creating new follow set
-        success = await listService.createFollowSet(
-          client,
-          session.type,
-          identifier,
-          publicKeys
-        );
+        if (privateKeys && privateKeys.length > 0) {
+          success = await listService.createMixedFollowSet(
+            client,
+            session.type,
+            identifier,
+            publicKeys,
+            privateKeys
+          );
+        } else {
+          success = await listService.createFollowSet(
+            client,
+            session.type,
+            identifier,
+            publicKeys
+          );
+        }
       }
 
       if (success) {
@@ -645,10 +671,30 @@ export function SettingsScreen({
       }
     } catch (error) {
       console.error('Failed to save follow set:', error);
-      Alert.alert(
-        'Error',
-        `Failed to ${editingFollowSet ? 'update' : 'create'} follow set`
-      );
+
+      // Check for specific error types and show appropriate user-friendly messages
+      if (error instanceof Error) {
+        if (
+          error.message.includes('require stored private key for encryption')
+        ) {
+          Alert.alert(
+            'Encryption Keys Not Available',
+            'Private follow set members require stored private key for encryption. Please ensure your private key is available.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Error',
+            `Failed to ${editingFollowSet ? 'update' : 'create'} follow set: ${error.message}`
+          );
+        }
+      } else {
+        Alert.alert(
+          'Error',
+          `Failed to ${editingFollowSet ? 'update' : 'create'} follow set`
+        );
+      }
+
       return false;
     }
   };
