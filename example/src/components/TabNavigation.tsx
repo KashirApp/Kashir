@@ -8,6 +8,7 @@ interface TabNavigationProps {
   onTabChange: (tab: TabType) => void;
   followingCount: number;
   trendingCount?: number;
+  currentFollowSetName?: string;
 }
 
 export function TabNavigation({
@@ -15,6 +16,7 @@ export function TabNavigation({
   onTabChange,
   followingCount,
   trendingCount = 0,
+  currentFollowSetName,
 }: TabNavigationProps) {
   return (
     <View style={styles.tabContainer}>
@@ -27,8 +29,11 @@ export function TabNavigation({
             styles.tabText,
             activeTab === 'following' && styles.activeTabText,
           ]}
+          numberOfLines={1}
         >
-          Following {followingCount > 0 ? `(${followingCount})` : ''}
+          {currentFollowSetName && currentFollowSetName !== 'Following'
+            ? `${currentFollowSetName} (${followingCount})`
+            : `Following ${followingCount > 0 ? `(${followingCount})` : ''}`}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity

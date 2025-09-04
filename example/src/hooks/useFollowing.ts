@@ -1,11 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
-import { Client, PublicKey, Filter, Kind } from 'kashir';
+import { Client, Filter, Kind } from 'kashir';
 import type { PublicKeyInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
-import { tagsToArray } from '../services/NostrUtils';
+import { StorageService } from '../services/StorageService';
 import { postProcessingUtils } from '../utils/postProcessingUtils';
 import type { PostWithStats } from '../types/EventStats';
+import { ListService } from '../services/ListService';
 
 export function useFollowing(
   client: Client | null,
@@ -15,74 +16,107 @@ export function useFollowing(
   const [followingList, setFollowingList] = useState<PublicKeyInterface[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
   const [_profilesLoading, _setProfilesLoading] = useState(false);
+  const [currentFollowSetInfo, setCurrentFollowSetInfo] = useState<{
+    identifier: string;
+    eventId: string;
+  } | null>(null);
+
+  const listService = ListService.getInstance();
+
+  // Watch for changes in active follow set and refresh
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    const checkForActiveFollowSetChanges = async () => {
+      try {
+        const activeSet = await StorageService.loadActiveFollowSet();
+        const newEventId = activeSet ? activeSet.eventId : null;
+        const currentEventId = currentFollowSetInfo
+          ? currentFollowSetInfo.eventId
+          : null;
+
+        // If the active changed, clear the current following list to force refresh
+        if (newEventId !== currentEventId) {
+          console.log('Active follow set changed, clearing following list');
+          setFollowingList([]);
+          setCurrentFollowSetInfo(null);
+        }
+      } catch (error) {
+        console.error('Error checking for active follow set changes:', error);
+      }
+    };
+
+    // Check every 2 seconds for changes (only when client is available)
+    if (client) {
+      interval = setInterval(checkForActiveFollowSetChanges, 2000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [client, currentFollowSetInfo]);
 
   const fetchFollowingList = useCallback(
     async (userNpub: string) => {
       if (!client) return [];
 
       try {
-        const publicKey = PublicKey.parse(userNpub);
+        // First, check if there's an active follow set configured
+        const activeFollowSet = await StorageService.loadActiveFollowSet();
 
-        // Create filter for kind 3 (contact list) events
-        const contactListFilter = new Filter()
-          .author(publicKey)
-          .kinds([new Kind(3)])
-          .limit(1n);
+        if (activeFollowSet) {
+          // Use the configured follow set
+          console.log(`Using custom follow set: ${activeFollowSet.identifier}`);
+          setCurrentFollowSetInfo(activeFollowSet);
 
-        console.log('Fetching following list...');
+          const followSets = await listService.fetchUserFollowSets(
+            client,
+            userNpub
+          );
+          const targetSet = followSets.find(
+            (set) => set.eventId === activeFollowSet.eventId
+          );
 
-        const events = await client.fetchEvents(
-          contactListFilter,
-          10000 as any
-        );
-        const eventArray = events.toVec();
-
-        if (eventArray.length > 0) {
-          const contactListEvent = eventArray[0];
-          if (contactListEvent) {
-            const tags = contactListEvent.tags();
-            const followingPubkeys: PublicKeyInterface[] = [];
-
-            // Extract public keys from p tags
-            const tagArrays = tagsToArray(tags);
-
-            console.log(`Processing ${tagArrays.length} tags`);
-
-            for (const tagData of tagArrays) {
-              try {
-                if (tagData.length > 1 && tagData[0] === 'p') {
-                  try {
-                    const hexPubkey = tagData[1] as string;
-                    let pubkey: PublicKeyInterface | null = null;
-
-                    try {
-                      pubkey = PublicKey.parse(hexPubkey);
-                    } catch {
-                      try {
-                        pubkey = PublicKey.parse('hex:' + hexPubkey);
-                      } catch {
-                        // Could not parse hex pubkey directly
-                      }
-                    }
-
-                    if (pubkey) {
-                      followingPubkeys.push(pubkey);
-                    }
-                  } catch (error) {
-                    console.error('Error parsing pubkey from tag:', error);
-                  }
-                }
-              } catch (tagError) {
-                console.error('Error processing tag:', tagError);
-              }
-            }
-
+          if (targetSet) {
             console.log(
-              `Found ${followingPubkeys.length} people in following list`
+              `Found follow set "${targetSet.identifier}" with ${targetSet.publicKeys.length} users`
             );
-            setFollowingList(followingPubkeys);
-            return followingPubkeys;
+            setFollowingList(targetSet.publicKeys);
+            return targetSet.publicKeys;
+          } else {
+            console.warn(
+              `Configured follow set not found, falling back to main following list`
+            );
+            // Fall through to kind 3 logic
           }
+        } else {
+          console.log('Using main following list (kind 3)');
+          setCurrentFollowSetInfo({
+            identifier: 'Following',
+            eventId: 'kind3',
+          });
+        }
+
+        // Fallback to kind 3 contact list using ListService
+        console.log('Fetching following list using ListService...');
+        const followSets = await listService.fetchUserFollowSets(
+          client,
+          userNpub
+        );
+
+        // Find the "Following" set (kind 3 contact list)
+        const followingSet = followSets.find(
+          (set) => set.identifier === 'Following'
+        );
+
+        if (followingSet) {
+          console.log(
+            `Found Following list with ${followingSet.publicKeys.length} people`
+          );
+          setFollowingList(followingSet.publicKeys);
+          return followingSet.publicKeys;
         }
 
         return [];
@@ -91,7 +125,7 @@ export function useFollowing(
         return [];
       }
     },
-    [client]
+    [client, listService]
   );
 
   const fetchFollowingPosts = useCallback(
@@ -204,5 +238,6 @@ export function useFollowing(
     profilesLoading: _profilesLoading,
     fetchFollowingList,
     fetchFollowingPosts,
+    currentFollowSetInfo,
   };
 }

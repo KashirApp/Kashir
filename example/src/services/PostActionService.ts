@@ -1,19 +1,11 @@
-import {
-  EventBuilder,
-  Tag,
-  Keys,
-  SecretKey,
-  Kind,
-  ZapRequestData,
-  NostrSigner,
-} from 'kashir';
+import { EventBuilder, Tag, Kind, ZapRequestData, NostrSigner } from 'kashir';
 import uuid from 'react-native-uuid';
 import { NostrClientService, LoginType } from './NostrClient';
-import { SecureStorageService } from './SecureStorageService';
 import { ProfileService } from './ProfileService';
 import { LNURLService } from './LNURLService';
 import type { EventInterface } from 'kashir';
 import type { CalendarEventData, CalendarData } from '../types';
+import { getNostrKeys } from '../utils/nostrUtils';
 
 export class PostActionService {
   private static instance: PostActionService | null = null;
@@ -72,12 +64,10 @@ export class PostActionService {
         }
         signedEvent = await eventBuilder.sign(signer);
       } else if (session.type === LoginType.PrivateKey) {
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         signedEvent = eventBuilder.signWithKeys(keys);
       } else {
         throw new Error('No signing method available');
@@ -117,12 +107,10 @@ export class PostActionService {
         }
         signedEvent = await eventBuilder.sign(signer);
       } else if (session.type === LoginType.PrivateKey) {
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         signedEvent = eventBuilder.signWithKeys(keys);
       } else {
         throw new Error('No signing method available');
@@ -175,12 +163,10 @@ export class PostActionService {
         }
         signedEvent = await eventBuilder.sign(signer);
       } else if (session.type === LoginType.PrivateKey) {
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         signedEvent = eventBuilder.signWithKeys(keys);
       } else {
         throw new Error('No signing method available');
@@ -261,12 +247,10 @@ export class PostActionService {
         const eventBuilder = EventBuilder.publicZapRequest(zapRequestData);
         zapRequestEvent = await eventBuilder.sign(signer);
       } else if (session.type === LoginType.PrivateKey) {
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         const signer = NostrSigner.keys(keys);
         // Create a normal zap request event manually
         const eventBuilder = EventBuilder.publicZapRequest(zapRequestData);
@@ -420,12 +404,10 @@ export class PostActionService {
         }
         signedEvent = await eventBuilder.sign(signer);
       } else if (session.type === LoginType.PrivateKey) {
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         signedEvent = eventBuilder.signWithKeys(keys);
       } else {
         throw new Error('No signing method available');
@@ -496,12 +478,10 @@ export class PostActionService {
         }
         signedEvent = await eventBuilder.sign(signer);
       } else if (session.type === LoginType.PrivateKey) {
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         signedEvent = eventBuilder.signWithKeys(keys);
       } else {
         throw new Error('No signing method available');
@@ -583,12 +563,10 @@ export class PostActionService {
         }
         signedEvent = await eventBuilder.sign(signer);
       } else if (session.type === LoginType.PrivateKey) {
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         signedEvent = eventBuilder.signWithKeys(keys);
       } else {
         throw new Error('No signing method available');

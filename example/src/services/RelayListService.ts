@@ -6,11 +6,10 @@ import {
   extractRelayList,
   RelayMetadata,
   EventBuilder,
-  Keys,
-  SecretKey,
 } from 'kashir';
 
 import { LoginType } from './NostrClient';
+import { getNostrKeys } from '../utils/nostrUtils';
 
 export interface UserRelayInfo {
   url: string;
@@ -195,13 +194,10 @@ export class RelayListService {
         }
         signedEvent = await eventBuilder.sign(signer);
       } else if (loginType === LoginType.PrivateKey) {
-        const { SecureStorageService } = await import('./SecureStorageService');
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         signedEvent = eventBuilder.signWithKeys(keys);
       } else {
         throw new Error('No signing method available');

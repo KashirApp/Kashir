@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NostrClientService } from '../services/NostrClient';
 import { sharedProfileService } from '../services/ProfileService';
-import { SecureStorageService } from '../services/SecureStorageService';
 import { useFollowing } from '../hooks/useFollowing';
 import { useTrending } from '../hooks/useTrending';
 import { Header } from './Header';
@@ -14,7 +13,8 @@ import { ComposeNoteModal } from './ComposeNoteModal';
 import type { TabType } from '../types';
 import type { NostrStackParamList } from './NostrNavigator';
 import { styles } from '../App.styles';
-import { Keys, SecretKey, Client } from 'kashir';
+import { Keys, Client } from 'kashir';
+import { getNostrKeys } from '../utils/nostrUtils';
 
 type PostsScreenProps = NativeStackScreenProps<
   NostrStackParamList,
@@ -52,6 +52,7 @@ export function PostsScreen({
     followingList,
     followingLoading,
     fetchFollowingPosts,
+    currentFollowSetInfo,
   } = useFollowing(client, profileService);
   const {
     trendingPosts,
@@ -110,10 +111,8 @@ export function PostsScreen({
   useEffect(() => {
     const loadKeys = async () => {
       try {
-        const privateKey = await SecureStorageService.getNostrPrivateKey();
-        if (privateKey) {
-          const secretKey = SecretKey.parse(privateKey);
-          const keys = new Keys(secretKey);
+        const keys = await getNostrKeys();
+        if (keys) {
           setUserKeys(keys);
         } else {
           console.log('No Nostr private key found in secure storage');
@@ -217,6 +216,7 @@ export function PostsScreen({
         onTabChange={handleTabChange}
         followingCount={followingList.length}
         trendingCount={trendingPosts.length}
+        currentFollowSetName={currentFollowSetInfo?.identifier}
       />
 
       {/* Show posts based on active tab */}

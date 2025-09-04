@@ -1,8 +1,39 @@
-import { Nip19, Nip19Enum_Tags, PublicKey, EventId, Filter } from 'kashir';
+import {
+  Nip19,
+  Nip19Enum_Tags,
+  PublicKey,
+  EventId,
+  Filter,
+  Keys,
+  SecretKey,
+} from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { CacheService } from '../services/CacheService';
 import type { PostWithStats } from '../types/EventStats';
 import type { Client } from 'kashir';
+
+/**
+ * Reusable utility to get Nostr keys from secure storage
+ * Used by PostActionService, RelayListService, ListService, etc.
+ */
+export async function getNostrKeys(): Promise<Keys | null> {
+  try {
+    const { SecureStorageService } = await import(
+      '../services/SecureStorageService'
+    );
+    const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
+
+    if (!privateKeyHex) {
+      return null;
+    }
+
+    const secretKey = SecretKey.parse(privateKeyHex);
+    return new Keys(secretKey);
+  } catch (error) {
+    console.error('Failed to get Nostr keys:', error);
+    return null;
+  }
+}
 
 /**
  * Extracts pubkeys from nostr URIs (nprofile and npub) in content

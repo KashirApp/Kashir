@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const NPUB_STORAGE_KEY = '@npub_key';
 const NOSTR_RELAYS_KEY = '@nostr_relays';
 const ZAP_AMOUNT_KEY = '@zap_amount';
+const ACTIVE_FOLLOW_SET_KEY = '@active_follow_set';
 
 // Default relays to use if none are configured
 const DEFAULT_RELAYS = ['wss://relay.damus.io'];
@@ -169,6 +170,57 @@ export class StorageService {
     } catch (error) {
       console.error('Error loading zap amount from storage:', error);
       return 21; // Default zap amount on error
+    }
+  }
+
+  /**
+   * Save active follow set identifier and event ID to async storage
+   */
+  static async saveActiveFollowSet(
+    identifier: string,
+    eventId: string
+  ): Promise<void> {
+    try {
+      const followSetData = { identifier, eventId };
+      await AsyncStorage.setItem(
+        ACTIVE_FOLLOW_SET_KEY,
+        JSON.stringify(followSetData)
+      );
+    } catch (error) {
+      console.error('Error saving active follow set to storage:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load active follow set from async storage
+   * Returns null if none is set (will default to kind 3 following list)
+   */
+  static async loadActiveFollowSet(): Promise<{
+    identifier: string;
+    eventId: string;
+  } | null> {
+    try {
+      const followSetJson = await AsyncStorage.getItem(ACTIVE_FOLLOW_SET_KEY);
+      if (followSetJson) {
+        return JSON.parse(followSetJson);
+      }
+      return null; // Default to kind 3 following list
+    } catch (error) {
+      console.error('Error loading active follow set from storage:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Remove active follow set from async storage (reset to kind 3)
+   */
+  static async removeActiveFollowSet(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(ACTIVE_FOLLOW_SET_KEY);
+    } catch (error) {
+      console.error('Error removing active follow set from storage:', error);
+      throw error;
     }
   }
 }

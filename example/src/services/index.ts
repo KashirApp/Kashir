@@ -9,4 +9,6 @@ export type {
 } from './MintRecommendationService';
 export { RelayListService } from './RelayListService';
 export type { UserRelayInfo } from './RelayListService';
+export { ListService } from './ListService';
+export type { FollowSet } from './ListService';
 export * from './NostrUtils';

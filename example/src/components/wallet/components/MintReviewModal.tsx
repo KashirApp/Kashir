@@ -10,11 +10,11 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { EventBuilder, Kind, Tag, Keys, SecretKey } from 'kashir';
+import { EventBuilder, Kind, Tag } from 'kashir';
 import { NostrClientService, LoginType } from '../../../services/NostrClient';
-import { SecureStorageService } from '../../../services/SecureStorageService';
 import { MintRecommendationService } from '../../../services/MintRecommendationService';
 import type { MintComment } from '../../../services/MintRecommendationService';
+import { getNostrKeys } from '../../../utils/nostrUtils';
 
 // Helper function to calculate d tag identifier from mint pubkey
 // As per NIP-87: "if no event exists, the d tag can still be calculated from the mint's pubkey/id"
@@ -230,12 +230,10 @@ export function MintReviewModal({
         }
         signedEvent = await eventBuilder.sign(signer);
       } else if (session.type === LoginType.PrivateKey) {
-        const privateKeyHex = await SecureStorageService.getNostrPrivateKey();
-        if (!privateKeyHex) {
+        const keys = await getNostrKeys();
+        if (!keys) {
           throw new Error('Private key not found in secure storage');
         }
-        const secretKey = SecretKey.parse(privateKeyHex);
-        const keys = new Keys(secretKey);
         signedEvent = eventBuilder.signWithKeys(keys);
       } else {
         throw new Error('No signing method available');

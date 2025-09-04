@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,15 @@ import {
   MintReviewModal,
 } from './wallet';
 import { EnhancedRelaysList, RelayUrlModal } from './nostr';
+import { FollowSetsList } from './nostr/FollowSetsList';
+import { FollowSetModal } from './nostr/FollowSetModal';
 import { ZapAmountModal } from './ZapAmountModal';
 import { SecureStorageService, StorageService } from '../services';
 import type { UserRelayInfo } from '../services';
 import { NostrClientService } from '../services/NostrClient';
 import { RelayListService } from '../services/RelayListService';
+import { ListService } from '../services/ListService';
+import type { FollowSet } from '../services/ListService';
 import { ProfileService } from '../services/ProfileService';
 import { loadCachedBalances } from './wallet/utils/mintBalanceUtils';
 import type { MintBalance } from './wallet/utils/mintBalanceUtils';
@@ -61,6 +65,18 @@ export function SettingsScreen({
   const [reviewMintUrl, setReviewMintUrl] = useState<string>('');
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
+  // Follow sets state
+  const [followSets, setFollowSets] = useState<FollowSet[]>([]);
+  const [isLoadingFollowSets, setIsLoadingFollowSets] = useState(false);
+  const [activeFollowSetEventId, setActiveFollowSetEventId] = useState<
+    string | null
+  >(null);
+  const [hasLoadedFollowSets, setHasLoadedFollowSets] = useState(false);
+  const [showFollowSetModal, setShowFollowSetModal] = useState(false);
+  const [editingFollowSet, setEditingFollowSet] = useState<
+    FollowSet | undefined
+  >(undefined);
+
   const {
     mintUrls,
     activeMintUrl,
@@ -79,6 +95,7 @@ export function SettingsScreen({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const profileService = useMemo(() => new ProfileService(), []);
   const relayListService = useMemo(() => RelayListService.getInstance(), []);
+  const listService = useMemo(() => ListService.getInstance(), []);
 
   // Load cached mint balances for swap functionality
   useEffect(() => {
@@ -165,6 +182,40 @@ export function SettingsScreen({
     }
   };
 
+  // Load user's follow sets from the network
+  const loadFollowSets = useCallback(async () => {
+    if (!userNpub) {
+      setFollowSets([]);
+      return;
+    }
+
+    setIsLoadingFollowSets(true);
+    try {
+      const clientService = NostrClientService.getInstance();
+      if (clientService.isReady()) {
+        const client = clientService.getClient();
+        const userFollowSets = await listService.fetchUserFollowSets(
+          client,
+          userNpub
+        );
+        setFollowSets(userFollowSets);
+        setHasLoadedFollowSets(true);
+        console.log(
+          `SettingsScreen: Loaded ${userFollowSets.length} follow sets`
+        );
+      } else {
+        console.log(
+          'SettingsScreen: Client not ready, skipping follow sets load'
+        );
+      }
+    } catch (error) {
+      console.error('SettingsScreen: Failed to load follow sets:', error);
+      setFollowSets([]);
+    } finally {
+      setIsLoadingFollowSets(false);
+    }
+  }, [userNpub, listService]);
+
   // Fetch user profile when needed
   useEffect(() => {
     const fetchProfile = async () => {
@@ -223,6 +274,7 @@ export function SettingsScreen({
       loadMintUrls();
       loadZapAmount();
       loadRelaysForDisplay();
+      // loadFollowSets(); // Temporarily commented out
     }
   }, [isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -262,6 +314,61 @@ export function SettingsScreen({
       loadMintUrlsFromStorage();
     }
   }, [showMintUrlModal, isVisible, loadMintUrlsFromStorage]);
+
+  // Load follow sets when user is logged in
+  useEffect(() => {
+    if (userNpub && isVisible && !hasLoadedFollowSets) {
+      loadFollowSets();
+    }
+  }, [userNpub, isVisible, loadFollowSets, hasLoadedFollowSets]);
+
+  // Reset loaded flag when user changes
+  useEffect(() => {
+    setHasLoadedFollowSets(false);
+    setFollowSets([]);
+  }, [userNpub]);
+
+  // Load active follow set from storage
+  useEffect(() => {
+    const loadActiveFollowSet = async () => {
+      try {
+        const activeSet = await StorageService.loadActiveFollowSet();
+        setActiveFollowSetEventId(activeSet ? activeSet.eventId : null);
+      } catch (error) {
+        console.error('Error loading active follow set:', error);
+      }
+    };
+
+    loadActiveFollowSet();
+  }, []);
+
+  const handleSetAsActive = async (followSet: FollowSet) => {
+    try {
+      if (followSet.identifier === 'Following') {
+        // Reset to main following list (kind 3)
+        await StorageService.removeActiveFollowSet();
+        setActiveFollowSetEventId(null);
+        Alert.alert(
+          'Success',
+          'Main following list is now active for the Following tab'
+        );
+      } else {
+        // Set custom follow set as active
+        await StorageService.saveActiveFollowSet(
+          followSet.identifier,
+          followSet.eventId
+        );
+        setActiveFollowSetEventId(followSet.eventId);
+        Alert.alert(
+          'Success',
+          `"${followSet.identifier}" is now active for the Following tab`
+        );
+      }
+    } catch (error) {
+      console.error('Error setting active follow set:', error);
+      Alert.alert('Error', 'Failed to set active follow set');
+    }
+  };
 
   const handleViewSeedPhrase = async () => {
     try {
@@ -412,6 +519,145 @@ export function SettingsScreen({
     }
   };
 
+  // Follow sets handlers
+  const handleCreateFollowSet = () => {
+    setEditingFollowSet(undefined);
+    setShowFollowSetModal(true);
+  };
+
+  const handleEditFollowSet = (followSet: FollowSet) => {
+    // Don't allow editing the main following list
+    if (followSet.identifier === 'Following') {
+      Alert.alert(
+        'Cannot Edit',
+        'The main following list cannot be edited here. Use the follow/unfollow buttons on user profiles instead.'
+      );
+      return;
+    }
+
+    setEditingFollowSet(followSet);
+    setShowFollowSetModal(true);
+  };
+
+  const handleDeleteFollowSet = async (followSet: FollowSet) => {
+    // Don't allow deleting the main following list
+    if (followSet.identifier === 'Following') {
+      Alert.alert(
+        'Cannot Delete',
+        'The main following list cannot be deleted. It represents your core Nostr contact list.'
+      );
+      return;
+    }
+
+    // Don't allow deleting the active follow set
+    const isActiveFollowSet = followSet.eventId === activeFollowSetEventId;
+    if (isActiveFollowSet) {
+      Alert.alert(
+        'Cannot Delete',
+        'Cannot delete the active follow set. Please set a different follow set as active first.'
+      );
+      return;
+    }
+    try {
+      const clientService = NostrClientService.getInstance();
+      if (!clientService.isReady()) {
+        Alert.alert('Error', 'Nostr client is not ready');
+        return;
+      }
+
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+
+      if (!session) {
+        Alert.alert('Error', 'No active session found');
+        return;
+      }
+
+      const success = await listService.deleteFollowSet(
+        client,
+        session.type,
+        followSet.identifier,
+        followSet.eventId
+      );
+
+      if (success) {
+        Alert.alert('Success', 'Follow set deleted successfully');
+        // Refresh the list
+        await loadFollowSets();
+      } else {
+        Alert.alert('Error', 'Failed to delete follow set');
+      }
+    } catch (error) {
+      console.error('Failed to delete follow set:', error);
+      Alert.alert('Error', 'Failed to delete follow set');
+    }
+  };
+
+  const handleSaveFollowSet = async (identifier: string, publicKeys: any[]) => {
+    try {
+      const clientService = NostrClientService.getInstance();
+      if (!clientService.isReady()) {
+        Alert.alert('Error', 'Nostr client is not ready');
+        return false;
+      }
+
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+
+      if (!session) {
+        Alert.alert('Error', 'No active session found');
+        return false;
+      }
+
+      let success;
+      if (editingFollowSet) {
+        // Updating existing follow set
+        success = await listService.updateFollowSet(
+          client,
+          session.type,
+          identifier,
+          publicKeys
+        );
+      } else {
+        // Creating new follow set
+        success = await listService.createFollowSet(
+          client,
+          session.type,
+          identifier,
+          publicKeys
+        );
+      }
+
+      if (success) {
+        Alert.alert(
+          'Success',
+          `Follow set ${editingFollowSet ? 'updated' : 'created'} successfully`
+        );
+        // Refresh the list
+        await loadFollowSets();
+        return true;
+      } else {
+        Alert.alert(
+          'Error',
+          `Failed to ${editingFollowSet ? 'update' : 'create'} follow set`
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error('Failed to save follow set:', error);
+      Alert.alert(
+        'Error',
+        `Failed to ${editingFollowSet ? 'update' : 'create'} follow set`
+      );
+      return false;
+    }
+  };
+
+  const handleFollowSetModalClose = () => {
+    setShowFollowSetModal(false);
+    setEditingFollowSet(undefined);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -449,6 +695,20 @@ export function SettingsScreen({
               onAddRelay={() => setShowRelayModal(true)}
             />
           </View>
+
+          {userNpub && (
+            <View style={styles.followSetsContainer}>
+              <FollowSetsList
+                followSets={followSets}
+                isLoading={isLoadingFollowSets}
+                onEdit={handleEditFollowSet}
+                onDelete={handleDeleteFollowSet}
+                onCreateNew={handleCreateFollowSet}
+                onSetAsActive={handleSetAsActive}
+                activeFollowSetEventId={activeFollowSetEventId}
+              />
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -562,6 +822,13 @@ export function SettingsScreen({
         onSubmit={handleAddRelay}
       />
 
+      <FollowSetModal
+        visible={showFollowSetModal}
+        followSet={editingFollowSet}
+        onClose={handleFollowSetModalClose}
+        onSave={handleSaveFollowSet}
+      />
+
       <MintReviewModal
         visible={showReviewModal}
         mintUrl={reviewMintUrl}
@@ -607,6 +874,11 @@ const styles = StyleSheet.create({
   relayInfoContainer: {
     position: 'relative',
     // Removed fixed minHeight to allow flexible content sizing
+  },
+  followSetsContainer: {
+    position: 'relative',
+    marginTop: 20,
+    // Container for follow sets list component
   },
   settingButton: {
     paddingVertical: 15,
