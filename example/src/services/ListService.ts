@@ -51,10 +51,17 @@ export class ListService {
     loginType?: LoginType
   ): Promise<FollowSet[]> {
     try {
-      console.log('ListService: Creating public key from npub:', npub);
-
       const publicKey = PublicKey.parse(npub);
-      console.log('ListService: Successfully created PublicKey');
+
+      // Auto-detect login type if not provided
+      if (!loginType) {
+        const { NostrClientService } = await import('./NostrClient');
+        const clientService = NostrClientService.getInstance();
+        const session = clientService.getCurrentSession();
+        if (session) {
+          loginType = session.type;
+        }
+      }
 
       const followSets: FollowSet[] = [];
 
@@ -65,7 +72,6 @@ export class ListService {
           .kinds([Kind.fromStd(KindStandard.ContactList)])
           .limit(1n);
 
-        console.log('ListService: Querying for contact list...');
         const contactEvents = await client.fetchEvents(
           contactListFilter,
           10000 as any
@@ -116,10 +122,6 @@ export class ListService {
               createdAt: Number(contactListEvent.createdAt().asSecs()),
               eventId: contactListEvent.id().toHex(),
             });
-
-            console.log(
-              `ListService: Found main following list with ${publicKeys.length} users`
-            );
           }
         }
       } catch (error) {
@@ -132,18 +134,10 @@ export class ListService {
         .kind(Kind.fromStd(KindStandard.FollowSet))
         .limit(100n); // Get up to 100 follow sets
 
-      console.log('ListService: Querying for follow sets...');
-
       const events = await client.fetchEvents(filter, 10000 as any);
       const eventArray = events.toVec();
-      console.log(`ListService: Found ${eventArray.length} follow set events`);
-
       for (const event of eventArray) {
         try {
-          console.log(
-            `ListService: Processing event ${eventArray.indexOf(event) + 1}/${eventArray.length}, id: ${event.id().toHex().substring(0, 8)}...`
-          );
-
           // Extract identifier from 'd' tag
           const tags = event.tags();
           const tagArrays = tagsToArray(tags);
@@ -152,10 +146,6 @@ export class ListService {
 
           // Check content before processing
           const content = event.content();
-          console.log(
-            `ListService: Event content length: ${content.length}, has encrypted content: ${!!content && content.trim().length > 0}`
-          );
-
           for (const tagArray of tagArrays) {
             if (tagArray.length >= 2) {
               const tagType = tagArray[0];

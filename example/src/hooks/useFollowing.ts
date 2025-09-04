@@ -37,7 +37,6 @@ export function useFollowing(
 
         // If the active changed, clear the current following list to force refresh
         if (newEventId !== currentEventId) {
-          console.log('Active follow set changed, clearing following list');
           setFollowingList([]);
           setCurrentFollowSetInfo(null);
         }
@@ -68,7 +67,6 @@ export function useFollowing(
 
         if (activeFollowSet) {
           // Use the configured follow set
-          console.log(`Using custom follow set: ${activeFollowSet.identifier}`);
           setCurrentFollowSetInfo(activeFollowSet);
 
           const followSets = await listService.fetchUserFollowSets(
@@ -80,11 +78,13 @@ export function useFollowing(
           );
 
           if (targetSet) {
-            console.log(
-              `Found follow set "${targetSet.identifier}" with ${targetSet.publicKeys.length} users`
-            );
-            setFollowingList(targetSet.publicKeys);
-            return targetSet.publicKeys;
+            // Combine both public and private keys for the following list
+            const allKeys = [
+              ...targetSet.publicKeys,
+              ...(targetSet.privateKeys || []),
+            ];
+            setFollowingList(allKeys);
+            return allKeys;
           } else {
             console.warn(
               `Configured follow set not found, falling back to main following list`
@@ -92,15 +92,12 @@ export function useFollowing(
             // Fall through to kind 3 logic
           }
         } else {
-          console.log('Using main following list (kind 3)');
           setCurrentFollowSetInfo({
             identifier: 'Following',
             eventId: 'kind3',
           });
         }
 
-        // Fallback to kind 3 contact list using ListService
-        console.log('Fetching following list using ListService...');
         const followSets = await listService.fetchUserFollowSets(
           client,
           userNpub
@@ -112,9 +109,6 @@ export function useFollowing(
         );
 
         if (followingSet) {
-          console.log(
-            `Found Following list with ${followingSet.publicKeys.length} people`
-          );
           setFollowingList(followingSet.publicKeys);
           return followingSet.publicKeys;
         }
@@ -151,20 +145,14 @@ export function useFollowing(
           return;
         }
 
-        console.log(`Fetching posts from ${following.length} people...`);
-
         // Create filter for posts from following
         const followingFilter = new Filter()
           .authors(following)
           .kinds([new Kind(1)])
           .limit(10n);
 
-        console.log('Fetching following posts...');
-
         const events = await client.fetchEvents(followingFilter, 30000 as any);
         const eventArray = events.toVec();
-
-        console.log(`Fetched ${eventArray.length} posts from following`);
 
         if (eventArray.length > 0) {
           // Sort by timestamp
