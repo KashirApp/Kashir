@@ -29,7 +29,9 @@ import { NostrClientService } from '../services/NostrClient';
 import { RelayListService } from '../services/RelayListService';
 import { ListService } from '../services/ListService';
 import type { FollowSet } from '../services/ListService';
+import { FollowSetsStorageService, FollowSetProfileService } from '../services';
 import { ProfileService } from '../services/ProfileService';
+import { PublicKey } from 'kashir';
 import { loadCachedBalances } from './wallet/utils/mintBalanceUtils';
 import type { MintBalance } from './wallet/utils/mintBalanceUtils';
 import packageInfo from '../../package.json';
@@ -96,6 +98,28 @@ export function SettingsScreen({
   const profileService = useMemo(() => new ProfileService(), []);
   const relayListService = useMemo(() => RelayListService.getInstance(), []);
   const listService = useMemo(() => ListService.getInstance(), []);
+  const followSetProfileService = useMemo(
+    () => FollowSetProfileService.getInstance(),
+    []
+  );
+
+  // Helper function to reconstruct PublicKey objects from npubs
+  const reconstructPublicKeys = (npubs: string[]): PublicKey[] => {
+    const publicKeys: PublicKey[] = [];
+    npubs.forEach((npub, index) => {
+      try {
+        const pk = PublicKey.parse(npub);
+        publicKeys.push(pk);
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `SettingsScreen: Failed to parse npub ${index}: ${errorMsg}`
+        );
+      }
+    });
+
+    return publicKeys;
+  };
 
   // Load cached mint balances for swap functionality
   useEffect(() => {
@@ -182,7 +206,7 @@ export function SettingsScreen({
     }
   };
 
-  // Load user's follow sets from the network
+  // Load user's follow sets - prioritize local storage, fallback to network
   const loadFollowSets = useCallback(async () => {
     if (!userNpub) {
       setFollowSets([]);
@@ -191,32 +215,156 @@ export function SettingsScreen({
 
     setIsLoadingFollowSets(true);
     try {
+      const storedSets =
+        await FollowSetsStorageService.loadFollowSets(userNpub);
+
+      if (storedSets.length > 0) {
+        const followSetsFromStorage = storedSets.map((stored) => {
+          const publicKeys = reconstructPublicKeys(stored.publicUserIds || []);
+          const privateKeys = stored.privateUserIds
+            ? reconstructPublicKeys(stored.privateUserIds)
+            : undefined;
+
+          return {
+            identifier: stored.identifier,
+            eventId: stored.eventId,
+            createdAt: stored.createdAt,
+            isPrivate: stored.isPrivate,
+            publicKeys,
+            privateKeys,
+          };
+        }) as FollowSet[];
+
+        setTimeout(() => {
+          try {
+            setFollowSets(followSetsFromStorage);
+            setHasLoadedFollowSets(true);
+          } catch (stateError) {
+            console.error('SettingsScreen: State update failed:', stateError);
+            setFollowSets([]);
+          }
+        }, 100);
+
+        const hasMainFollowing = storedSets.some(
+          (set) => set.identifier === 'Following'
+        );
+        if (!hasMainFollowing) {
+          fetchMissingMainFollowingList().catch(() => {});
+        }
+
+        const clientService = NostrClientService.getInstance();
+        if (clientService.isReady()) {
+          const client = clientService.getClient();
+          followSetProfileService
+            .fetchAndStoreProfilesForFollowSets(
+              client,
+              followSetsFromStorage,
+              userNpub
+            )
+            .catch(() => {});
+        }
+
+        return;
+      }
+
+      // Fallback to network
+      await fetchAllFollowSetsFromNetwork();
+    } catch (error) {
+      console.error('SettingsScreen: Error in loadFollowSets:', error);
+      setFollowSets([]);
+    } finally {
+      setIsLoadingFollowSets(false);
+    }
+  }, [userNpub, followSetProfileService]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Helper function to fetch missing main following list
+  const fetchMissingMainFollowingList = async () => {
+    try {
       const clientService = NostrClientService.getInstance();
       if (clientService.isReady()) {
         const client = clientService.getClient();
         const session = clientService.getCurrentSession();
         const userFollowSets = await listService.fetchUserFollowSets(
           client,
-          userNpub,
-          session?.type // Pass the loginType to enable decryption
+          userNpub!,
+          session?.type
         );
-        setFollowSets(userFollowSets);
-        setHasLoadedFollowSets(true);
-        console.log(
-          `SettingsScreen: Loaded ${userFollowSets.length} follow sets`
+
+        // Find just the main following list and add it
+        const mainFollowing = userFollowSets.find(
+          (set) => set.identifier === 'Following'
         );
-      } else {
-        console.log(
-          'SettingsScreen: Client not ready, skipping follow sets load'
-        );
+        if (mainFollowing) {
+          setFollowSets((prev) => {
+            // Check if it already exists to avoid duplicates
+            const existingIndex = prev.findIndex(
+              (set) => set.identifier === 'Following'
+            );
+            if (existingIndex >= 0) {
+              // Replace existing
+              const updated = [...prev];
+              updated[existingIndex] = mainFollowing;
+              return updated;
+            } else {
+              // Add to beginning
+              return [mainFollowing, ...prev];
+            }
+          });
+
+          // Save the complete list including the main following
+          const allSets = [
+            mainFollowing,
+            ...userFollowSets.filter((set) => set.identifier !== 'Following'),
+          ];
+          await FollowSetsStorageService.saveFollowSets(allSets, userNpub!);
+        }
       }
     } catch (error) {
-      console.error('SettingsScreen: Failed to load follow sets:', error);
-      setFollowSets([]);
-    } finally {
-      setIsLoadingFollowSets(false);
+      console.warn(
+        'SettingsScreen: Failed to fetch missing main following list:',
+        error
+      );
     }
-  }, [userNpub, listService]);
+  };
+
+  // Helper function to fetch all follow sets from network
+  const fetchAllFollowSetsFromNetwork = async () => {
+    const clientService = NostrClientService.getInstance();
+    if (clientService.isReady()) {
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+      const userFollowSets = await listService.fetchUserFollowSets(
+        client,
+        userNpub!,
+        session?.type // Pass the loginType to enable decryption
+      );
+      setFollowSets(userFollowSets);
+      setHasLoadedFollowSets(true);
+
+      // Save follow sets to local storage
+      try {
+        await FollowSetsStorageService.saveFollowSets(
+          userFollowSets,
+          userNpub!
+        );
+      } catch {
+        // Handle storage errors silently
+      }
+
+      // Fetch and store user profiles in the background
+      try {
+        await followSetProfileService.fetchAndStoreProfilesForFollowSets(
+          client,
+          userFollowSets,
+          userNpub!
+        );
+      } catch {
+        // Handle profile errors silently
+      }
+    } else {
+      // Client not ready and no local data available
+    }
+  };
 
   // Fetch user profile when needed
   useEffect(() => {
@@ -271,14 +419,21 @@ export function SettingsScreen({
     };
 
     // Load relays whenever screen becomes visible
+    console.log(
+      'SettingsScreen: Screen visibility changed, isVisible:',
+      isVisible
+    );
     if (isVisible) {
+      console.log(
+        'SettingsScreen: Screen is visible, starting to load data...'
+      );
       checkSeedPhrase();
       loadMintUrls();
       loadZapAmount();
       loadRelaysForDisplay();
-      // loadFollowSets(); // Temporarily commented out
+      loadFollowSets();
     }
-  }, [isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isVisible, loadFollowSets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Also refresh when login state might have changed
   useEffect(() => {
@@ -515,6 +670,15 @@ export function SettingsScreen({
 
     setIsLoggingOut(true);
     try {
+      // Clear stored follow sets data before logging out
+      if (userNpub) {
+        try {
+          await FollowSetsStorageService.clearUserData(userNpub);
+        } catch {
+          // Handle storage errors silently
+        }
+      }
+
       await onLogout();
     } finally {
       setIsLoggingOut(false);
@@ -705,31 +869,52 @@ export function SettingsScreen({
   };
 
   // Handle sync for individual follow set
-  const handleSyncFollowSet = async (followSet: FollowSet) => {
-    if (!userNpub) return;
+  const handleSyncFollowSet = useCallback(
+    async (_followSet: FollowSet) => {
+      if (!userNpub) return;
 
-    try {
-      const clientService = NostrClientService.getInstance();
-      if (clientService.isReady()) {
-        const client = clientService.getClient();
-        const session = clientService.getCurrentSession();
-        const userFollowSets = await listService.fetchUserFollowSets(
-          client,
-          userNpub,
-          session?.type
-        );
-        
-        // Update the follow sets list
-        setFollowSets(userFollowSets);
-        console.log('SettingsScreen: Synced follow sets successfully');
-      } else {
-        console.log('SettingsScreen: Client not ready, skipping sync');
+      try {
+        const clientService = NostrClientService.getInstance();
+        if (clientService.isReady()) {
+          const client = clientService.getClient();
+          const session = clientService.getCurrentSession();
+
+          // Fetch data without any state updates first
+          const userFollowSets = await listService.fetchUserFollowSets(
+            client,
+            userNpub,
+            session?.type
+          );
+
+          // Save to storage
+          await FollowSetsStorageService.saveFollowSets(
+            userFollowSets,
+            userNpub
+          );
+
+          // Fetch profiles (now safe from Hermes errors)
+          await followSetProfileService.fetchAndStoreProfilesForFollowSets(
+            client,
+            userFollowSets,
+            userNpub
+          );
+
+          // Use setTimeout instead of requestAnimationFrame for better isolation
+          setTimeout(() => {
+            try {
+              setFollowSets(userFollowSets);
+            } catch {
+              // State update failed, reload from storage
+              loadFollowSets();
+            }
+          }, 250);
+        }
+      } catch {
+        // Handle error silently
       }
-    } catch (error) {
-      console.error('SettingsScreen: Failed to sync follow sets:', error);
-      // Don't throw error - sync failure should be silent
-    }
-  };
+    },
+    [userNpub, listService, followSetProfileService, loadFollowSets]
+  );
 
   return (
     <SafeAreaView style={styles.container}>

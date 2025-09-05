@@ -1,5 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, memo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import type { FollowSet } from '../../services/ListService';
 import { PrivatePill } from './PrivatePill';
 
@@ -12,7 +19,7 @@ interface FollowSetItemProps {
   isActive: boolean;
 }
 
-export function FollowSetItem({
+export const FollowSetItem = memo(function FollowSetItem({
   followSet,
   onEdit,
   onDelete,
@@ -23,7 +30,7 @@ export function FollowSetItem({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isMainFollowing = followSet.identifier === 'Following';
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     Alert.alert(
       'Delete Follow Set',
       `Are you sure you want to delete "${followSet.identifier}"? This action cannot be undone.`,
@@ -36,29 +43,38 @@ export function FollowSetItem({
         },
       ]
     );
-  };
+  }, [followSet, onDelete]);
 
-  const handleSync = async () => {
-    if (!onSync) return;
+  const handleSync = useCallback(async () => {
+    if (!onSync || isRefreshing) return;
 
     setIsRefreshing(true);
     try {
       await onSync(followSet);
+      // Add a brief delay before re-enabling
+      setTimeout(() => setIsRefreshing(false), 500);
     } catch {
-      // Silently handle errors - list will remain unchanged
-    } finally {
+      // Silently handle errors
       setIsRefreshing(false);
     }
-  };
+  }, [onSync, followSet, isRefreshing]);
 
-  const formatDate = (timestamp: number) => {
+  const handleSetAsActive = useCallback(() => {
+    onSetAsActive(followSet);
+  }, [onSetAsActive, followSet]);
+
+  const handleEdit = useCallback(() => {
+    onEdit(followSet);
+  }, [onEdit, followSet]);
+
+  const formatDate = useCallback((timestamp: number) => {
     const date = new Date(timestamp * 1000);
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
-  };
+  }, []);
 
   return (
     <View style={[styles.container, isActive && styles.activeContainer]}>
@@ -121,7 +137,7 @@ export function FollowSetItem({
           {!isActive && (
             <TouchableOpacity
               style={styles.setActiveButton}
-              onPress={() => onSetAsActive(followSet)}
+              onPress={handleSetAsActive}
             >
               <Text style={styles.setActiveButtonText}>Set Active</Text>
             </TouchableOpacity>
@@ -130,10 +146,7 @@ export function FollowSetItem({
 
         <View style={styles.buttonRow}>
           {!isMainFollowing && (
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => onEdit(followSet)}
-            >
+            <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           )}
@@ -160,7 +173,7 @@ export function FollowSetItem({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
