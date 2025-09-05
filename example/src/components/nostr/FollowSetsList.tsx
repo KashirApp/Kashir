@@ -17,6 +17,7 @@ interface FollowSetsListProps {
   onDelete: (followSet: FollowSet) => void;
   onCreateNew: () => void;
   onSetAsActive: (followSet: FollowSet) => void;
+  onSync?: (followSet: FollowSet) => Promise<void>;
   activeFollowSetEventId: string | null;
 }
 
@@ -27,6 +28,7 @@ export function FollowSetsList({
   onDelete,
   onCreateNew,
   onSetAsActive,
+  onSync,
   activeFollowSetEventId,
 }: FollowSetsListProps) {
   if (isLoading) {
@@ -92,6 +94,7 @@ export function FollowSetsList({
             onEdit={onEdit}
             onDelete={onDelete}
             onSetAsActive={onSetAsActive}
+            onSync={onSync}
             isActive={
               followSet.eventId === activeFollowSetEventId ||
               (followSet.identifier === 'Following' &&

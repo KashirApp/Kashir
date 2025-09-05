@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import type { FollowSet } from '../../services/ListService';
 import { PrivatePill } from './PrivatePill';
 
@@ -8,6 +8,7 @@ interface FollowSetItemProps {
   onEdit: (followSet: FollowSet) => void;
   onDelete: (followSet: FollowSet) => void;
   onSetAsActive: (followSet: FollowSet) => void;
+  onSync?: (followSet: FollowSet) => Promise<void>;
   isActive: boolean;
 }
 
@@ -16,8 +17,10 @@ export function FollowSetItem({
   onEdit,
   onDelete,
   onSetAsActive,
+  onSync,
   isActive,
 }: FollowSetItemProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const isMainFollowing = followSet.identifier === 'Following';
 
   const handleDelete = () => {
@@ -33,6 +36,19 @@ export function FollowSetItem({
         },
       ]
     );
+  };
+
+  const handleSync = async () => {
+    if (!onSync) return;
+
+    setIsRefreshing(true);
+    try {
+      await onSync(followSet);
+    } catch {
+      // Silently handle errors - list will remain unchanged
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const formatDate = (timestamp: number) => {
@@ -89,6 +105,19 @@ export function FollowSetItem({
 
       <View style={styles.actions}>
         <View style={styles.buttonRow}>
+          {onSync && (
+            <TouchableOpacity
+              onPress={handleSync}
+              style={styles.syncButton}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.syncButtonText}>Sync</Text>
+              )}
+            </TouchableOpacity>
+          )}
           {!isActive && (
             <TouchableOpacity
               style={styles.setActiveButton}
@@ -97,6 +126,9 @@ export function FollowSetItem({
               <Text style={styles.setActiveButtonText}>Set Active</Text>
             </TouchableOpacity>
           )}
+        </View>
+
+        <View style={styles.buttonRow}>
           {!isMainFollowing && (
             <TouchableOpacity
               style={styles.editButton}
@@ -105,9 +137,7 @@ export function FollowSetItem({
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           )}
-        </View>
-        {!isMainFollowing && (
-          <View style={styles.buttonRow}>
+          {!isMainFollowing && (
             <TouchableOpacity
               style={[
                 styles.deleteButton,
@@ -125,8 +155,8 @@ export function FollowSetItem({
                 Delete
               </Text>
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
       </View>
     </View>
   );
@@ -198,6 +228,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  syncButton: {
+    backgroundColor: '#28a745',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  syncButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
   },
   setActiveButton: {
     paddingHorizontal: 12,

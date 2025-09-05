@@ -704,6 +704,33 @@ export function SettingsScreen({
     setEditingFollowSet(undefined);
   };
 
+  // Handle sync for individual follow set
+  const handleSyncFollowSet = async (followSet: FollowSet) => {
+    if (!userNpub) return;
+
+    try {
+      const clientService = NostrClientService.getInstance();
+      if (clientService.isReady()) {
+        const client = clientService.getClient();
+        const session = clientService.getCurrentSession();
+        const userFollowSets = await listService.fetchUserFollowSets(
+          client,
+          userNpub,
+          session?.type
+        );
+        
+        // Update the follow sets list
+        setFollowSets(userFollowSets);
+        console.log('SettingsScreen: Synced follow sets successfully');
+      } else {
+        console.log('SettingsScreen: Client not ready, skipping sync');
+      }
+    } catch (error) {
+      console.error('SettingsScreen: Failed to sync follow sets:', error);
+      // Don't throw error - sync failure should be silent
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -751,6 +778,7 @@ export function SettingsScreen({
                 onDelete={handleDeleteFollowSet}
                 onCreateNew={handleCreateFollowSet}
                 onSetAsActive={handleSetAsActive}
+                onSync={handleSyncFollowSet}
                 activeFollowSetEventId={activeFollowSetEventId}
               />
             </View>
