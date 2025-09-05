@@ -1,6 +1,6 @@
 {
   "name": "kashir",
-  "version": "0.0.30",
+  "version": "0.0.31",
   "description": "Kashir - Nostr client with built-in Cashu wallet",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
