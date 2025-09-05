@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Modal,
   View,
@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { PublicKey, PublicKeyInterface } from 'kashir';
 import type { FollowSet } from '../../services/ListService';
@@ -18,6 +19,7 @@ import type { StoredUser } from '../../services/FollowSetsStorageService';
 interface FollowSetModalProps {
   visible: boolean;
   followSet?: FollowSet; // If provided, we're editing; otherwise creating new
+  followSets: FollowSet[]; // All follow sets to access Following list
   userNpub: string; // Current user's npub for loading profiles
   onClose: () => void;
   onSave: (
@@ -30,6 +32,7 @@ interface FollowSetModalProps {
 export function FollowSetModal({
   visible,
   followSet,
+  followSets,
   userNpub,
   onClose,
   onSave,
@@ -44,6 +47,36 @@ export function FollowSetModal({
   const [userProfiles, setUserProfiles] = useState<Record<string, StoredUser>>(
     {}
   );
+  const [showUserSelector, setShowUserSelector] = useState(false);
+  const [followingUsers, setFollowingUsers] = useState<
+    { key: PublicKeyInterface; profile?: StoredUser }[]
+  >([]);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+
+  // Animation for user selector overlay
+  useEffect(() => {
+    if (showUserSelector) {
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showUserSelector, overlayOpacity]);
+
+  const openUserSelector = useCallback(() => {
+    setShowUserSelector(true);
+  }, []);
+
+  const closeUserSelector = useCallback(() => {
+    setShowUserSelector(false);
+  }, []);
 
   const isEditing = !!followSet;
 
@@ -73,6 +106,48 @@ export function FollowSetModal({
     [userNpub]
   );
 
+  // Load users from Following list for selection
+  const loadFollowingUsers = useCallback(async () => {
+    const followingSet = followSets.find(
+      (set) => set.identifier === 'Following'
+    );
+
+    if (!followingSet || !followingSet.publicKeys?.length) {
+      setFollowingUsers([]);
+      return;
+    }
+
+    const profileService = FollowSetProfileService.getInstance();
+    const users: { key: PublicKeyInterface; profile?: StoredUser }[] = [];
+
+    // Load profiles for all following users
+    for (const pk of followingSet.publicKeys) {
+      try {
+        const hexPubkey = pk.toHex();
+        const profile = await profileService.getStoredProfile(
+          hexPubkey,
+          userNpub
+        );
+        users.push({ key: pk, profile });
+      } catch {
+        // Add without profile if loading fails
+        users.push({ key: pk });
+      }
+    }
+
+    // Sort by username (with profiles first)
+    users.sort((a, b) => {
+      if (a.profile?.username && b.profile?.username) {
+        return a.profile.username.localeCompare(b.profile.username);
+      }
+      if (a.profile?.username && !b.profile?.username) return -1;
+      if (!a.profile?.username && b.profile?.username) return 1;
+      return 0;
+    });
+
+    setFollowingUsers(users);
+  }, [followSets, userNpub]);
+
   // Initialize modal state when it opens or when followSet changes
   useEffect(() => {
     if (visible) {
@@ -100,11 +175,15 @@ export function FollowSetModal({
         setPublicKeyInput('');
         setAddingToPrivate(false);
         setInputError('');
+        setShowUserSelector(false);
+
+        // Load following users for selection
+        await loadFollowingUsers();
       };
 
       initializeModal();
     }
-  }, [visible, followSet, userNpub, loadUserProfiles]);
+  }, [visible, followSet, userNpub, loadUserProfiles, loadFollowingUsers]);
 
   const handleAddPublicKey = () => {
     const input = publicKeyInput.trim();
@@ -160,6 +239,77 @@ export function FollowSetModal({
       setInputError(
         'Invalid public key. Use npub1... format or 64-character hex string'
       );
+    }
+  };
+
+  const handleSelectUser = (selectedUser: {
+    key: PublicKeyInterface;
+    profile?: StoredUser;
+  }) => {
+    const targetArray = addingToPrivate ? privateKeys : publicKeys;
+    const otherArray = addingToPrivate ? publicKeys : privateKeys;
+
+    // Check if already in either list
+    const alreadyInTarget = targetArray.some(
+      (pk) => pk.toHex() === selectedUser.key.toHex()
+    );
+    const alreadyInOther = otherArray.some(
+      (pk) => pk.toHex() === selectedUser.key.toHex()
+    );
+
+    if (alreadyInTarget) {
+      setInputError(
+        `This user is already in the ${addingToPrivate ? 'private' : 'public'} list`
+      );
+      return;
+    }
+
+    if (alreadyInOther) {
+      setInputError(
+        `This user is already in the ${addingToPrivate ? 'public' : 'private'} list`
+      );
+      return;
+    }
+
+    // Add user to appropriate list
+    if (addingToPrivate) {
+      setPrivateKeys((prev) => [...prev, selectedUser.key]);
+    } else {
+      setPublicKeys((prev) => [...prev, selectedUser.key]);
+    }
+
+    // Update user profiles if we have profile data
+    if (selectedUser.profile) {
+      const hexPubkey = selectedUser.key.toHex();
+      setUserProfiles((prev) => ({
+        ...prev,
+        [hexPubkey]: selectedUser.profile!,
+      }));
+    }
+
+    closeUserSelector();
+    setInputError('');
+  };
+
+  const getDisplayNameForUser = (user: {
+    key: PublicKeyInterface;
+    profile?: StoredUser;
+  }): string => {
+    if (user.profile?.username) {
+      return user.profile.username;
+    }
+
+    // Fallback to truncated npub
+    try {
+      const npub = user.key.toBech32();
+      if (npub.length > 16) {
+        return `${npub.substring(0, 8)}...${npub.substring(npub.length - 8)}`;
+      }
+      return npub;
+    } catch {
+      // Fallback to truncated hex if bech32 fails
+      const hex = user.key.toHex();
+      return `${hex.substring(0, 8)}...${hex.substring(hex.length - 8)}`;
     }
   };
 
@@ -227,196 +377,284 @@ export function FollowSetModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="formSheet"
-    >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} disabled={isSaving}>
-            <Text style={[styles.cancelText, isSaving && styles.disabledText]}>
-              Cancel
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose} disabled={isSaving}>
+              <Text
+                style={[styles.cancelText, isSaving && styles.disabledText]}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.title}>
+              {isEditing ? 'Edit Follow Set' : 'New Follow Set'}
             </Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>
-            {isEditing ? 'Edit Follow Set' : 'New Follow Set'}
-          </Text>
-          <TouchableOpacity onPress={handleSave} disabled={isSaving}>
-            <Text style={[styles.saveText, isSaving && styles.disabledText]}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Follow Set Name</Text>
-            <TextInput
-              style={styles.textInput}
-              value={identifier}
-              onChangeText={setIdentifier}
-              placeholder="e.g., Bitcoin Developers, Close Friends, etc."
-              placeholderTextColor="#666"
-              editable={!isSaving}
-              maxLength={50}
-            />
+            <TouchableOpacity onPress={handleSave} disabled={isSaving}>
+              <Text style={[styles.saveText, isSaving && styles.disabledText]}>
+                {isSaving ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Add Users</Text>
-            <Text style={styles.sectionSubtitle}>
-              Enter npub1... addresses or hex public keys
-            </Text>
-
-            <View style={styles.addModeToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  !addingToPrivate && styles.toggleButtonActive,
-                ]}
-                onPress={() => setAddingToPrivate(false)}
-                disabled={isSaving}
-              >
-                <Text
-                  style={[
-                    styles.toggleButtonText,
-                    !addingToPrivate && styles.toggleButtonTextActive,
-                  ]}
-                >
-                  Add Public
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  addingToPrivate && styles.toggleButtonActive,
-                ]}
-                onPress={() => setAddingToPrivate(true)}
-                disabled={isSaving}
-              >
-                <Text
-                  style={[
-                    styles.toggleButtonText,
-                    addingToPrivate && styles.toggleButtonTextActive,
-                  ]}
-                >
-                  Add Private
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputContainer}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Follow Set Name</Text>
               <TextInput
-                style={styles.publicKeyInput}
-                value={publicKeyInput}
-                onChangeText={setPublicKeyInput}
-                placeholder={`${addingToPrivate ? 'Private' : 'Public'} user: npub1... or hex public key`}
+                style={styles.textInput}
+                value={identifier}
+                onChangeText={setIdentifier}
+                placeholder="e.g., Bitcoin Developers, Close Friends, etc."
                 placeholderTextColor="#666"
-                multiline={true}
                 editable={!isSaving}
-                autoCapitalize="none"
-                autoCorrect={false}
-                onSubmitEditing={handleAddPublicKey}
+                maxLength={50}
               />
-              <TouchableOpacity
-                style={[
-                  styles.addButton,
-                  addingToPrivate && styles.addButtonPrivate,
-                ]}
-                onPress={handleAddPublicKey}
-                disabled={isSaving || !publicKeyInput.trim()}
-              >
-                <Text style={styles.addButtonText}>Add</Text>
-              </TouchableOpacity>
             </View>
 
-            {inputError ? (
-              <Text style={styles.errorText}>{inputError}</Text>
-            ) : null}
-          </View>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Add Users</Text>
+              <Text style={styles.sectionSubtitle}>
+                Enter npub1... addresses or hex public keys
+              </Text>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Public Users ({publicKeys.length})
-            </Text>
-
-            {publicKeys.length === 0 ? (
-              <View style={styles.emptyUsers}>
-                <Text style={styles.emptyUsersText}>
-                  No public users added yet
-                </Text>
+              <View style={styles.addModeToggle}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    !addingToPrivate && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setAddingToPrivate(false)}
+                  disabled={isSaving}
+                >
+                  <Text
+                    style={[
+                      styles.toggleButtonText,
+                      !addingToPrivate && styles.toggleButtonTextActive,
+                    ]}
+                  >
+                    Add Public
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    addingToPrivate && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setAddingToPrivate(true)}
+                  disabled={isSaving}
+                >
+                  <Text
+                    style={[
+                      styles.toggleButtonText,
+                      addingToPrivate && styles.toggleButtonTextActive,
+                    ]}
+                  >
+                    Add Private
+                  </Text>
+                </TouchableOpacity>
               </View>
-            ) : (
-              <View style={styles.usersList}>
-                {publicKeys.map((publicKey, index) => (
-                  <View key={index} style={styles.userItem}>
-                    <Text style={styles.userKey} numberOfLines={1}>
-                      {formatPublicKey(publicKey)}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => handleRemovePublicKey(publicKey)}
-                      disabled={isSaving}
-                      style={styles.removeButton}
-                    >
-                      <Text style={styles.removeButtonText}>Remove</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
+
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.publicKeyInput}
+                  value={publicKeyInput}
+                  onChangeText={setPublicKeyInput}
+                  placeholder={`${addingToPrivate ? 'Private' : 'Public'} user: npub1... or hex public key`}
+                  placeholderTextColor="#666"
+                  multiline={true}
+                  editable={!isSaving}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onSubmitEditing={handleAddPublicKey}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.selectUserButton,
+                    (isSaving || followingUsers.length === 0) &&
+                      styles.selectUserButtonDisabled,
+                  ]}
+                  onPress={openUserSelector}
+                  disabled={isSaving}
+                >
+                  <Text
+                    style={[
+                      styles.selectUserButtonText,
+                      followingUsers.length === 0 &&
+                        styles.selectUserButtonTextDisabled,
+                    ]}
+                  >
+                    {followingUsers.length === 0 ? 'Loading...' : 'Select'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.addButton,
+                    addingToPrivate && styles.addButtonPrivate,
+                  ]}
+                  onPress={handleAddPublicKey}
+                  disabled={isSaving || !publicKeyInput.trim()}
+                >
+                  <Text style={styles.addButtonText}>Add</Text>
+                </TouchableOpacity>
               </View>
-            )}
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Private Users ({privateKeys.length})
-            </Text>
+              {inputError ? (
+                <Text style={styles.errorText}>{inputError}</Text>
+              ) : null}
+            </View>
 
-            {privateKeys.length === 0 ? (
-              <View style={styles.emptyUsers}>
-                <Text style={styles.emptyUsersText}>
-                  No private users added yet
-                </Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Public Users ({publicKeys.length})
+              </Text>
+
+              {publicKeys.length === 0 ? (
+                <View style={styles.emptyUsers}>
+                  <Text style={styles.emptyUsersText}>
+                    No public users added yet
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.usersList}>
+                  {publicKeys.map((publicKey, index) => (
+                    <View key={index} style={styles.userItem}>
+                      <Text style={styles.userKey} numberOfLines={1}>
+                        {formatPublicKey(publicKey)}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => handleRemovePublicKey(publicKey)}
+                        disabled={isSaving}
+                        style={styles.removeButton}
+                      >
+                        <Text style={styles.removeButtonText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Private Users ({privateKeys.length})
+              </Text>
+
+              {privateKeys.length === 0 ? (
+                <View style={styles.emptyUsers}>
+                  <Text style={styles.emptyUsersText}>
+                    No private users added yet
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.usersList}>
+                  {privateKeys.map((publicKey, index) => (
+                    <View key={index} style={styles.userItem}>
+                      <Text style={styles.userKey} numberOfLines={1}>
+                        {formatPublicKey(publicKey)}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => handleRemovePrivateKey(publicKey)}
+                        disabled={isSaving}
+                        style={styles.removeButton}
+                      >
+                        <Text style={styles.removeButtonText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.helpSection}>
+              <Text style={styles.helpText}>
+                Follow sets are stored on the Nostr network and can be used by
+                compatible clients to organize your timeline. Private users are
+                encrypted and only visible to you.
+              </Text>
+            </View>
+          </ScrollView>
+
+          {isSaving && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#81b0ff" />
+              <Text style={styles.loadingText}>
+                {isEditing
+                  ? 'Updating follow set...'
+                  : 'Creating follow set...'}
+              </Text>
+            </View>
+          )}
+
+          {/* User Selection Overlay */}
+          {showUserSelector && (
+            <Animated.View
+              style={[styles.userSelectorOverlay, { opacity: overlayOpacity }]}
+            >
+              <View style={styles.userSelectorModal}>
+                <View style={styles.userSelectorHeader}>
+                  <Text style={styles.userSelectorTitle}>
+                    Select from Following ({followingUsers.length} users)
+                  </Text>
+                  <TouchableOpacity
+                    onPress={closeUserSelector}
+                    style={styles.userSelectorCloseButton}
+                  >
+                    <Text style={styles.userSelectorCloseText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  style={styles.userSelectorList}
+                  contentContainerStyle={styles.userSelectorListContent}
+                  showsVerticalScrollIndicator={true}
+                >
+                  {followingUsers.length > 0 ? (
+                    followingUsers.map((user, index) => {
+                      return (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.userSelectorItem}
+                          onPress={() => handleSelectUser(user)}
+                        >
+                          <Text
+                            style={styles.userSelectorItemText}
+                            numberOfLines={1}
+                          >
+                            {getDisplayNameForUser(user)}
+                          </Text>
+                          {user.profile?.username && (
+                            <Text
+                              style={styles.userSelectorItemSubtext}
+                              numberOfLines={2}
+                            >
+                              {user.key.toBech32()}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })
+                  ) : (
+                    <View style={styles.emptyFollowingUsers}>
+                      <Text style={styles.emptyFollowingUsersText}>
+                        Loading users from Following list...
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
               </View>
-            ) : (
-              <View style={styles.usersList}>
-                {privateKeys.map((publicKey, index) => (
-                  <View key={index} style={styles.userItem}>
-                    <Text style={styles.userKey} numberOfLines={1}>
-                      {formatPublicKey(publicKey)}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => handleRemovePrivateKey(publicKey)}
-                      disabled={isSaving}
-                      style={styles.removeButton}
-                    >
-                      <Text style={styles.removeButtonText}>Remove</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-
-          <View style={styles.helpSection}>
-            <Text style={styles.helpText}>
-              Follow sets are stored on the Nostr network and can be used by
-              compatible clients to organize your timeline. Private users are
-              encrypted and only visible to you.
-            </Text>
-          </View>
-        </ScrollView>
-
-        {isSaving && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#81b0ff" />
-            <Text style={styles.loadingText}>
-              {isEditing ? 'Updating follow set...' : 'Creating follow set...'}
-            </Text>
-          </View>
-        )}
-      </View>
-    </Modal>
+            </Animated.View>
+          )}
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -625,5 +863,109 @@ const styles = StyleSheet.create({
   },
   addButtonPrivate: {
     backgroundColor: '#6366f1',
+  },
+  selectUserButton: {
+    backgroundColor: '#4a5568',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 45,
+  },
+  selectUserButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  selectUserButtonDisabled: {
+    backgroundColor: '#2a2a2a',
+    opacity: 0.5,
+  },
+  selectUserButtonTextDisabled: {
+    color: '#666',
+  },
+  userSelectorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  userSelectorModal: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    width: '100%',
+    maxHeight: '70%',
+    height: '70%',
+    borderWidth: 1,
+    borderColor: '#444',
+    flexDirection: 'column',
+  },
+  userSelectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  userSelectorTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  userSelectorCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userSelectorCloseText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  userSelectorList: {
+    flex: 1,
+    paddingHorizontal: 16,
+    backgroundColor: '#1a1a1a',
+  },
+  userSelectorListContent: {
+    paddingVertical: 8,
+    flexGrow: 1,
+  },
+  userSelectorItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    backgroundColor: '#2a2a2a',
+    marginVertical: 1,
+    borderRadius: 4,
+  },
+  userSelectorItemText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  userSelectorItemSubtext: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 2,
+    fontFamily: 'monospace',
+  },
+  emptyFollowingUsers: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyFollowingUsersText: {
+    color: '#666',
+    fontSize: 14,
+    fontStyle: 'italic',
   },
 });
