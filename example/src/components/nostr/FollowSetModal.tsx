@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -12,10 +12,13 @@ import {
 } from 'react-native';
 import { PublicKey, PublicKeyInterface } from 'kashir';
 import type { FollowSet } from '../../services/ListService';
+import { FollowSetProfileService } from '../../services/FollowSetProfileService';
+import type { StoredUser } from '../../services/FollowSetsStorageService';
 
 interface FollowSetModalProps {
   visible: boolean;
   followSet?: FollowSet; // If provided, we're editing; otherwise creating new
+  userNpub: string; // Current user's npub for loading profiles
   onClose: () => void;
   onSave: (
     identifier: string,
@@ -27,6 +30,7 @@ interface FollowSetModalProps {
 export function FollowSetModal({
   visible,
   followSet,
+  userNpub,
   onClose,
   onSave,
 }: FollowSetModalProps) {
@@ -37,28 +41,70 @@ export function FollowSetModal({
   const [addingToPrivate, setAddingToPrivate] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [inputError, setInputError] = useState('');
+  const [userProfiles, setUserProfiles] = useState<Record<string, StoredUser>>(
+    {}
+  );
 
   const isEditing = !!followSet;
+
+  // Load user profiles for display names
+  const loadUserProfiles = useCallback(
+    async (keys: PublicKeyInterface[]) => {
+      const profileService = FollowSetProfileService.getInstance();
+      const profiles: Record<string, StoredUser> = {};
+
+      for (const pk of keys) {
+        try {
+          const hexPubkey = pk.toHex();
+          const profile = await profileService.getStoredProfile(
+            hexPubkey,
+            userNpub
+          );
+          if (profile) {
+            profiles[hexPubkey] = profile;
+          }
+        } catch {
+          // Skip failed profile loads
+        }
+      }
+
+      return profiles;
+    },
+    [userNpub]
+  );
 
   // Initialize modal state when it opens or when followSet changes
   useEffect(() => {
     if (visible) {
-      if (followSet) {
-        // Editing existing follow set
-        setIdentifier(followSet.identifier);
-        setPublicKeys([...followSet.publicKeys]);
-        setPrivateKeys([...(followSet.privateKeys || [])]);
-      } else {
-        // Creating new follow set
-        setIdentifier('');
-        setPublicKeys([]);
-        setPrivateKeys([]);
-      }
-      setPublicKeyInput('');
-      setAddingToPrivate(false);
-      setInputError('');
+      const initializeModal = async () => {
+        if (followSet) {
+          // Editing existing follow set
+          setIdentifier(followSet.identifier);
+          setPublicKeys([...followSet.publicKeys]);
+          setPrivateKeys([...(followSet.privateKeys || [])]);
+
+          // Load user profiles for both public and private keys
+          const allKeys = [
+            ...followSet.publicKeys,
+            ...(followSet.privateKeys || []),
+          ];
+          const profiles = await loadUserProfiles(allKeys);
+          setUserProfiles(profiles);
+        } else {
+          // Creating new follow set
+          setIdentifier('');
+          setPublicKeys([]);
+          setPrivateKeys([]);
+          setUserProfiles({});
+        }
+        setPublicKeyInput('');
+        setAddingToPrivate(false);
+        setInputError('');
+      };
+
+      initializeModal();
     }
-  }, [visible, followSet]);
+  }, [visible, followSet, userNpub, loadUserProfiles]);
 
   const handleAddPublicKey = () => {
     const input = publicKeyInput.trim();
@@ -160,9 +206,21 @@ export function FollowSetModal({
 
   const formatPublicKey = (publicKey: PublicKeyInterface): string => {
     try {
-      return publicKey.toBech32();
+      const hexPubkey = publicKey.toHex();
+      const profile = userProfiles[hexPubkey];
+
+      if (profile?.username) {
+        return profile.username;
+      }
+
+      // Fallback to truncated npub
+      const npub = publicKey.toBech32();
+      if (npub.length > 16) {
+        return `${npub.substring(0, 8)}...${npub.substring(npub.length - 8)}`;
+      }
+      return npub;
     } catch {
-      // Fallback to hex if bech32 fails
+      // Fallback to truncated hex if bech32 fails
       const hex = publicKey.toHex();
       return `${hex.substring(0, 8)}...${hex.substring(hex.length - 8)}`;
     }

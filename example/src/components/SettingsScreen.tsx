@@ -1084,6 +1084,7 @@ export function SettingsScreen({
       <FollowSetModal
         visible={showFollowSetModal}
         followSet={editingFollowSet}
+        userNpub={userNpub!}
         onClose={handleFollowSetModalClose}
         onSave={handleSaveFollowSet}
       />
