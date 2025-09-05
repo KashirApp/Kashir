@@ -117,7 +117,6 @@ export function SettingsScreen({
         );
       }
     });
-
     return publicKeys;
   };
 
@@ -235,15 +234,14 @@ export function SettingsScreen({
           };
         }) as FollowSet[];
 
-        setTimeout(() => {
-          try {
-            setFollowSets(followSetsFromStorage);
-            setHasLoadedFollowSets(true);
-          } catch (stateError) {
-            console.error('SettingsScreen: State update failed:', stateError);
-            setFollowSets([]);
-          }
-        }, 100);
+        // Update state immediately instead of using setTimeout
+        try {
+          setFollowSets(followSetsFromStorage);
+          setHasLoadedFollowSets(true);
+        } catch (stateError) {
+          console.error('SettingsScreen: State update failed:', stateError);
+          setFollowSets([]);
+        }
 
         const hasMainFollowing = storedSets.some(
           (set) => set.identifier === 'Following'
@@ -781,7 +779,7 @@ export function SettingsScreen({
 
       let success;
       if (editingFollowSet) {
-        // Updating existing follow set - for now we'll use the mixed method if we have private keys
+        // Updating existing follow set - create new version (Nostr handles replacement automatically)
         if (privateKeys && privateKeys.length > 0) {
           success = await listService.createMixedFollowSet(
             client,
@@ -791,12 +789,17 @@ export function SettingsScreen({
             privateKeys
           );
         } else {
-          success = await listService.updateFollowSet(
+          success = await listService.createFollowSet(
             client,
             session.type,
             identifier,
             publicKeys
           );
+        }
+
+        if (success) {
+          // Refresh follow sets from network to ensure we have the latest data
+          await fetchAllFollowSetsFromNetwork();
         }
       } else {
         // Creating new follow set
@@ -816,15 +819,63 @@ export function SettingsScreen({
             publicKeys
           );
         }
+
+        if (success) {
+          // Refresh follow sets from network to ensure we have the latest data
+          await fetchAllFollowSetsFromNetwork();
+        }
       }
 
       if (success) {
+        // Auto-sync to fetch profiles for newly added users BEFORE showing success
+        if (userNpub) {
+          try {
+            const syncClientService = NostrClientService.getInstance();
+            if (syncClientService.isReady()) {
+              const syncClient = syncClientService.getClient();
+              const syncProfileService = FollowSetProfileService.getInstance();
+
+              // Find the saved follow set and sync its profiles
+              const updatedFollowSets =
+                await FollowSetsStorageService.loadFollowSets(userNpub);
+              const targetSet = updatedFollowSets.find(
+                (set) => set.identifier === identifier
+              );
+
+              if (targetSet) {
+                // Convert stored follow set back to FollowSet format for profile syncing
+                const followSetForSync: FollowSet = {
+                  identifier: targetSet.identifier,
+                  eventId: targetSet.eventId,
+                  createdAt: targetSet.createdAt,
+                  isPrivate: targetSet.isPrivate,
+                  publicKeys: targetSet.publicUserIds.map((npub) =>
+                    PublicKey.parse(npub)
+                  ),
+                  privateKeys: targetSet.privateUserIds?.map((npub) =>
+                    PublicKey.parse(npub)
+                  ),
+                };
+
+                // Fetch and store profiles for the follow set
+                await syncProfileService.fetchAndStoreProfilesForFollowSets(
+                  syncClient,
+                  [followSetForSync],
+                  userNpub
+                );
+              }
+            }
+          } catch (error) {
+            console.error('Auto-sync after save failed:', error);
+            // Don't show error to user as this is a background operation
+          }
+        }
+
         Alert.alert(
           'Success',
           `Follow set ${editingFollowSet ? 'updated' : 'created'} successfully`
         );
-        // Refresh the list
-        await loadFollowSets();
+
         return true;
       } else {
         Alert.alert(

@@ -183,7 +183,21 @@ export function FollowSetModal({
 
       initializeModal();
     }
-  }, [visible, followSet, userNpub, loadUserProfiles, loadFollowingUsers]);
+  }, [
+    visible,
+    followSet,
+    followSets,
+    userNpub,
+    loadUserProfiles,
+    loadFollowingUsers,
+  ]);
+
+  // Reload following users when followSets change (e.g., after saving a follow set)
+  useEffect(() => {
+    if (visible && followSets.length > 0) {
+      loadFollowingUsers();
+    }
+  }, [followSets, visible, loadFollowingUsers]);
 
   const handleAddPublicKey = () => {
     const input = publicKeyInput.trim();

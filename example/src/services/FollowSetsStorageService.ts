@@ -67,7 +67,6 @@ export class FollowSetsStorageService {
 
       if (storedSetsJson) {
         const storedSets = JSON.parse(storedSetsJson);
-
         return storedSets;
       }
 
