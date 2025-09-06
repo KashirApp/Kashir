@@ -8,6 +8,7 @@ import type {
 } from 'kashir';
 import AmberService from './AmberService';
 import { createAmberUrl, createAmberErrorMessage } from './AmberUtils';
+import IntentLauncher from './IntentLauncher';
 
 export interface AmberResponse {
   id: string;
@@ -149,7 +150,7 @@ export class AmberSigner implements CustomNostrSigner {
       }
     }
 
-    // Fallback to Amber service for fresh key
+    // Try AmberService (overlay) first, fallback to external ActivityResult
     try {
       const permissions = [
         {
@@ -172,50 +173,42 @@ export class AmberSigner implements CustomNostrSigner {
             return PublicKey.parse(result);
           }
         } catch {
-          // Fallback to URL approach
+          // Fallback to external ActivityResult approach (like Voyage)
         }
       }
 
-      return this.getPublicKeyWithUrl(permissions);
+      return this.getPublicKeyWithActivityResult(permissions);
     } catch (error) {
       console.error('Error getting public key from Amber:', error);
     }
     return undefined;
   }
 
-  private async getPublicKeyWithUrl(
+  private async getPublicKeyWithActivityResult(
     permissions: any[]
   ): Promise<PublicKeyInterface | undefined> {
     try {
-      const requestData = {
-        type: 'get_public_key',
-        permissions: permissions,
-      };
-
-      const amberUrl = createAmberUrl(requestData);
-
-      return new Promise((resolve, reject) => {
-        const id = 'url_' + Math.random().toString(36).substring(7);
-        this.pendingRequests.set(id, { resolve, reject });
-
-        Linking.openURL(amberUrl)
-          .then(() => {
-            // Success
-          })
-          .catch((error) => {
-            this.pendingRequests.delete(id);
-            reject(new Error(createAmberErrorMessage('open Amber', error)));
-          });
-
-        setTimeout(() => {
-          if (this.pendingRequests.has(id)) {
-            this.pendingRequests.delete(id);
-            reject(new Error('Amber request timed out'));
-          }
-        }, 30000);
+      const permissionsJson = JSON.stringify(permissions);
+      
+      const result = await IntentLauncher.startActivity({
+        action: 'android.intent.action.VIEW',
+        data: 'nostrsigner:',
+        extra: {
+          permissions: permissionsJson,
+          type: 'get_public_key',
+        }
       });
+
+      // Extract public key from result - Amber returns it in 'signature' field for get_public_key
+      const npubOrPubkey = result.extra.signature;
+      if (!npubOrPubkey) {
+        throw new Error('No public key received from Amber');
+      }
+
+      this.currentUser = npubOrPubkey;
+      return PublicKey.parse(npubOrPubkey);
     } catch (error) {
-      throw error;
+      throw new Error(createAmberErrorMessage('get public key via ActivityResult', error));
     }
   }
 
