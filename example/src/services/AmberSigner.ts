@@ -303,45 +303,6 @@ export class AmberSigner implements CustomNostrSigner {
   }
 
 
-  async nip44Encrypt(
-    publicKey: PublicKeyInterface,
-    content: string
-  ): Promise<string> {
-    try {
-      if (!this.currentUser) {
-        throw new Error('No user logged in with Amber');
-      }
-
-      const result = await this.makeAmberRequest('nip44_encrypt', {
-        pubkey: publicKey.toHex(),
-        plaintext: content,
-      });
-
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async nip44Decrypt(
-    publicKey: PublicKeyInterface,
-    payload: string
-  ): Promise<string> {
-    try {
-      if (!this.currentUser) {
-        throw new Error('No user logged in with Amber');
-      }
-
-      const result = await this.makeAmberRequest('nip44_decrypt', {
-        pubkey: publicKey.toHex(),
-        ciphertext: payload,
-      });
-
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
 
   getCurrentUser(): string | undefined {
     return this.currentUser;
