@@ -153,12 +153,6 @@ export class AmberSigner implements CustomNostrSigner {
     try {
       const permissions = [
         {
-          type: 'nip04_encrypt',
-        },
-        {
-          type: 'nip04_decrypt',
-        },
-        {
           type: 'sign_event',
           kind: 37818,
         },
@@ -308,45 +302,6 @@ export class AmberSigner implements CustomNostrSigner {
     return undefined;
   }
 
-  async nip04Encrypt(
-    publicKey: PublicKeyInterface,
-    content: string
-  ): Promise<string> {
-    try {
-      if (!this.currentUser) {
-        throw new Error('No user logged in with Amber');
-      }
-
-      const result = await this.makeAmberRequest('nip04_encrypt', {
-        pubkey: publicKey.toHex(),
-        plaintext: content,
-      });
-
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async nip04Decrypt(
-    publicKey: PublicKeyInterface,
-    encryptedContent: string
-  ): Promise<string> {
-    try {
-      if (!this.currentUser) {
-        throw new Error('No user logged in with Amber');
-      }
-
-      const result = await this.makeAmberRequest('nip04_decrypt', {
-        pubkey: publicKey.toHex(),
-        ciphertext: encryptedContent,
-      });
-
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
 
   async nip44Encrypt(
     publicKey: PublicKeyInterface,
