@@ -336,6 +336,7 @@ export function SettingsScreen({
         userNpub!,
         session?.type // Pass the loginType to enable decryption
       );
+
       setFollowSets(userFollowSets);
       setHasLoadedFollowSets(true);
 
@@ -746,8 +747,10 @@ export function SettingsScreen({
 
       if (success) {
         Alert.alert('Success', 'Follow set deleted successfully');
-        // Refresh the list from network to ensure deletion is reflected immediately
-        await fetchAllFollowSetsFromNetwork();
+        // Wait before refreshing from network to allow propagation
+        setTimeout(async () => {
+          await fetchAllFollowSetsFromNetwork();
+        }, 1000);
       } else {
         Alert.alert('Error', 'Failed to delete follow set');
       }
@@ -818,8 +821,10 @@ export function SettingsScreen({
         }
 
         if (success) {
-          // Refresh follow sets from network to ensure we have the latest data
-          await fetchAllFollowSetsFromNetwork();
+          // Wait for network propagation before refreshing
+          setTimeout(async () => {
+            await fetchAllFollowSetsFromNetwork();
+          }, 1000);
         }
       } else {
         // Creating new follow set
@@ -841,8 +846,10 @@ export function SettingsScreen({
         }
 
         if (success) {
-          // Refresh follow sets from network to ensure we have the latest data
-          await fetchAllFollowSetsFromNetwork();
+          // Wait for network propagation before refreshing
+          setTimeout(async () => {
+            await fetchAllFollowSetsFromNetwork();
+          }, 1000);
         }
       }
 
