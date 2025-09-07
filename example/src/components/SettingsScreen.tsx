@@ -746,8 +746,8 @@ export function SettingsScreen({
 
       if (success) {
         Alert.alert('Success', 'Follow set deleted successfully');
-        // Refresh the list
-        await loadFollowSets();
+        // Refresh the list from network to ensure deletion is reflected immediately
+        await fetchAllFollowSetsFromNetwork();
       } else {
         Alert.alert('Error', 'Failed to delete follow set');
       }
