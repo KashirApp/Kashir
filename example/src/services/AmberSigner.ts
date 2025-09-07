@@ -189,14 +189,13 @@ export class AmberSigner implements CustomNostrSigner {
   ): Promise<PublicKeyInterface | undefined> {
     try {
       const permissionsJson = JSON.stringify(permissions);
-      
       const result = await IntentLauncher.startActivity({
         action: 'android.intent.action.VIEW',
         data: 'nostrsigner:',
         extra: {
           permissions: permissionsJson,
           type: 'get_public_key',
-        }
+        },
       });
 
       // Extract public key from result - Amber returns it in 'signature' field for get_public_key
@@ -208,7 +207,9 @@ export class AmberSigner implements CustomNostrSigner {
       this.currentUser = npubOrPubkey;
       return PublicKey.parse(npubOrPubkey);
     } catch (error) {
-      throw new Error(createAmberErrorMessage('get public key via ActivityResult', error));
+      throw new Error(
+        createAmberErrorMessage('get public key via ActivityResult', error)
+      );
     }
   }
 
@@ -294,8 +295,6 @@ export class AmberSigner implements CustomNostrSigner {
     }
     return undefined;
   }
-
-
 
   getCurrentUser(): string | undefined {
     return this.currentUser;
