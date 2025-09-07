@@ -173,7 +173,7 @@ export class AmberSigner implements CustomNostrSigner {
             return PublicKey.parse(result);
           }
         } catch {
-          // Fallback to external ActivityResult approach (like Voyage)
+          // Fallback to external ActivityResult approach
         }
       }
 
@@ -209,6 +209,46 @@ export class AmberSigner implements CustomNostrSigner {
     } catch (error) {
       throw new Error(
         createAmberErrorMessage('get public key via ActivityResult', error)
+      );
+    }
+  }
+
+  private async signEventWithActivityResult(
+    eventJson: string,
+    eventId?: string,
+    currentUser?: string
+  ): Promise<EventInterface | undefined> {
+    try {
+      const result = await IntentLauncher.startActivity({
+        action: 'android.intent.action.VIEW',
+        data: `nostrsigner:${eventJson}`,
+        extra: {
+          type: 'sign_event',
+          id: eventId || '',
+          current_user: currentUser || this.currentUser || '',
+        },
+      });
+
+      // Extract signature from result - Amber returns just the signature for sign_event
+      const signature = result.extra.signature;
+      if (!signature) {
+        throw new Error('No signature received from Amber');
+      }
+
+      // Parse the original event JSON to get event data
+      const eventData = JSON.parse(eventJson);
+
+      // Reconstruct the complete signed event
+      const signedEventData = {
+        id: eventId || '',
+        ...eventData,
+        sig: signature,
+      };
+
+      return Event.fromJson(JSON.stringify(signedEventData));
+    } catch (error) {
+      throw new Error(
+        createAmberErrorMessage('sign event via ActivityResult', error)
       );
     }
   }
@@ -285,10 +325,29 @@ export class AmberSigner implements CustomNostrSigner {
         pubkey: eventData.pubkey,
       });
 
-      const result = await AmberService.signEvent(eventJson, this.currentUser);
-
-      if (result) {
-        return Event.fromJson(result);
+      // Try AmberService (overlay) first, fallback to ActivityResult (external)
+      try {
+        const result = await AmberService.signEvent(
+          eventJson,
+          this.currentUser
+        );
+        if (result) {
+          return Event.fromJson(result);
+        }
+      } catch (overlayError) {
+        // Fallback to ActivityResult approach
+        try {
+          const eventId = unsignedEvent.id()?.toHex();
+          return await this.signEventWithActivityResult(
+            eventJson,
+            eventId,
+            this.currentUser
+          );
+        } catch (activityError) {
+          throw new Error(
+            `Both overlay and external signing failed. Overlay: ${overlayError.message}, External: ${activityError.message}`
+          );
+        }
       }
     } catch (error) {
       throw new Error(createAmberErrorMessage('sign event with Amber', error));
