@@ -1,12 +1,5 @@
-import React, { useState, useCallback, memo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useCallback, memo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import type { FollowSet } from '../../services/ListService';
 import { PrivatePill } from './PrivatePill';
 
@@ -15,7 +8,6 @@ interface FollowSetItemProps {
   onEdit: (followSet: FollowSet) => void;
   onDelete: (followSet: FollowSet) => void;
   onSetAsActive: (followSet: FollowSet) => void;
-  onSync?: (followSet: FollowSet) => Promise<void>;
   isActive: boolean;
 }
 
@@ -24,10 +16,8 @@ export const FollowSetItem = memo(function FollowSetItem({
   onEdit,
   onDelete,
   onSetAsActive,
-  onSync,
   isActive,
 }: FollowSetItemProps) {
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const isMainFollowing = followSet.identifier === 'Following';
 
   const handleDelete = useCallback(() => {
@@ -44,20 +34,6 @@ export const FollowSetItem = memo(function FollowSetItem({
       ]
     );
   }, [followSet, onDelete]);
-
-  const handleSync = useCallback(async () => {
-    if (!onSync || isRefreshing) return;
-
-    setIsRefreshing(true);
-    try {
-      await onSync(followSet);
-      // Add a brief delay before re-enabling
-      setTimeout(() => setIsRefreshing(false), 500);
-    } catch {
-      // Silently handle errors
-      setIsRefreshing(false);
-    }
-  }, [onSync, followSet, isRefreshing]);
 
   const handleSetAsActive = useCallback(() => {
     onSetAsActive(followSet);
@@ -121,19 +97,6 @@ export const FollowSetItem = memo(function FollowSetItem({
 
       <View style={styles.actions}>
         <View style={styles.buttonRow}>
-          {onSync && (
-            <TouchableOpacity
-              onPress={handleSync}
-              style={styles.syncButton}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.syncButtonText}>Sync</Text>
-              )}
-            </TouchableOpacity>
-          )}
           {!isActive && (
             <TouchableOpacity
               style={styles.setActiveButton}
@@ -241,19 +204,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  syncButton: {
-    backgroundColor: '#28a745',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-    minWidth: 50,
-    alignItems: 'center',
-  },
-  syncButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
   },
   setActiveButton: {
     paddingHorizontal: 12,

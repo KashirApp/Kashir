@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ interface FollowSetsListProps {
   onDelete: (followSet: FollowSet) => void;
   onCreateNew: () => void;
   onSetAsActive: (followSet: FollowSet) => void;
-  onSync?: (followSet: FollowSet) => Promise<void>;
+  onSyncAll?: () => Promise<void>;
   activeFollowSetEventId: string | null;
 }
 
@@ -28,9 +28,25 @@ export function FollowSetsList({
   onDelete,
   onCreateNew,
   onSetAsActive,
-  onSync,
+  onSyncAll,
   activeFollowSetEventId,
 }: FollowSetsListProps) {
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncAll = async () => {
+    if (!onSyncAll || isSyncing) return;
+
+    setIsSyncing(true);
+    try {
+      await onSyncAll();
+      // Add a brief delay before re-enabling
+      setTimeout(() => setIsSyncing(false), 500);
+    } catch {
+      // Silently handle errors
+      setIsSyncing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -71,6 +87,19 @@ export function FollowSetsList({
           </Text>
         </View>
         <View style={styles.headerActions}>
+          {onSyncAll && (
+            <TouchableOpacity
+              onPress={handleSyncAll}
+              style={styles.syncButton}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.syncButtonText}>Sync All</Text>
+              )}
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={onCreateNew} style={styles.createButton}>
             <Text style={styles.createButtonText}>Create New</Text>
           </TouchableOpacity>
@@ -94,7 +123,6 @@ export function FollowSetsList({
             onEdit={onEdit}
             onDelete={onDelete}
             onSetAsActive={onSetAsActive}
-            onSync={onSync}
             isActive={
               followSet.eventId === activeFollowSetEventId ||
               (followSet.identifier === 'Following' &&
@@ -184,6 +212,20 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'row',
+    gap: 8,
+  },
+  syncButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#28a745',
+    borderRadius: 6,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  syncButtonText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '500',
   },
   createButton: {
     paddingHorizontal: 16,

@@ -946,53 +946,47 @@ export function SettingsScreen({
     setEditingFollowSet(undefined);
   };
 
-  // Handle sync for individual follow set
-  const handleSyncFollowSet = useCallback(
-    async (_followSet: FollowSet) => {
-      if (!userNpub) return;
+  // Handle sync for all follow sets
+  const handleSyncAllFollowSets = useCallback(async () => {
+    if (!userNpub) return;
 
-      try {
-        const clientService = NostrClientService.getInstance();
-        if (clientService.isReady()) {
-          const client = clientService.getClient();
-          const session = clientService.getCurrentSession();
+    try {
+      const clientService = NostrClientService.getInstance();
+      if (clientService.isReady()) {
+        const client = clientService.getClient();
+        const session = clientService.getCurrentSession();
 
-          // Fetch data without any state updates first
-          const userFollowSets = await listService.fetchUserFollowSets(
-            client,
-            userNpub,
-            session?.type
-          );
+        // Fetch data without any state updates first
+        const userFollowSets = await listService.fetchUserFollowSets(
+          client,
+          userNpub,
+          session?.type
+        );
 
-          // Save to storage
-          await FollowSetsStorageService.saveFollowSets(
-            userFollowSets,
-            userNpub
-          );
+        // Save to storage
+        await FollowSetsStorageService.saveFollowSets(userFollowSets, userNpub);
 
-          // Fetch profiles (now safe from Hermes errors)
-          await followSetProfileService.fetchAndStoreProfilesForFollowSets(
-            client,
-            userFollowSets,
-            userNpub
-          );
+        // Fetch profiles (now safe from Hermes errors)
+        await followSetProfileService.fetchAndStoreProfilesForFollowSets(
+          client,
+          userFollowSets,
+          userNpub
+        );
 
-          // Use setTimeout instead of requestAnimationFrame for better isolation
-          setTimeout(() => {
-            try {
-              setFollowSets(userFollowSets);
-            } catch {
-              // State update failed, reload from storage
-              loadFollowSets();
-            }
-          }, 250);
-        }
-      } catch {
-        // Handle error silently
+        // Use setTimeout instead of requestAnimationFrame for better isolation
+        setTimeout(() => {
+          try {
+            setFollowSets(userFollowSets);
+          } catch {
+            // State update failed, reload from storage
+            loadFollowSets();
+          }
+        }, 250);
       }
-    },
-    [userNpub, listService, followSetProfileService, loadFollowSets]
-  );
+    } catch {
+      // Handle error silently
+    }
+  }, [userNpub, listService, followSetProfileService, loadFollowSets]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1041,7 +1035,7 @@ export function SettingsScreen({
                 onDelete={handleDeleteFollowSet}
                 onCreateNew={handleCreateFollowSet}
                 onSetAsActive={handleSetAsActive}
-                onSync={handleSyncFollowSet}
+                onSyncAll={handleSyncAllFollowSets}
                 activeFollowSetEventId={activeFollowSetEventId}
               />
             </View>
