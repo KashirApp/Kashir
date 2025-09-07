@@ -779,7 +779,27 @@ export function SettingsScreen({
 
       let success;
       if (editingFollowSet) {
-        // Updating existing follow set - create new version (Nostr handles replacement automatically)
+        // Check if the identifier (name) has changed
+        const identifierChanged = editingFollowSet.identifier !== identifier;
+
+        if (identifierChanged) {
+          // If identifier changed, we need to delete the old follow set first
+          // because in NIP-51, the identifier is the unique key ('d' tag)
+          const deleteSuccess = await listService.deleteFollowSet(
+            client,
+            session.type,
+            editingFollowSet.identifier,
+            editingFollowSet.eventId
+          );
+
+          if (!deleteSuccess) {
+            console.warn(
+              'Failed to delete old follow set, proceeding with creation anyway'
+            );
+          }
+        }
+
+        // Create new follow set (or update if identifier didn't change)
         if (privateKeys && privateKeys.length > 0) {
           success = await listService.createMixedFollowSet(
             client,
