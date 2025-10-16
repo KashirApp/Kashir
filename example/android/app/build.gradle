@@ -83,7 +83,7 @@ android {
         applicationId "com.kashir.android"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode Integer.parseInt(System.getenv("VERSION_CODE") ?: "1")
+        versionCode Integer.parseInt(System.getenv("VERSION_CODE") ?: "2")
         versionName "0.0.34"
         
         // Add env variables as build config fields
@@ -99,7 +99,7 @@ android {
         release {
             storeFile file('release.keystore')
             storePassword 'android'
-            keyAlias 'androidreleasekey'
+            keyAlias 'release-key'
             keyPassword 'android'
         }
     }
