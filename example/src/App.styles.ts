@@ -101,9 +101,9 @@ export const styles = StyleSheet.create({
   },
   // Header Styles
   headerContainer: {
-    paddingTop: 10,
     paddingHorizontal: 20,
-    paddingBottom: 5,
+    paddingTop: 0,
+    paddingBottom: 0,
     backgroundColor: '#2a2a2a',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
