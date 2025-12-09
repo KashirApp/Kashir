@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NostrStackParamList } from './NostrNavigator';
 import type { RootStackParamList } from '../App';
-import { PublicKey } from 'kashir';
+import { NostrPublicKey as PublicKey } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { styles } from '../App.styles';
 

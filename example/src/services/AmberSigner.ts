@@ -1,5 +1,5 @@
 import { Linking } from 'react-native';
-import { SignerBackend, PublicKey, Event } from 'kashir';
+import { SignerBackend, NostrPublicKey as PublicKey, Event } from 'kashir';
 import type {
   CustomNostrSigner,
   PublicKeyInterface,

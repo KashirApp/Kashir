@@ -1,4 +1,4 @@
-import { Filter, Kind, PublicKey } from 'kashir';
+import { Filter, Kind, NostrPublicKey as PublicKey } from 'kashir';
 import { NostrClientService } from './NostrClient';
 import { tagsToArray } from './NostrUtils';
 

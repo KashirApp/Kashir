@@ -16,7 +16,7 @@ import { MyCalendarsScreen } from './components/MyCalendarsScreen';
 import { UserPostsScreen } from './components/UserPostsScreen';
 import { NostrClientService, LoginType } from './services/NostrClient';
 import { PostActionService } from './services/PostActionService';
-import { PublicKey } from 'kashir';
+import { NostrPublicKey as PublicKey } from 'kashir';
 import type { MainTabType } from './types';
 import type { CalendarEvent } from './hooks/useEvents';
 import type { Calendar } from './hooks/useCalendars';

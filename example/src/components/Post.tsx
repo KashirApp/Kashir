@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { EventInterface, TimestampInterface } from 'kashir';
-import { PublicKey } from 'kashir';
+import { NostrPublicKey as PublicKey } from 'kashir';
 import { styles } from '../App.styles';
 import { PostActionService } from '../services/PostActionService';
 import { StorageService } from '../services/StorageService';

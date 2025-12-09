@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Client, Filter, Kind } from 'kashir';
+import { Client, Filter, Kind, NostrPublicKey as PublicKey } from 'kashir';
 import type { EventInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { tagsToArray } from '../services/NostrUtils';
@@ -45,7 +45,6 @@ export function useEvents(
 
         // If filtering for my events only and we have a user pubkey, add author filter
         if (myEventsOnly && currentUserPubkey) {
-          const { PublicKey } = require('kashir');
           const authorPubkey = PublicKey.parse(currentUserPubkey);
           eventsFilter = eventsFilter.author(authorPubkey);
         }
@@ -143,7 +142,6 @@ export function useEvents(
               ...new Set(calendarEvents.map((event) => event.pubkey)),
             ];
             const publicKeys = uniquePubkeys.map((pubkey) => {
-              const { PublicKey } = require('kashir');
               return PublicKey.parse(pubkey);
             });
             await profileService.fetchProfilesForPubkeys(client, publicKeys);

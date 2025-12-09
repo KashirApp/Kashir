@@ -40,8 +40,8 @@
   "scripts": {
     "ubrn:ios:nostr": "ubrn build ios --config ubrn.nostr.config.yaml --and-generate",
     "ubrn:ios:cdk": "IPHONEOS_DEPLOYMENT_TARGET=18.0 ubrn build ios --config ubrn.cdk.config.yaml --and-generate",
-    "ubrn:ios": "yarn ubrn:ios:nostr && yarn ubrn:ios:cdk && ./scripts/fix-cpp-bindings.sh && (cd example/ios && pod install)",
-    "ubrn:android": "./scripts/build-android.sh",
+    "ubrn:ios": "yarn ubrn:ios:nostr && yarn ubrn:ios:cdk && ./scripts/fix-cpp-bindings.sh && ./scripts/patch-exports.sh && (cd example/ios && pod install)",
+    "ubrn:android": "./scripts/build-android.sh && ./scripts/patch-exports.sh",
     "ubrn:clean": "rm -Rf cpp/ android/src/main/java ios/ src/Native* src/generated/ src/index.ts* NostrSdkFramework.xcframework CdkFramework.xcframework",
     "example": "yarn workspace kashir-example",
     "test": "jest",

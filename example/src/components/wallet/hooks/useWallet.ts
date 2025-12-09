@@ -3,11 +3,13 @@ import { Alert } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  FfiLocalStore,
-  FfiWallet,
-  FfiCurrencyUnit,
-  FfiMintQuoteState,
-  FfiSplitTarget,
+  Wallet,
+  WalletDbBackend,
+  WalletConfig,
+  createWalletDb,
+  CurrencyUnit,
+  QuoteState,
+  SplitTarget,
   generateMnemonic,
 } from 'kashir';
 import RNFS from 'react-native-fs';
@@ -161,14 +163,20 @@ export function useWallet() {
           if (mnemonic) {
             try {
               const dbPath = getMintDbPath(url);
-              const localStore = FfiLocalStore.newWithPath(dbPath);
-              // Restore wallet from mnemonic
-              FfiWallet.restoreFromMnemonic(
-                url,
-                FfiCurrencyUnit.Sat,
-                localStore,
-                mnemonic
+              const localStore = createWalletDb(
+                WalletDbBackend.Sqlite.new({ path: dbPath })
               );
+              // Initialize wallet database for this mint
+              const walletInstance = new Wallet(
+                url,
+                CurrencyUnit.Sat.new(),
+                mnemonic,
+                localStore,
+                WalletConfig.create({ targetProofCount: undefined })
+              );
+              // Wallet instance created - database is now initialized
+              // Note: This wallet is not stored as only the active wallet is kept in WalletManager
+              walletInstance;
               console.log(`Created wallet instance for mint: ${url}`);
             } catch (error) {
               console.error(`Failed to create wallet for mint ${url}:`, error);
@@ -284,7 +292,9 @@ export function useWallet() {
 
       let localStore;
       try {
-        localStore = FfiLocalStore.newWithPath(dbPath);
+        localStore = createWalletDb(
+          WalletDbBackend.Sqlite.new({ path: dbPath })
+        );
       } catch (storeError) {
         console.error('Failed to open existing wallet database:', storeError);
         return false;
@@ -301,27 +311,29 @@ export function useWallet() {
 
       if (storedSeedPhrase) {
         // Use the stored seed phrase
-        walletInstance = FfiWallet.fromMnemonic(
+        walletInstance = new Wallet(
           urlToUse,
-          FfiCurrencyUnit.Sat,
+          CurrencyUnit.Sat.new(),
+          storedSeedPhrase,
           localStore,
-          storedSeedPhrase
+          WalletConfig.create({ targetProofCount: undefined })
         );
       } else {
         // If no stored seed phrase, try to restore with a temporary one
         // This is for backwards compatibility with wallets created before secure storage
         const tempMnemonic = generateMnemonic();
-        walletInstance = FfiWallet.fromMnemonic(
+        walletInstance = new Wallet(
           urlToUse,
-          FfiCurrencyUnit.Sat,
+          CurrencyUnit.Sat.new(),
+          tempMnemonic,
           localStore,
-          tempMnemonic
+          WalletConfig.create({ targetProofCount: undefined })
         );
       }
 
       try {
         // Try to get balance to verify wallet works
-        const walletBalance = walletInstance.balance();
+        const walletBalance = await walletInstance.totalBalance();
         walletManager.setWallet(walletInstance);
         walletManager.setBalance(walletBalance.value);
 
@@ -421,15 +433,17 @@ export function useWallet() {
       try {
         setModuleStatus('Testing CDK import...');
 
-        if (FfiLocalStore && FfiWallet && FfiCurrencyUnit) {
+        if (Wallet && createWalletDb && WalletDbBackend && CurrencyUnit) {
           setModuleStatus('All CDK components available!');
 
           const cdkModuleImport = {
-            FfiLocalStore,
-            FfiWallet,
-            FfiCurrencyUnit,
-            FfiMintQuoteState,
-            FfiSplitTarget,
+            Wallet,
+            createWalletDb,
+            WalletDbBackend,
+            WalletConfig,
+            CurrencyUnit,
+            QuoteState,
+            SplitTarget,
           };
           setCdkModule(cdkModuleImport);
         } else {
@@ -578,13 +592,15 @@ export function useWallet() {
               let localStore;
               try {
                 const dbPath = getMintDbPath(activeMintUrl);
-                localStore = FfiLocalStore.newWithPath(dbPath);
+                localStore = createWalletDb(
+                  WalletDbBackend.Sqlite.new({ path: dbPath })
+                );
               } catch (storeError) {
-                console.error('FfiLocalStore creation failed:', storeError);
+                console.error('Wallet database creation failed:', storeError);
                 const errorMsg = getErrorMessage(storeError);
 
                 try {
-                  localStore = new FfiLocalStore();
+                  throw new Error('Failed to create wallet database');
                 } catch (fallbackError) {
                   const fallbackErrorMsg = getErrorMessage(fallbackError);
                   setModuleStatus(
@@ -613,11 +629,12 @@ export function useWallet() {
               // Create wallet with the mnemonic after user confirms
               let walletInstance;
               try {
-                walletInstance = FfiWallet.fromMnemonic(
+                walletInstance = new Wallet(
                   activeMintUrl,
-                  FfiCurrencyUnit.Sat,
+                  CurrencyUnit.Sat.new(),
+                  mnemonic,
                   localStore,
-                  mnemonic
+                  WalletConfig.create({ targetProofCount: undefined })
                 );
               } catch (walletCreationError) {
                 console.error('Wallet creation failed:', walletCreationError);
@@ -641,7 +658,7 @@ export function useWallet() {
               }
 
               try {
-                walletInstance.balance();
+                await walletInstance.totalBalance();
               } catch (balanceError) {
                 console.warn(
                   'Initial balance check failed, but continuing:',
@@ -654,7 +671,7 @@ export function useWallet() {
 
               // Try to get balance
               try {
-                const walletBalance = walletInstance.balance();
+                const walletBalance = await walletInstance.totalBalance();
                 walletManager.setBalance(walletBalance.value);
                 setModuleStatus('Wallet created successfully!');
               } catch (balanceError) {
@@ -740,13 +757,15 @@ export function useWallet() {
       let localStore;
       try {
         const dbPath = getMintDbPath(activeMintUrl);
-        localStore = FfiLocalStore.newWithPath(dbPath);
+        localStore = createWalletDb(
+          WalletDbBackend.Sqlite.new({ path: dbPath })
+        );
       } catch (storeError) {
-        console.error('FfiLocalStore creation failed:', storeError);
+        console.error('Wallet database creation failed:', storeError);
         const errorMsg = getErrorMessage(storeError);
 
         try {
-          localStore = new FfiLocalStore();
+          throw new Error('Failed to create wallet database');
         } catch (fallbackError) {
           const fallbackErrorMsg = getErrorMessage(fallbackError);
           setModuleStatus(
@@ -778,11 +797,12 @@ export function useWallet() {
           // Create wallet with the mnemonic after user confirms
           let walletInstance;
           try {
-            walletInstance = FfiWallet.fromMnemonic(
+            walletInstance = new Wallet(
               activeMintUrl,
-              FfiCurrencyUnit.Sat,
+              CurrencyUnit.Sat.new(),
+              mnemonic,
               localStore,
-              mnemonic
+              WalletConfig.create({ targetProofCount: undefined })
             );
           } catch (walletCreationError) {
             console.error('Wallet creation failed:', walletCreationError);
@@ -806,7 +826,7 @@ export function useWallet() {
           }
 
           try {
-            walletInstance.balance();
+            await walletInstance.totalBalance();
           } catch (balanceError) {
             console.warn(
               'Initial balance check failed, but continuing:',
@@ -819,7 +839,7 @@ export function useWallet() {
 
           // Try to get balance
           try {
-            const walletBalance = walletInstance.balance();
+            const walletBalance = await walletInstance.totalBalance();
             walletManager.setBalance(walletBalance.value);
             setModuleStatus('Wallet created successfully!');
           } catch (balanceError) {
@@ -975,58 +995,41 @@ export function useWallet() {
     }
 
     try {
-      if (typeof wallet.mintQuoteState !== 'function') {
-        return false;
-      }
+      if (typeof wallet.mint === 'function') {
+        try {
+          const proofs = await wallet.mint(
+            activeQuoteId,
+            SplitTarget.None.new(),
+            undefined
+          );
 
-      const quoteState = await wallet.mintQuoteState(activeQuoteId);
+          const mintedAmount = proofs.reduce((sum, proof) => {
+            return sum + (proof.amount?.value || BigInt(0));
+          }, BigInt(0));
 
-      if (quoteState.state === FfiMintQuoteState.Paid) {
-        if (typeof wallet.mint === 'function') {
-          try {
-            const mintedAmount = await wallet.mint(
-              activeQuoteId,
-              FfiSplitTarget.Default
-            );
+          const actualMintUrl = await getCurrentActiveMintUrl();
+          const currentCachedBalance =
+            await getCachedMintBalance(actualMintUrl);
+          const newBalance = currentCachedBalance.balance + mintedAmount;
+          await updateCachedMintBalance(actualMintUrl, newBalance);
+          await updateTotalBalance();
 
-            // Update cached balance arithmetically (faster than syncing)
-            const actualMintUrl = await getCurrentActiveMintUrl();
-            const currentCachedBalance =
-              await getCachedMintBalance(actualMintUrl);
-            const newBalance =
-              currentCachedBalance.balance + mintedAmount.value;
-            await updateCachedMintBalance(actualMintUrl, newBalance);
-
-            // Update total balance from cached balances
-            await updateTotalBalance();
-
-            // Clear the interval
-            if (paymentCheckInterval.current) {
-              clearInterval(paymentCheckInterval.current);
-              paymentCheckInterval.current = null;
-            }
-
-            // Clear invoice data and close modal immediately for better UX
-            setInvoice('');
-            setQuoteId('');
-            setShowReceiveModal(false);
-
-            // Show confetti animation
-            setPaymentReceivedAmount(mintedAmount.value);
-            setShowConfetti(true);
-
-            // Hide confetti after 3 seconds
-            setTimeout(() => setShowConfetti(false), 3000);
-
-            return true;
-          } catch (mintError) {
-            console.error('Failed to mint tokens:', mintError);
-            Alert.alert(
-              'Error',
-              `Failed to mint tokens: ${getErrorMessage(mintError)}`
-            );
-            return false;
+          if (paymentCheckInterval.current) {
+            clearInterval(paymentCheckInterval.current);
+            paymentCheckInterval.current = null;
           }
+
+          setInvoice('');
+          setQuoteId('');
+          setShowReceiveModal(false);
+
+          setPaymentReceivedAmount(mintedAmount);
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 3000);
+
+          return true;
+        } catch {
+          return false;
         }
       }
       return false;
@@ -1091,7 +1094,7 @@ export function useWallet() {
     isProcessingPayment.current = true;
     setIsSending(true);
     try {
-      const currentBalance = wallet.balance();
+      const currentBalance = await wallet.totalBalance();
 
       if (currentBalance.value <= 0) {
         Alert.alert('Error', 'Insufficient balance to send payment');
@@ -1126,7 +1129,7 @@ export function useWallet() {
       }
 
       try {
-        const meltQuote = await wallet.meltQuote(invoiceToUse);
+        const meltQuote = await wallet.meltQuote(invoiceToUse, undefined);
 
         const prepareResult = {
           amount: meltQuote.amount,
@@ -1136,7 +1139,7 @@ export function useWallet() {
         const totalAmount =
           prepareResult.amount.value + prepareResult.totalFee.value;
 
-        const walletBalance = wallet.balance();
+        const walletBalance = await wallet.totalBalance();
         if (walletBalance.value < totalAmount) {
           Alert.alert(
             'Insufficient Balance',
@@ -1170,7 +1173,16 @@ export function useWallet() {
                   await new Promise((resolve) => setTimeout(resolve, 100));
 
                   // Execute payment
-                  await wallet.melt(meltQuote.id);
+                  const meltResult = await wallet.melt(meltQuote.id);
+
+                  // Check if payment was successful
+                  if (meltResult.state !== QuoteState.Paid) {
+                    throw new Error(
+                      meltResult.state === QuoteState.Pending
+                        ? 'Payment is still pending'
+                        : 'Payment failed or expired'
+                    );
+                  }
 
                   // Update cached balance arithmetically (faster than syncing)
                   const actualMintUrl = await getCurrentActiveMintUrl();
@@ -1260,7 +1272,7 @@ export function useWallet() {
 
     try {
       const amountBigInt = BigInt(amount);
-      const currentBalance = wallet.balance();
+      const currentBalance = await wallet.totalBalance();
 
       if (currentBalance.value < amountBigInt) {
         Alert.alert(
@@ -1276,7 +1288,7 @@ export function useWallet() {
       );
 
       // Update balance
-      const newBalance = wallet.balance();
+      const newBalance = await wallet.totalBalance();
       walletManager.setBalance(newBalance.value);
 
       return cashuToken;
@@ -1350,7 +1362,9 @@ export function useWallet() {
                 // Create wallet for the target mint directly instead of using setActiveMint
                 try {
                   const dbPath = getMintDbPath(tokenMintUrl);
-                  const localStore = FfiLocalStore.newWithPath(dbPath);
+                  const localStore = createWalletDb(
+                    WalletDbBackend.Sqlite.new({ path: dbPath })
+                  );
 
                   const storedSeedPhrase =
                     await SecureStorageService.getSeedPhrase();
@@ -1360,11 +1374,12 @@ export function useWallet() {
                     );
                   }
 
-                  targetWallet = FfiWallet.fromMnemonic(
+                  targetWallet = new Wallet(
                     tokenMintUrl,
-                    FfiCurrencyUnit.Sat,
+                    CurrencyUnit.Sat.new(),
+                    storedSeedPhrase,
                     localStore,
-                    storedSeedPhrase
+                    WalletConfig.create({ targetProofCount: undefined })
                   );
 
                   // Verify wallet works by checking if it has the receiveCashuToken method
@@ -1473,11 +1488,13 @@ export function useWallet() {
       let localStore;
       try {
         const dbPath = getMintDbPath(activeMintUrl);
-        localStore = FfiLocalStore.newWithPath(dbPath);
+        localStore = createWalletDb(
+          WalletDbBackend.Sqlite.new({ path: dbPath })
+        );
       } catch (storeError) {
-        console.error('FfiLocalStore creation failed:', storeError);
+        console.error('Wallet database creation failed:', storeError);
         try {
-          localStore = new FfiLocalStore();
+          throw new Error('Failed to create wallet database');
         } catch (fallbackError) {
           const fallbackErrorMsg = getErrorMessage(fallbackError);
           setModuleStatus(
@@ -1498,17 +1515,18 @@ export function useWallet() {
       }
 
       // Use restoreFromMnemonic which calls restore() internally
-      const walletInstance = FfiWallet.restoreFromMnemonic(
+      const walletInstance = new Wallet(
         activeMintUrl,
-        FfiCurrencyUnit.Sat,
+        CurrencyUnit.Sat.new(),
+        mnemonic,
         localStore,
-        mnemonic
+        WalletConfig.create({ targetProofCount: undefined })
       );
 
       walletManager.setWallet(walletInstance);
 
       try {
-        const walletBalance = walletInstance.balance();
+        const walletBalance = await walletInstance.totalBalance();
 
         // Update cached balance for this mint
         await updateCachedMintBalance(activeMintUrl, walletBalance.value);
@@ -1580,7 +1598,7 @@ export function useWallet() {
       }
 
       // Step 2: Get current balance and validate
-      const fromBalance = fromWallet.balance();
+      const fromBalance = await fromWallet.totalBalance();
       if (fromBalance.value < amount) {
         throw new Error(
           `Insufficient balance. Available: ${formatSats(fromBalance.value)}, Required: ${formatSats(amount)}`
@@ -1593,7 +1611,10 @@ export function useWallet() {
       const swapLightningInvoice = mintQuote.request;
 
       // Step 4: Create melt quote at source mint
-      const meltQuote = await fromWallet.meltQuote(swapLightningInvoice);
+      const meltQuote = await fromWallet.meltQuote(
+        swapLightningInvoice,
+        undefined
+      );
 
       // Calculate total cost including fees
       const totalCost =
@@ -1605,7 +1626,16 @@ export function useWallet() {
       }
 
       // Step 5: Execute the melt operation (pay Lightning invoice)
-      await fromWallet.melt(meltQuote.id);
+      const meltResult = await fromWallet.melt(meltQuote.id);
+
+      // Check if payment was successful
+      if (meltResult.state !== QuoteState.Paid) {
+        throw new Error(
+          meltResult.state === QuoteState.Pending
+            ? 'Lightning payment is still pending'
+            : 'Lightning payment failed or expired'
+        );
+      }
 
       // Step 6: Check if the Lightning payment succeeded and mint tokens at destination
       // Wait a bit for Lightning payment to settle
@@ -1646,18 +1676,21 @@ export function useWallet() {
   const createWalletForMint = async (mintUrl: string) => {
     try {
       const dbPath = getMintDbPath(mintUrl);
-      const localStore = FfiLocalStore.newWithPath(dbPath);
+      const localStore = createWalletDb(
+        WalletDbBackend.Sqlite.new({ path: dbPath })
+      );
 
       const storedSeedPhrase = await SecureStorageService.getSeedPhrase();
       if (!storedSeedPhrase) {
         throw new Error('No seed phrase available for wallet creation');
       }
 
-      return FfiWallet.fromMnemonic(
+      return new Wallet(
         mintUrl,
-        FfiCurrencyUnit.Sat,
+        CurrencyUnit.Sat.new(),
+        storedSeedPhrase,
         localStore,
-        storedSeedPhrase
+        WalletConfig.create({ targetProofCount: undefined })
       );
     } catch (error) {
       console.error(`Failed to create wallet for mint ${mintUrl}:`, error);
@@ -1673,26 +1706,18 @@ export function useWallet() {
   ) => {
     for (let i = 0; i < maxRetries; i++) {
       try {
-        const quoteState = await mintWallet.mintQuoteState(swapQuoteId);
-
-        if (quoteState.state === FfiMintQuoteState.Paid) {
-          // Quote is paid, mint the tokens
-          await mintWallet.mint(swapQuoteId, FfiSplitTarget.Default);
-          return;
-        } else if (quoteState.state === FfiMintQuoteState.Unpaid) {
-          throw new Error('Lightning payment failed or expired');
-        }
-
-        // If still pending, wait and retry
-        if (i < maxRetries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-        }
-      } catch (error) {
+        // Try to mint - if quote isn't paid yet, this will fail
+        await mintWallet.mint(swapQuoteId, SplitTarget.None.new(), undefined);
+        // If mint succeeds, the quote was paid
+        return;
+      } catch {
+        // If this is the last retry, throw the error
         if (i === maxRetries - 1) {
-          throw error;
+          throw new Error('Lightning payment failed or timed out');
         }
-        // Wait before retry
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Otherwise wait and retry
+        await new Promise((resolve) => setTimeout(resolve, 3000));
       }
     }
 

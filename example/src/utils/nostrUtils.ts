@@ -1,11 +1,11 @@
 import {
   Nip19,
   Nip19Enum_Tags,
-  PublicKey,
+  NostrPublicKey as PublicKey,
   EventId,
   Filter,
-  Keys,
-  SecretKey,
+  NostrKeys as Keys,
+  NostrSecretKey as SecretKey,
 } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { CacheService } from '../services/CacheService';

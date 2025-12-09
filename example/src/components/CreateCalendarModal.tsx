@@ -18,7 +18,7 @@ import { useEvents } from '../hooks/useEvents';
 import type { CalendarData } from '../types';
 import type { Calendar } from '../hooks/useCalendars';
 import type { CalendarEvent } from '../hooks/useEvents';
-import { Client } from 'kashir';
+import { Client, NostrPublicKey as PublicKey } from 'kashir';
 
 interface CreateCalendarModalProps {
   visible: boolean;
@@ -109,7 +109,6 @@ export function CreateCalendarModal({
   // Filter user's events (exclude events already in other calendars if needed)
   const userEvents = events.filter((event) => {
     try {
-      const { PublicKey } = require('kashir');
       const userPubkey = PublicKey.parse(userNpub || '');
       return event.pubkey === userPubkey.toHex();
     } catch {

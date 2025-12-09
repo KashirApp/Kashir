@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { styles } from '../App.styles';
 import { NostrClientService, LoginType } from '../services/NostrClient';
-import { Keys, EventBuilder } from 'kashir';
+import { NostrKeys as Keys, EventBuilder } from 'kashir';
 
 interface ComposeNoteModalProps {
   visible: boolean;

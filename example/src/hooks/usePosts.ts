@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { Client, PublicKey, Filter, Kind } from 'kashir';
+import { Client, NostrPublicKey as PublicKey, Filter, Kind } from 'kashir';
 import type { EventInterface } from 'kashir';
 import { sharedProfileService } from '../services/ProfileService';
 import { postProcessingUtils } from '../utils/postProcessingUtils';

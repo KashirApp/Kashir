@@ -3,7 +3,7 @@ import {
   Filter,
   Kind,
   KindStandard,
-  PublicKey,
+  NostrPublicKey as PublicKey,
   PublicKeyInterface,
   EventBuilder,
   Keys,

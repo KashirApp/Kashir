@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { Client, Keys } from 'kashir';
+import type { Client } from 'kashir';
 import { EventId, Filter } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
@@ -10,7 +10,7 @@ interface UseTrendingResult {
   trendingPosts: PostWithStats[];
   trendingEventIds: string[];
   trendingLoading: boolean;
-  fetchTrendingPosts: (keys: Keys | null) => Promise<void>;
+  fetchTrendingPosts: () => Promise<void>;
 }
 
 export function useTrending(
@@ -136,79 +136,55 @@ export function useTrending(
     [profileService]
   );
 
-  const fetchTrendingPosts = useCallback(
-    async (_keys: Keys | null) => {
-      if (!client) {
-        console.log('Client not available for trending posts');
-        return;
-      }
+  const fetchTrendingPosts = useCallback(async () => {
+    if (!client) {
+      console.log('Client not available for trending posts');
+      return;
+    }
 
-      setTrendingLoading(true);
-      try {
-        console.log('Fetching trending posts via DVM...');
+    setTrendingLoading(true);
+    try {
+      console.log('Fetching trending posts via DVM...');
 
-        // Note: Current implementation just reads existing DVM responses,
-        // doesn't publish new requests, so no signing required
-        // Request trending content from DVM (reads existing responses)
-        const dvmResponse = await dvmService.requestTrendingContent(client);
+      // Note: Current implementation just reads existing DVM responses,
+      // doesn't publish new requests, so no signing required
+      // Request trending content from DVM (reads existing responses)
+      const dvmResponse = await dvmService.requestTrendingContent(client);
 
-        if (dvmResponse && dvmResponse.eventIds.length > 0) {
-          // Store the event IDs first
-          setTrendingEventIds(dvmResponse.eventIds);
+      if (dvmResponse && dvmResponse.eventIds.length > 0) {
+        // Store the event IDs first
+        setTrendingEventIds(dvmResponse.eventIds);
 
-          // Create placeholder posts immediately with just event IDs
-          const placeholderPosts = dvmResponse.eventIds.map(
-            (eventId, index) => ({
-              event: {
-                id: eventId,
-                pubkey: '', // Will be filled when event is fetched
-                content: '⏳', // Loading indicator for content
-                created_at: Date.now() / 1000 - index, // Approximate timestamp to maintain order
-              },
-              originalEvent: null, // Will be filled when event is fetched
-              stats: undefined,
-              isLoadingStats: true,
-              isLoadingContent: true, // New flag for content loading
-            })
-          );
-
-          // Set placeholder posts immediately so UI shows them
-          setTrendingPosts(placeholderPosts);
-
-          // Set loading to false so PostList renders posts instead of loading spinner
-          setTrendingLoading(false);
-
-          // Fetch events progressively - update UI as each event loads
-          await fetchEventsProgressively(client, dvmResponse.eventIds);
-        } else {
-          // Show a single informational post when no trending data is available
-          const fallbackPost = {
-            event: {
-              id: 'fallback-trending',
-              pubkey: '',
-              content:
-                '📈 No trending content available at this time.\n\nTrending data is provided by Data Vending Machines (DVMs) on the Nostr network. Please check back later for trending posts.',
-              created_at: Math.floor(Date.now() / 1000),
-            },
-            originalEvent: null,
-            stats: undefined,
-            isLoadingStats: false,
-            isLoadingContent: false,
-          };
-
-          setTrendingPosts([fallbackPost]);
-          setTrendingEventIds([]);
-        }
-      } catch (error) {
-        console.error('Error fetching trending posts:', error);
-
-        // Show error message instead of empty state
-        const errorPost = {
+        // Create placeholder posts immediately with just event IDs
+        const placeholderPosts = dvmResponse.eventIds.map((eventId, index) => ({
           event: {
-            id: 'error-trending',
+            id: eventId,
+            pubkey: '', // Will be filled when event is fetched
+            content: '⏳', // Loading indicator for content
+            created_at: Date.now() / 1000 - index, // Approximate timestamp to maintain order
+          },
+          originalEvent: null, // Will be filled when event is fetched
+          stats: undefined,
+          isLoadingStats: true,
+          isLoadingContent: true, // New flag for content loading
+        }));
+
+        // Set placeholder posts immediately so UI shows them
+        setTrendingPosts(placeholderPosts);
+
+        // Set loading to false so PostList renders posts instead of loading spinner
+        setTrendingLoading(false);
+
+        // Fetch events progressively - update UI as each event loads
+        await fetchEventsProgressively(client, dvmResponse.eventIds);
+      } else {
+        // Show a single informational post when no trending data is available
+        const fallbackPost = {
+          event: {
+            id: 'fallback-trending',
             pubkey: '',
             content:
-              '⚠️ Error loading trending content.\n\nPlease check your connection and try again.',
+              '📈 No trending content available at this time.\n\nTrending data is provided by Data Vending Machines (DVMs) on the Nostr network. Please check back later for trending posts.',
             created_at: Math.floor(Date.now() / 1000),
           },
           originalEvent: null,
@@ -217,14 +193,33 @@ export function useTrending(
           isLoadingContent: false,
         };
 
-        setTrendingPosts([errorPost]);
+        setTrendingPosts([fallbackPost]);
         setTrendingEventIds([]);
-      } finally {
-        setTrendingLoading(false);
       }
-    },
-    [client, dvmService, fetchEventsProgressively]
-  );
+    } catch (error) {
+      console.error('Error fetching trending posts:', error);
+
+      // Show error message instead of empty state
+      const errorPost = {
+        event: {
+          id: 'error-trending',
+          pubkey: '',
+          content:
+            '⚠️ Error loading trending content.\n\nPlease check your connection and try again.',
+          created_at: Math.floor(Date.now() / 1000),
+        },
+        originalEvent: null,
+        stats: undefined,
+        isLoadingStats: false,
+        isLoadingContent: false,
+      };
+
+      setTrendingPosts([errorPost]);
+      setTrendingEventIds([]);
+    } finally {
+      setTrendingLoading(false);
+    }
+  }, [client, dvmService, fetchEventsProgressively]);
 
   return {
     trendingPosts,

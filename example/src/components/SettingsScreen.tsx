@@ -31,7 +31,7 @@ import { ListService } from '../services/ListService';
 import type { FollowSet } from '../services/ListService';
 import { FollowSetsStorageService, FollowSetProfileService } from '../services';
 import { ProfileService } from '../services/ProfileService';
-import { PublicKey } from 'kashir';
+import { NostrPublicKey as PublicKey } from 'kashir';
 import { loadCachedBalances } from './wallet/utils/mintBalanceUtils';
 import type { MintBalance } from './wallet/utils/mintBalanceUtils';
 import packageInfo from '../../package.json';

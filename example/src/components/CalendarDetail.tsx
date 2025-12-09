@@ -6,7 +6,7 @@ import type { CalendarEvent } from '../hooks/useEvents';
 import type { Calendar } from '../hooks/useCalendars';
 import { EventList } from './EventList';
 import { styles } from '../App.styles';
-import { Client, Filter, Kind } from 'kashir';
+import { Client, Filter, Kind, NostrPublicKey as PublicKey } from 'kashir';
 import type { EventInterface } from 'kashir';
 import { tagsToArray } from '../services/NostrUtils';
 
@@ -78,7 +78,6 @@ export function CalendarDetail({ route, navigation }: CalendarDetailProps) {
         for (const [key, { kind, dTags }] of authorGroups) {
           try {
             const [, pubkey] = key.split(':');
-            const { PublicKey } = require('kashir');
             const authorPubkey = PublicKey.parse(pubkey);
 
             const filter = new Filter()

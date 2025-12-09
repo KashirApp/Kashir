@@ -9,7 +9,7 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
-import { PublicKey } from 'kashir';
+import { NostrPublicKey as PublicKey } from 'kashir';
 import { sharedProfileService } from '../../../services/ProfileService';
 import { NostrClientService } from '../../../services/NostrClient';
 import { UserPostsModal } from '../../UserPostsModal';

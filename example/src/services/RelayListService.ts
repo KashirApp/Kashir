@@ -2,7 +2,7 @@ import {
   Client,
   Filter,
   Kind,
-  PublicKey,
+  NostrPublicKey as PublicKey,
   extractRelayList,
   RelayMetadata,
   EventBuilder,

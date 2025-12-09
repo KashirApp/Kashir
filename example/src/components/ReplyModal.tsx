@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { styles } from '../App.styles';
 import { NostrClientService, LoginType } from '../services/NostrClient';
-import { Keys, EventBuilder, Tag, Kind } from 'kashir';
+import { NostrKeys as Keys, EventBuilder, Tag, Kind } from 'kashir';
 import type { PostWithStats } from '../types/EventStats';
 
 interface ReplyModalProps {

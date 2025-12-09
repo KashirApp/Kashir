@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native';
-import { PublicKey, PublicKeyInterface } from 'kashir';
+import { NostrPublicKey as PublicKey } from 'kashir';
+import type { PublicKeyInterface } from 'kashir';
 import type { FollowSet } from '../../services/ListService';
 import { FollowSetProfileService } from '../../services/FollowSetProfileService';
 import type { StoredUser } from '../../services/FollowSetsStorageService';

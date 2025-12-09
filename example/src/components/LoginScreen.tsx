@@ -9,7 +9,11 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PublicKey, SecretKey, Keys } from 'kashir';
+import {
+  NostrPublicKey as PublicKey,
+  NostrSecretKey as SecretKey,
+  NostrKeys as Keys,
+} from 'kashir';
 import { SecureStorageService } from '../services/SecureStorageService';
 import { StorageService } from '../services/StorageService';
 import { NostrClientService, LoginType } from '../services/NostrClient';

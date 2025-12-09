@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Client, Filter, Kind } from 'kashir';
+import { Client, Filter, Kind, NostrPublicKey as PublicKey } from 'kashir';
 import type { EventInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { tagsToArray } from '../services/NostrUtils';
@@ -40,7 +40,6 @@ export function useCalendars(
 
         // If filtering for my calendars only and we have a user pubkey, add author filter
         if (myCalendarsOnly && currentUserPubkey) {
-          const { PublicKey } = require('kashir');
           try {
             const userPubkey = PublicKey.parse(currentUserPubkey);
             calendarsFilter = calendarsFilter.authors([userPubkey]);

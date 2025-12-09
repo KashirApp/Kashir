@@ -1,4 +1,4 @@
-import { Client, PublicKey, Filter, Kind } from 'kashir';
+import { Client, NostrPublicKey as PublicKey, Filter, Kind } from 'kashir';
 import { FollowSetsStorageService } from './FollowSetsStorageService';
 import type { StoredUser } from './FollowSetsStorageService';
 import type { FollowSet } from './ListService';

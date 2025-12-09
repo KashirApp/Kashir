@@ -13,6 +13,7 @@ import { LocationService } from '../services/LocationService';
 import { EventLocationParser } from '../services/EventLocationParser';
 import type { CalendarEvent } from '../hooks/useEvents';
 import type { Coordinates } from '../services/LocationService';
+import { NostrPublicKey as PublicKey } from 'kashir';
 
 type SortOption = 'time' | 'distance';
 
@@ -280,7 +281,6 @@ export function EventList({
 
     // Convert userNpub to hex for comparison
     try {
-      const { PublicKey } = require('kashir');
       const userPubkey = PublicKey.parse(userNpub);
       return event.pubkey === userPubkey.toHex();
     } catch {

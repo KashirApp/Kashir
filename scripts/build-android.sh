@@ -20,7 +20,7 @@ else
     build_type="debug" 
 fi
 
-src_file="deps/cdk-ffi/target/aarch64-linux-android/$build_type/libcdk_ffi.a"
+src_file="deps/cdk/target/aarch64-linux-android/$build_type/libcdk_ffi.a"
 dest_file="android/src/main/jniLibs/arm64-v8a/libcdk_ffi.a"
 
 if [ -f "$src_file" ]; then

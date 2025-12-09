@@ -1,6 +1,6 @@
 ---
 rust:
-  directory: deps/cdk-ffi
+  directory: deps/cdk/crates/cdk-ffi
   manifestPath: Cargo.toml
 
 ios:

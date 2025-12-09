@@ -1,4 +1,4 @@
-import { Filter, Kind, PublicKey, EventId } from 'kashir';
+import { Filter, Kind, NostrPublicKey as PublicKey, EventId } from 'kashir';
 import type { EventInterface, Client } from 'kashir';
 
 interface DVMResponse {

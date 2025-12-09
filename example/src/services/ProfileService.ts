@@ -1,4 +1,4 @@
-import { Client, PublicKey, Filter, Kind } from 'kashir';
+import { Client, NostrPublicKey as PublicKey, Filter, Kind } from 'kashir';
 import type { PublicKeyInterface } from 'kashir';
 
 export class ProfileService {

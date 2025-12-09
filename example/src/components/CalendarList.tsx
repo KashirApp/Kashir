@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { ProfileService } from '../services/ProfileService';
 import type { Calendar } from '../hooks/useCalendars';
+import { NostrPublicKey as PublicKey } from 'kashir';
 
 interface CalendarListProps {
   calendars: Calendar[];
@@ -46,7 +47,6 @@ export function CalendarList({
 
     // Convert userNpub to hex for comparison
     try {
-      const { PublicKey } = require('kashir');
       const userPubkey = PublicKey.parse(userNpub);
       return calendar.pubkey === userPubkey.toHex();
     } catch {

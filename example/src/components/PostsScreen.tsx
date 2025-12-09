@@ -17,7 +17,7 @@ import type { FollowSet } from '../services/ListService';
 import type { TabType } from '../types';
 import type { NostrStackParamList } from './NostrNavigator';
 import { styles } from '../App.styles';
-import { Keys, Client } from 'kashir';
+import { NostrKeys as Keys, Client } from 'kashir';
 import { getNostrKeys } from '../utils/nostrUtils';
 
 type PostsScreenProps = NativeStackScreenProps<
@@ -135,13 +135,9 @@ export function PostsScreen({
 
       // For Amber users, we can still fetch trending without keys
       // since it only reads DVM responses, doesn't publish
-      if (userKeys) {
-        fetchTrendingPosts(userKeys);
-      } else {
-        fetchTrendingPosts(null);
-      }
+      fetchTrendingPosts();
     }
-  }, [isClientReady, userNpub, userKeys, fetchTrendingPosts]);
+  }, [isClientReady, userNpub, fetchTrendingPosts]);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
@@ -159,8 +155,7 @@ export function PostsScreen({
       trendingEventIds.length === 0 &&
       !trendingLoading
     ) {
-      // For trending, try with userKeys if available, otherwise null for Amber users
-      fetchTrendingPosts(userKeys || null);
+      fetchTrendingPosts();
     }
   };
 
@@ -168,7 +163,7 @@ export function PostsScreen({
     if (activeTab === 'following') {
       fetchFollowingPosts(userNpub);
     } else if (activeTab === 'trending') {
-      fetchTrendingPosts(userKeys || null);
+      fetchTrendingPosts();
     }
   };
 

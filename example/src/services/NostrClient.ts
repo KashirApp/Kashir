@@ -1,4 +1,4 @@
-import { Client, NostrSigner, PublicKey } from 'kashir';
+import { Client, NostrSigner, NostrPublicKey as PublicKey } from 'kashir';
 import type { NostrSignerInterface } from 'kashir';
 import { StorageService } from './StorageService';
 import { SecureStorageService } from './SecureStorageService';

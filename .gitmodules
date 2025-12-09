@@ -1,6 +1,6 @@
 [submodule "deps/nostr-sdk-ffi"]
 	path = deps/nostr-sdk-ffi
 	url = https://github.com/rust-nostr/nostr-sdk-ffi
-[submodule "deps/cdk-ffi"]
-	path = deps/cdk-ffi
-	url = https://github.com/aki-mizu/cdk-ffi.git
+[submodule "deps/cdk"]
+	path = deps/cdk
+	url = https://github.com/aki-mizu/cdk.git

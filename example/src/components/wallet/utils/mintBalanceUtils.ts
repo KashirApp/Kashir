@@ -1,4 +1,10 @@
-import { FfiLocalStore, FfiWallet, FfiCurrencyUnit } from 'kashir';
+import {
+  Wallet,
+  WalletDbBackend,
+  WalletConfig,
+  createWalletDb,
+  CurrencyUnit,
+} from 'kashir';
 import { SecureStorageService } from '../../../services/SecureStorageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNFS from 'react-native-fs';
@@ -171,13 +177,16 @@ async function getWalletForMint(
     }
 
     const dbPath = getMintDbPath(mintUrl);
-    const localStore = FfiLocalStore.newWithPath(dbPath);
+    const localStore = createWalletDb(
+      WalletDbBackend.Sqlite.new({ path: dbPath })
+    );
 
-    const wallet = FfiWallet.restoreFromMnemonic(
+    const wallet = new Wallet(
       mintUrl,
-      FfiCurrencyUnit.Sat,
+      CurrencyUnit.Sat.new(),
+      mnemonic,
       localStore,
-      mnemonic
+      WalletConfig.create({ targetProofCount: undefined })
     );
 
     // Cache the wallet instance
