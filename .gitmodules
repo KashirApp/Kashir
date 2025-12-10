@@ -3,4 +3,4 @@
 	url = https://github.com/rust-nostr/nostr-sdk-ffi
 [submodule "deps/cdk"]
 	path = deps/cdk
-	url = https://github.com/aki-mizu/cdk.git
+	url = https://github.com/cashubtc/cdk
