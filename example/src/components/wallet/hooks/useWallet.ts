@@ -77,6 +77,9 @@ export function useWallet() {
   // Ref to prevent concurrent swaps
   const isSwapping = useRef(false);
 
+  // Ref to track if wallet has been initialized
+  const hasInitialized = useRef(false);
+
   // Subscribe to WalletManager state changes
   useEffect(() => {
     const unsubscribe = walletManager.subscribe(() => {
@@ -347,8 +350,9 @@ export function useWallet() {
       await loadMintUrlsFromStorage();
       const savedActiveMintUrl = await loadActiveMintUrlFromStorage();
 
-      // Add all saved mints to the wallet
-      for (const mintUrl of mintUrls) {
+      // Add all saved mints to the wallet (use fresh value from manager)
+      const currentMintUrls = walletManager.getMintUrls();
+      for (const mintUrl of currentMintUrls) {
         const hasMint = await wallet.hasMint(MintUrl.new({ url: mintUrl }));
         if (!hasMint) {
           await wallet.addMint(MintUrl.new({ url: mintUrl }), undefined);
@@ -356,12 +360,12 @@ export function useWallet() {
       }
 
       // Set active mint
-      if (savedActiveMintUrl && mintUrls.includes(savedActiveMintUrl)) {
+      if (savedActiveMintUrl && currentMintUrls.includes(savedActiveMintUrl)) {
         walletManager.setActiveMintUrl(savedActiveMintUrl);
         setCurrentMintUrlRef(savedActiveMintUrl);
-      } else if (mintUrls.length > 0) {
-        walletManager.setActiveMintUrl(mintUrls[0]);
-        setCurrentMintUrlRef(mintUrls[0]);
+      } else if (currentMintUrls.length > 0) {
+        walletManager.setActiveMintUrl(currentMintUrls[0]);
+        setCurrentMintUrlRef(currentMintUrls[0]);
       }
 
       // Update balance
@@ -379,7 +383,6 @@ export function useWallet() {
     createMultiMintWallet,
     loadMintUrlsFromStorage,
     loadActiveMintUrlFromStorage,
-    mintUrls,
     setCurrentMintUrlRef,
     updateBalance,
   ]);
@@ -1007,6 +1010,12 @@ export function useWallet() {
 
   useEffect(() => {
     const initializeWallet = async () => {
+      // Prevent re-initialization
+      if (hasInitialized.current) {
+        return;
+      }
+      hasInitialized.current = true;
+
       try {
         setIsInitializing(true);
 
@@ -1026,7 +1035,9 @@ export function useWallet() {
     };
 
     initializeWallet();
-  }, [restoreExistingWallet]);
+    // Only run once on mount, not when restoreExistingWallet changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update balance when active mint changes
   useEffect(() => {

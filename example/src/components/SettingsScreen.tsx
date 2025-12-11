@@ -412,12 +412,10 @@ export function SettingsScreen({
       loadRelaysForDisplay();
       loadFollowSets();
     }
-  }, [
-    isVisible,
-    loadFollowSets,
-    loadRelaysForDisplay,
-    loadMintUrlsFromStorage,
-  ]);
+    // We intentionally omit the function dependencies here to prevent infinite loops
+    // The functions are stable due to useCallback, but React still warns
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible]);
 
   // Also refresh when login state might have changed
   useEffect(() => {
@@ -430,7 +428,8 @@ export function SettingsScreen({
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [isVisible, loadRelaysForDisplay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible]);
 
   // Monitor for session state changes when visible (reduced frequency)
   useEffect(() => {
@@ -444,7 +443,8 @@ export function SettingsScreen({
     return () => {
       clearInterval(interval);
     };
-  }, [isVisible, loadRelaysForDisplay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible]);
 
   // Removed automatic session checking - let the main app handle relay management
   // SettingsScreen only loads relays for display when explicitly requested
