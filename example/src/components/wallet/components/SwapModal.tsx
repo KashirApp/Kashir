@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,13 @@ import {
   Platform,
 } from 'react-native';
 import { formatSats } from '../utils/formatUtils';
-import type { MintBalance } from '../utils/mintBalanceUtils';
+import type { MultiMintWalletInterface } from 'kashir';
 
 interface SwapModalProps {
   visible: boolean;
   onClose: () => void;
-  mintBalances: MintBalance[];
+  multiMintWallet: MultiMintWalletInterface | null;
+  mintUrls: string[];
   onSwap: (
     fromMintUrl: string,
     toMintUrl: string,
@@ -30,13 +31,37 @@ interface SwapModalProps {
 export function SwapModal({
   visible,
   onClose,
-  mintBalances,
+  multiMintWallet,
+  mintUrls,
   onSwap,
 }: SwapModalProps) {
   const [fromMintUrl, setFromMintUrl] = useState<string>('');
   const [toMintUrl, setToMintUrl] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
   const [isSwapping, setIsSwapping] = useState(false);
+  const [mintBalances, setMintBalances] = useState<Map<string, bigint>>(new Map());
+
+  // Load balances when modal opens or wallet changes
+  useEffect(() => {
+    const loadBalances = async () => {
+      if (!multiMintWallet || !visible) {
+        return;
+      }
+
+      try {
+        const balances = await multiMintWallet.getBalances();
+        const balanceMap = new Map<string, bigint>();
+        balances.forEach((amount, mintUrl) => {
+          balanceMap.set(mintUrl, BigInt(amount.value));
+        });
+        setMintBalances(balanceMap);
+      } catch (error) {
+        console.error('Failed to load balances for swap modal:', error);
+      }
+    };
+
+    loadBalances();
+  }, [multiMintWallet, visible]);
 
   const handleSwap = useCallback(async () => {
     if (!fromMintUrl || !toMintUrl || !amount) {
@@ -55,8 +80,8 @@ export function SwapModal({
       return;
     }
 
-    const fromMint = mintBalances.find((mb) => mb.mintUrl === fromMintUrl);
-    if (!fromMint || fromMint.balance < BigInt(amountSats)) {
+    const fromMintBalance = mintBalances.get(fromMintUrl);
+    if (!fromMintBalance || fromMintBalance < BigInt(amountSats)) {
       Alert.alert('Error', 'Insufficient balance in source mint');
       return;
     }
@@ -107,13 +132,14 @@ export function SwapModal({
   };
 
   const getMintBalance = (mintUrl: string) => {
-    const mint = mintBalances.find((mb) => mb.mintUrl === mintUrl);
-    return mint?.balance || BigInt(0);
+    return mintBalances.get(mintUrl) || BigInt(0);
   };
 
-  const availableMints = mintBalances.filter(
-    (mb) => mb.balance && mb.balance > 0
-  );
+  // Filter to mints with positive balances
+  const availableMints = mintUrls.filter((url) => {
+    const balance = mintBalances.get(url);
+    return balance && balance > BigInt(0);
+  });
 
   if (availableMints.length < 2) {
     return (
@@ -170,21 +196,21 @@ export function SwapModal({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>From Mint</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {availableMints.map((mint) => (
+              {availableMints.map((mintUrl) => (
                 <TouchableOpacity
-                  key={mint.mintUrl}
+                  key={mintUrl}
                   style={[
                     styles.mintOption,
-                    fromMintUrl === mint.mintUrl && styles.selectedMint,
+                    fromMintUrl === mintUrl && styles.selectedMint,
                   ]}
-                  onPress={() => setFromMintUrl(mint.mintUrl)}
+                  onPress={() => setFromMintUrl(mintUrl)}
                   disabled={isSwapping}
                 >
                   <Text style={styles.mintUrl}>
-                    {getMintDisplayName(mint.mintUrl)}
+                    {getMintDisplayName(mintUrl)}
                   </Text>
                   <Text style={styles.mintBalance}>
-                    {formatSats(mint.balance)}
+                    {formatSats(getMintBalance(mintUrl))}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -194,24 +220,24 @@ export function SwapModal({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>To Mint</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {mintBalances.map((mint) => (
+              {mintUrls.map((mintUrl) => (
                 <TouchableOpacity
-                  key={mint.mintUrl}
+                  key={mintUrl}
                   style={[
                     styles.mintOption,
-                    toMintUrl === mint.mintUrl && styles.selectedMint,
-                    fromMintUrl === mint.mintUrl && styles.disabledMint,
+                    toMintUrl === mintUrl && styles.selectedMint,
+                    fromMintUrl === mintUrl && styles.disabledMint,
                   ]}
                   onPress={() =>
-                    fromMintUrl !== mint.mintUrl && setToMintUrl(mint.mintUrl)
+                    fromMintUrl !== mintUrl && setToMintUrl(mintUrl)
                   }
-                  disabled={fromMintUrl === mint.mintUrl || isSwapping}
+                  disabled={fromMintUrl === mintUrl || isSwapping}
                 >
                   <Text style={styles.mintUrl}>
-                    {getMintDisplayName(mint.mintUrl)}
+                    {getMintDisplayName(mintUrl)}
                   </Text>
                   <Text style={styles.mintBalance}>
-                    {formatSats(mint.balance)}
+                    {formatSats(getMintBalance(mintUrl))}
                   </Text>
                 </TouchableOpacity>
               ))}

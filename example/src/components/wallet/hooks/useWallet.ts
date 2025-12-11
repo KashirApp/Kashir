@@ -3,31 +3,27 @@ import { Alert } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  Wallet,
+  MultiMintWallet,
+  MintUrl,
   WalletDbBackend,
-  WalletConfig,
   createWalletDb,
   CurrencyUnit,
   QuoteState,
   SplitTarget,
   generateMnemonic,
+  TransferMode,
+  type MultiMintWalletInterface,
+  type Amount,
 } from 'kashir';
 import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
 import { formatSats } from '../utils/formatUtils';
 import { SecureStorageService } from '../../../services/SecureStorageService';
 import { walletManager } from '../../../services/WalletManager';
-import {
-  getMintDbPath,
-  clearWalletCache,
-  getCachedMintBalance,
-  updateCachedMintBalance,
-  loadCachedBalances,
-  syncMintBalance,
-} from '../utils/mintBalanceUtils';
 
 const MINT_URLS_STORAGE_KEY = '@cashu_mint_urls';
 const ACTIVE_MINT_URL_STORAGE_KEY = '@cashu_active_mint_url';
+const MULTIMINT_WALLET_DB_PATH = `${RNFS.DocumentDirectoryPath}/cdk_multimint_wallet.db`;
 
 export function useWallet() {
   // Get wallet data from WalletManager
@@ -65,6 +61,10 @@ export function useWallet() {
   const [showRecoveryLoader, setShowRecoveryLoader] = useState(false);
   const [showRecoveryConfetti, setShowRecoveryConfetti] = useState(false);
 
+  // Balance state (fetched from MultiMintWallet)
+  const [balance, setBalance] = useState<bigint>(BigInt(0));
+  const [totalBalance, setTotalBalance] = useState<bigint>(BigInt(0));
+
   // Track current mint URL to ensure synchronous updates
   const currentMintUrlRef = useRef<string>('');
 
@@ -91,10 +91,13 @@ export function useWallet() {
   }, []);
 
   // Extract values from WalletManager
-  const { wallet, balance, mintUrls, activeMintUrl, isLoadingWallet } =
+  const { multiMintWallet, mintUrls, activeMintUrl, isLoadingWallet } =
     managerState;
 
-  // Function to load mint URLs from storage
+  // ============================================================================
+  // STORAGE HELPERS
+  // ============================================================================
+
   const loadMintUrlsFromStorage = async () => {
     try {
       const savedMintUrls = await AsyncStorage.getItem(MINT_URLS_STORAGE_KEY);
@@ -115,7 +118,6 @@ export function useWallet() {
     }
   };
 
-  // Function to save active mint URL to storage
   const saveActiveMintUrlToStorage = async (url: string) => {
     try {
       await AsyncStorage.setItem(ACTIVE_MINT_URL_STORAGE_KEY, url);
@@ -124,7 +126,6 @@ export function useWallet() {
     }
   };
 
-  // Function to load active mint URL from storage
   const loadActiveMintUrlFromStorage = async () => {
     try {
       const savedActiveMintUrl = await AsyncStorage.getItem(
@@ -137,7 +138,6 @@ export function useWallet() {
     }
   };
 
-  // Function to save mint URLs to storage
   const saveMintUrlsToStorage = async (urls: string[]) => {
     try {
       await AsyncStorage.setItem(MINT_URLS_STORAGE_KEY, JSON.stringify(urls));
@@ -146,1592 +146,893 @@ export function useWallet() {
     }
   };
 
-  // Function to add a new mint URL
-  const addMintUrl = async (url: string) => {
-    try {
-      const newUrls = [...mintUrls];
-      if (!newUrls.includes(url)) {
-        newUrls.push(url);
-        walletManager.setMintUrls(newUrls);
-        await saveMintUrlsToStorage(newUrls);
-
-        // Create/restore wallet instance for the new mint
-        const walletExists = await checkWalletExists(url);
-        if (!walletExists) {
-          // Create a new wallet instance for this mint
-          const mnemonic = await SecureStorageService.getSeedPhrase();
-          if (mnemonic) {
-            try {
-              const dbPath = getMintDbPath(url);
-              const localStore = createWalletDb(
-                WalletDbBackend.Sqlite.new({ path: dbPath })
-              );
-              // Initialize wallet database for this mint
-              const walletInstance = new Wallet(
-                url,
-                CurrencyUnit.Sat.new(),
-                mnemonic,
-                localStore,
-                WalletConfig.create({ targetProofCount: undefined })
-              );
-              // Wallet instance created - database is now initialized
-              // Note: This wallet is not stored as only the active wallet is kept in WalletManager
-              walletInstance;
-              console.log(`Created wallet instance for mint: ${url}`);
-            } catch (error) {
-              console.error(`Failed to create wallet for mint ${url}:`, error);
-            }
-          }
-        }
-
-        // Set as active if it's the first one
-        if (newUrls.length === 1) {
-          walletManager.setActiveMintUrl(url);
-          await saveActiveMintUrlToStorage(url);
-          if (!currentMintUrlRef.current) {
-            setCurrentMintUrlRef(url);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to add mint URL:', error);
-    }
-  };
-
-  // Function to set active mint URL
-  const setActiveMint = async (url: string) => {
-    try {
-      if (walletManager.getMintUrls().includes(url)) {
-        const previousMintUrl = walletManager.getActiveMintUrl();
-
-        setCurrentMintUrlRef(url);
-        await saveActiveMintUrlToStorage(url);
-        walletManager.setWallet(null);
-        clearWalletCache();
-
-        setModuleStatus(`Switching to mint: ${url}...`);
-        const restored = await restoreExistingWallet(url);
-
-        if (restored) {
-          setModuleStatus(`Active mint changed to: ${url}`);
-        } else {
-          setModuleStatus(`Failed to switch to mint: ${url}`);
-          setCurrentMintUrlRef(previousMintUrl);
-          if (previousMintUrl) {
-            await restoreExistingWallet(previousMintUrl);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to set active mint:', error);
-      setModuleStatus(`Error switching mint: ${getErrorMessage(error)}`);
-    }
-  };
-
-  // Function to remove a mint URL
-  const removeMintUrl = async (url: string) => {
-    try {
-      // Don't allow removing the active mint
-      if (url === activeMintUrl) {
-        Alert.alert(
-          'Error',
-          'Cannot remove the currently active mint. Please set another mint as active first.'
-        );
-        return false;
-      }
-
-      const newUrls = mintUrls.filter((mintUrl) => mintUrl !== url);
-      walletManager.setMintUrls(newUrls);
-      await saveMintUrlsToStorage(newUrls);
-      return true;
-    } catch (error) {
-      console.error('Failed to remove mint URL:', error);
-      return false;
-    }
-  };
-
-  // Function to clear mint URLs from storage
   const clearMintUrlsFromStorage = async () => {
     try {
       await AsyncStorage.removeItem(MINT_URLS_STORAGE_KEY);
-      walletManager.setMintUrls([]);
-      walletManager.setActiveMintUrl('');
-      setModuleStatus('Ready - Set mint URL to begin');
+      await AsyncStorage.removeItem(ACTIVE_MINT_URL_STORAGE_KEY);
     } catch (error) {
       console.error('Failed to clear mint URLs from storage:', error);
     }
   };
 
-  // Function to check if wallet database exists for a specific mint
-  const checkWalletExists = async (mintUrl?: string) => {
+  // ============================================================================
+  // MINT MANAGEMENT
+  // ============================================================================
+
+  const addMintUrl = async (url: string) => {
     try {
-      const urlToUse = mintUrl || activeMintUrl;
-      if (!urlToUse) {
-        return false;
+      const newUrls = [...mintUrls];
+      if (!newUrls.includes(url)) {
+        // Add to storage first
+        newUrls.push(url);
+        walletManager.setMintUrls(newUrls);
+        await saveMintUrlsToStorage(newUrls);
+
+        // If wallet exists, add mint to it
+        if (multiMintWallet) {
+          await multiMintWallet.addMint(MintUrl.new({ url: url }), undefined);
+
+          // Set as active if it's the first one
+          if (newUrls.length === 1) {
+            await setActiveMint(url);
+          }
+        } else {
+          // If wallet doesn't exist yet, just set as active URL
+          if (newUrls.length === 1) {
+            walletManager.setActiveMintUrl(url);
+            await saveActiveMintUrlToStorage(url);
+            setCurrentMintUrlRef(url);
+          }
+        }
+
+        console.log(`Added mint: ${url}`);
       }
-      const dbPath = getMintDbPath(urlToUse);
-      const exists = await RNFS.exists(dbPath);
-      return exists;
+    } catch (error) {
+      console.error('Failed to add mint URL:', error);
+      throw error;
+    }
+  };
+
+  const removeMintUrl = async (url: string) => {
+    try {
+      if (!multiMintWallet) {
+        throw new Error('Wallet not initialized');
+      }
+
+      // Remove from MultiMintWallet
+      await multiMintWallet.removeMint(MintUrl.new({ url: url }));
+
+      // Update storage
+      const newUrls = mintUrls.filter((u) => u !== url);
+      walletManager.setMintUrls(newUrls);
+      await saveMintUrlsToStorage(newUrls);
+
+      // If we removed the active mint, set a new active mint
+      if (activeMintUrl === url && newUrls.length > 0) {
+        await setActiveMint(newUrls[0]);
+      } else if (newUrls.length === 0) {
+        walletManager.setActiveMintUrl('');
+        await saveActiveMintUrlToStorage('');
+      }
+
+      console.log(`Removed mint: ${url}`);
+    } catch (error) {
+      console.error('Failed to remove mint URL:', error);
+      throw error;
+    }
+  };
+
+  const setActiveMint = async (url: string) => {
+    try {
+      if (!multiMintWallet) {
+        throw new Error('Wallet not initialized');
+      }
+
+      // Verify mint exists in wallet
+      const hasMint = await multiMintWallet.hasMint(MintUrl.new({ url: url }));
+      if (!hasMint) {
+        throw new Error(`Mint not found in wallet: ${url}`);
+      }
+
+      // Update active mint (just UI state - no wallet reload needed!)
+      walletManager.setActiveMintUrl(url);
+      await saveActiveMintUrlToStorage(url);
+      setCurrentMintUrlRef(url);
+
+      // Update balance for new active mint
+      await updateBalance();
+
+      console.log(`Switched to mint: ${url}`);
+    } catch (error) {
+      console.error('Failed to set active mint:', error);
+      throw error;
+    }
+  };
+
+  // ============================================================================
+  // BALANCE OPERATIONS
+  // ============================================================================
+
+  const updateBalance = async () => {
+    try {
+      if (!multiMintWallet || !activeMintUrl) {
+        setBalance(BigInt(0));
+        setTotalBalance(BigInt(0));
+        return;
+      }
+
+      // Get balances for all mints (returns Map<string, Amount>)
+      const balances = await multiMintWallet.getBalances();
+      console.log('Balances Map size:', balances.size);
+      console.log('Active mint URL:', activeMintUrl);
+
+      // Get active mint balance using Map.get()
+      const activeMintBalance = balances.get(activeMintUrl);
+      console.log('Active mint balance:', activeMintBalance);
+      if (activeMintBalance) {
+        setBalance(BigInt(activeMintBalance.value));
+        console.log('Set balance to:', activeMintBalance.value);
+      } else {
+        setBalance(BigInt(0));
+        console.log('No balance found for active mint, set to 0');
+      }
+
+      // Get total balance across all mints
+      const total = await multiMintWallet.totalBalance();
+      console.log('Total balance:', total.value);
+      setTotalBalance(BigInt(total.value));
+    } catch (error) {
+      console.error('Failed to update balance:', error);
+      setBalance(BigInt(0));
+      setTotalBalance(BigInt(0));
+    }
+  };
+
+  const updateTotalBalance = async () => {
+    await updateBalance();
+  };
+
+  // ============================================================================
+  // WALLET CREATION & INITIALIZATION
+  // ============================================================================
+
+  const createMultiMintWallet = async (mnemonic: string): Promise<MultiMintWalletInterface> => {
+    try {
+      // Create shared database for all mints
+      const localStore = createWalletDb(
+        WalletDbBackend.Sqlite.new({ path: MULTIMINT_WALLET_DB_PATH })
+      );
+
+      // Create MultiMintWallet
+      const wallet = new MultiMintWallet(
+        CurrencyUnit.Sat.new(),
+        mnemonic,
+        localStore
+      );
+
+      console.log('Created MultiMintWallet with shared database');
+      return wallet;
+    } catch (error) {
+      console.error('Failed to create MultiMintWallet:', error);
+      throw error;
+    }
+  };
+
+  const checkWalletExists = async (): Promise<boolean> => {
+    try {
+      // Check if shared wallet database exists
+      const dbExists = await RNFS.exists(MULTIMINT_WALLET_DB_PATH);
+      return dbExists;
     } catch (error) {
       console.error('Failed to check wallet existence:', error);
       return false;
     }
   };
 
-  // Function to restore existing wallet
-  const restoreExistingWallet = async (mintUrlToUse?: string) => {
-    const urlToUse = mintUrlToUse || activeMintUrl;
-    if (!cdkModule || !urlToUse) {
-      return false;
-    }
-
+  const restoreExistingWallet = async (): Promise<boolean> => {
     try {
-      setModuleStatus('Restoring existing wallet...');
+      walletManager.setLoadingWallet(true);
 
-      const dbPath = getMintDbPath(urlToUse);
-
-      let localStore;
-      try {
-        localStore = createWalletDb(
-          WalletDbBackend.Sqlite.new({ path: dbPath })
-        );
-      } catch (storeError) {
-        console.error('Failed to open existing wallet database:', storeError);
+      const mnemonic = await SecureStorageService.getSeedPhrase();
+      if (!mnemonic) {
+        console.log('No seed phrase found');
+        walletManager.setLoadingWallet(false);
         return false;
       }
 
-      if (!localStore) {
-        console.error('LocalStore is undefined, cannot restore wallet');
-        return false;
+      // Create/restore MultiMintWallet
+      const wallet = await createMultiMintWallet(mnemonic);
+      walletManager.setMultiMintWallet(wallet);
+
+      // Load saved mint URLs
+      await loadMintUrlsFromStorage();
+      const savedActiveMintUrl = await loadActiveMintUrlFromStorage();
+
+      // Add all saved mints to the wallet
+      for (const mintUrl of mintUrls) {
+        const hasMint = await wallet.hasMint(MintUrl.new({ url: mintUrl }));
+        if (!hasMint) {
+          await wallet.addMint(MintUrl.new({ url: mintUrl }), undefined);
+        }
       }
 
-      // Try to get the stored seed phrase first
-      const storedSeedPhrase = await SecureStorageService.getSeedPhrase();
-      let walletInstance;
-
-      if (storedSeedPhrase) {
-        // Use the stored seed phrase
-        walletInstance = new Wallet(
-          urlToUse,
-          CurrencyUnit.Sat.new(),
-          storedSeedPhrase,
-          localStore,
-          WalletConfig.create({ targetProofCount: undefined })
-        );
-      } else {
-        // If no stored seed phrase, try to restore with a temporary one
-        // This is for backwards compatibility with wallets created before secure storage
-        const tempMnemonic = generateMnemonic();
-        walletInstance = new Wallet(
-          urlToUse,
-          CurrencyUnit.Sat.new(),
-          tempMnemonic,
-          localStore,
-          WalletConfig.create({ targetProofCount: undefined })
-        );
+      // Set active mint
+      if (savedActiveMintUrl && mintUrls.includes(savedActiveMintUrl)) {
+        walletManager.setActiveMintUrl(savedActiveMintUrl);
+        setCurrentMintUrlRef(savedActiveMintUrl);
+      } else if (mintUrls.length > 0) {
+        walletManager.setActiveMintUrl(mintUrls[0]);
+        setCurrentMintUrlRef(mintUrls[0]);
       }
 
-      try {
-        // Try to get balance to verify wallet works
-        const walletBalance = await walletInstance.totalBalance();
-        walletManager.setWallet(walletInstance);
-        walletManager.setBalance(walletBalance.value);
+      // Update balance
+      await updateBalance();
 
-        // Update cached balance for this mint
-        await updateCachedMintBalance(urlToUse, walletBalance.value);
-
-        // Update total balance from cached balances
-        await updateTotalBalance();
-
-        // Update activeMintUrl to match the restored wallet
-        walletManager.setActiveMintUrl(urlToUse);
-        setCurrentMintUrlRef(urlToUse);
-
-        setModuleStatus(`Wallet restored! Total balance updated`);
-        walletManager.setLoadingWallet(false); // Set loading to false after successful restoration
-        setIsInitializing(false); // Initialization complete
-        return true;
-      } catch {
-        // Wallet exists but might be empty, still consider it restored
-        walletManager.setWallet(walletInstance);
-        walletManager.setBalance(BigInt(0));
-
-        // Update cached balance for this mint (0 for empty wallet)
-        await updateCachedMintBalance(urlToUse, BigInt(0));
-
-        // Update total balance from cached balances
-        await updateTotalBalance();
-
-        // Update activeMintUrl to match the restored wallet
-        walletManager.setActiveMintUrl(urlToUse);
-        setCurrentMintUrlRef(urlToUse);
-
-        setModuleStatus('Wallet restored successfully!');
-        walletManager.setLoadingWallet(false); // Set loading to false after successful restoration
-        setIsInitializing(false); // Initialization complete
-        return true;
-      }
+      walletManager.setLoadingWallet(false);
+      console.log('Wallet restored successfully');
+      return true;
     } catch (error) {
       console.error('Failed to restore wallet:', error);
-      setModuleStatus(`Failed to restore wallet: ${getErrorMessage(error)}`);
+      walletManager.setLoadingWallet(false);
       return false;
     }
   };
 
-  // Function to prompt user for mint URL
-  const promptForMintUrl = () => {
-    // Show the mint URL modal
-    setShowMintUrlModal(true);
-  };
-
-  // Function to handle mint URL submission
-  const handleMintUrlSubmit = async (url: string) => {
-    await addMintUrl(url);
-
-    // Properly activate the new mint (not just UI state)
-    walletManager.setActiveMintUrl(url);
-
-    // ONLY call setActiveMint if we're NOT creating a wallet
-    // This prevents restoreExistingWallet from being called during wallet creation
-    if (!shouldCreateWalletAfterMint) {
-      await setActiveMint(url);
-    }
-
-    setShowMintUrlModal(false);
-
-    // If we should create wallet after setting mint, set loading state
-    if (shouldCreateWalletAfterMint) {
-      walletManager.setLoadingWallet(true);
-      setModuleStatus('Mint URL set. Creating wallet...');
-    } else if (shouldShowRecoverAfterMint) {
-      setModuleStatus('Mint URL set. Ready to recover wallet.');
-      // Show recovery modal after a brief delay
-      setTimeout(() => {
-        setShowRecoverModal(true);
-        setShouldShowRecoverAfterMint(false);
-      }, 100);
-    } else {
-      setModuleStatus('Mint URL set. Ready to create wallet.');
-    }
-  };
-
-  // Function to handle mint URL modal close
-  const handleMintUrlModalClose = () => {
-    setShowMintUrlModal(false);
-    // Only reset the flag if the modal was cancelled (no mint URL was set)
-    // If mint URL was set, let the useEffect handle the flag
-    if (!activeMintUrl) {
-      setShouldCreateWalletAfterMint(false);
-      setShouldShowRecoverAfterMint(false);
-      setModuleStatus('Mint URL required to continue');
-    }
-  };
-
-  // Initialize CDK module
-  useEffect(() => {
-    const testCdkLoading = () => {
-      try {
-        setModuleStatus('Testing CDK import...');
-
-        if (Wallet && createWalletDb && WalletDbBackend && CurrencyUnit) {
-          setModuleStatus('All CDK components available!');
-
-          const cdkModuleImport = {
-            Wallet,
-            createWalletDb,
-            WalletDbBackend,
-            WalletConfig,
-            CurrencyUnit,
-            QuoteState,
-            SplitTarget,
-          };
-          setCdkModule(cdkModuleImport);
-        } else {
-          console.error('CDK components not found');
-          throw new Error('CDK components not found');
-        }
-      } catch (error) {
-        console.error('CDK loading error:', error);
-        setModuleStatus(`CDK loading failed: ${getErrorMessage(error)}`);
-        walletManager.setLoadingWallet(false);
-        setIsInitializing(false); // Initialization complete even if CDK failed
-      }
-    };
-
-    // Add a small delay to ensure everything is initialized
-    setTimeout(testCdkLoading, 100);
-  }, []);
-
-  // Set ready state when CDK module is loaded
-  useEffect(() => {
-    if (cdkModule) {
-      const initializeWallet = async () => {
-        try {
-          // Try to load saved mint URLs
-          const savedMintUrls = await AsyncStorage.getItem(
-            MINT_URLS_STORAGE_KEY
-          );
-
-          if (!savedMintUrls) {
-            setModuleStatus('Ready - Set mint URL to begin');
-            walletManager.setLoadingWallet(false);
-            setIsInitializing(false); // Initialization complete
-            return;
-          }
-
-          // Set the mint URLs in state
-          const parsedUrls = JSON.parse(savedMintUrls);
-          walletManager.setMintUrls(parsedUrls);
-
-          // Load the active mint URL from storage (not just the first one)
-          const savedActiveMintUrl = await loadActiveMintUrlFromStorage();
-          const activeMintToUse =
-            savedActiveMintUrl && parsedUrls.includes(savedActiveMintUrl)
-              ? savedActiveMintUrl
-              : parsedUrls[0]; // Fallback to first mint if no saved active mint
-
-          if (activeMintToUse) {
-            walletManager.setActiveMintUrl(activeMintToUse);
-            if (!currentMintUrlRef.current) {
-              setCurrentMintUrlRef(activeMintToUse);
-            }
-          }
-
-          // Mint URL exists, check if wallet database exists
-          const walletExists = await checkWalletExists(activeMintToUse);
-
-          if (walletExists) {
-            // Try to restore existing wallet, passing the correct active mint URL
-            const restored = await restoreExistingWallet(activeMintToUse);
-
-            if (!restored) {
-              setModuleStatus(
-                'Wallet database found but restoration failed. Ready to create new wallet.'
-              );
-              // Only set loading to false if restoration failed
-              walletManager.setLoadingWallet(false);
-              setIsInitializing(false); // Initialization complete
-            }
-            // If restored successfully, loading is set to false in restoreExistingWallet
-          } else {
-            setModuleStatus(
-              'Mint URL restored from storage. Ready to create wallet.'
-            );
-            // Only set loading to false when we know no wallet exists
-            walletManager.setLoadingWallet(false);
-            setIsInitializing(false); // Initialization complete
-          }
-        } catch (error) {
-          console.error('Error during wallet initialization:', error);
-          setModuleStatus(
-            'Error during initialization. Ready to create wallet.'
-          );
-          walletManager.setLoadingWallet(false);
-          setIsInitializing(false); // Initialization complete even if there was an error
-        }
-      };
-
-      // Add a small delay to ensure the screen is fully rendered, then initialize
-      setTimeout(initializeWallet, 500);
-    }
-
-    // Safety timeout to ensure loading doesn't hang forever
-    const safetyTimeout = setTimeout(() => {
-      walletManager.setLoadingWallet(false);
-      setIsInitializing(false); // Initialization complete due to timeout
-      setModuleStatus('Loading timeout. Please try again.');
-    }, 10000); // 10 seconds timeout
-
-    return () => clearTimeout(safetyTimeout);
-  }, [cdkModule]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      stopPaymentChecking();
-    };
-  }, []);
-
-  // Auto-create wallet after mint URL is set (when triggered from Create Wallet button)
-  useEffect(() => {
-    if (shouldCreateWalletAfterMint && activeMintUrl && cdkModule) {
-      // Call wallet creation directly here instead of through testWalletCreation
-      const createWalletDirectly = async () => {
-        // Check if wallet already exists first
-        const walletExists = await checkWalletExists(activeMintUrl);
-
-        if (walletExists) {
-          // Try to restore existing wallet instead of creating new one
-          const restored = await restoreExistingWallet(activeMintUrl);
-          if (restored) {
-            setShouldCreateWalletAfterMint(false);
-            return; // Successfully restored existing wallet
-          }
-          // If restoration failed, continue with creating new wallet
-          setModuleStatus(
-            'Existing wallet found but failed to restore. Creating new wallet...'
-          );
-        } else {
-          setModuleStatus('Creating wallet...');
-        }
-
-        try {
-          const seed = new ArrayBuffer(32);
-          const seedView = new Uint8Array(seed);
-          for (let i = 0; i < 32; i++) {
-            seedView[i] = Math.floor(Math.random() * 256);
-          }
-
-          // Generate mnemonic FIRST, before creating any database files
-          const mnemonic = generateMnemonic();
-
-          // Store wallet creation callback for when modal is closed
-          setPendingWalletCreation(() => async () => {
-            try {
-              // NOW create the LocalStore after user confirms mnemonic
-              let localStore;
-              try {
-                const dbPath = getMintDbPath(activeMintUrl);
-                localStore = createWalletDb(
-                  WalletDbBackend.Sqlite.new({ path: dbPath })
-                );
-              } catch (storeError) {
-                console.error('Wallet database creation failed:', storeError);
-                const errorMsg = getErrorMessage(storeError);
-
-                try {
-                  throw new Error('Failed to create wallet database');
-                } catch (fallbackError) {
-                  const fallbackErrorMsg = getErrorMessage(fallbackError);
-                  setModuleStatus(
-                    `CDK storage failed: ${errorMsg}. Fallback failed: ${fallbackErrorMsg}`
-                  );
-                  setShouldCreateWalletAfterMint(false); // Reset flag on error
-                  return;
-                }
-              }
-
-              if (!localStore) {
-                console.error('LocalStore is undefined, cannot create wallet');
-                setShouldCreateWalletAfterMint(false); // Reset flag on error
-                return;
-              }
-
-              // Store the seed phrase securely before creating the wallet
-              const stored =
-                await SecureStorageService.storeSeedPhrase(mnemonic);
-              if (!stored) {
-                console.warn(
-                  'Failed to store seed phrase securely, but continuing with wallet creation'
-                );
-              }
-
-              // Create wallet with the mnemonic after user confirms
-              let walletInstance;
-              try {
-                walletInstance = new Wallet(
-                  activeMintUrl,
-                  CurrencyUnit.Sat.new(),
-                  mnemonic,
-                  localStore,
-                  WalletConfig.create({ targetProofCount: undefined })
-                );
-              } catch (walletCreationError) {
-                console.error('Wallet creation failed:', walletCreationError);
-                Alert.alert(
-                  'Wallet Creation Failed',
-                  'There was an error creating your wallet. Please check your mint URL and try again.',
-                  [{ text: 'OK' }]
-                );
-                walletManager.setLoadingWallet(false);
-                return;
-              }
-
-              // Try to initialize wallet methods
-              try {
-                if (typeof walletInstance.getMintInfo === 'function') {
-                  walletInstance.getMintInfo();
-                }
-              } catch (initError) {
-                console.warn('getMintInfo failed, but continuing:', initError);
-                // Continue anyway, this might not be critical
-              }
-
-              try {
-                await walletInstance.totalBalance();
-              } catch (balanceError) {
-                console.warn(
-                  'Initial balance check failed, but continuing:',
-                  balanceError
-                );
-                // Expected for new wallets, continue
-              }
-
-              walletManager.setWallet(walletInstance);
-
-              // Try to get balance
-              try {
-                const walletBalance = await walletInstance.totalBalance();
-                walletManager.setBalance(walletBalance.value);
-                setModuleStatus('Wallet created successfully!');
-              } catch (balanceError) {
-                console.warn(
-                  'Balance retrieval failed, setting to 0:',
-                  balanceError
-                );
-                walletManager.setBalance(BigInt(0));
-                setModuleStatus('Wallet created successfully!');
-              }
-
-              walletManager.setLoadingWallet(false);
-            } catch (error) {
-              console.error('Error in wallet creation callback:', error);
-              Alert.alert(
-                'Wallet Creation Error',
-                'An unexpected error occurred during wallet creation. Please try again.',
-                [{ text: 'OK' }]
-              );
-              walletManager.setLoadingWallet(false);
-            }
-          });
-
-          // Set the generated mnemonic and show modal
-          setGeneratedMnemonic(mnemonic);
-          setShowMnemonicModal(true);
-
-          return; // Return early since wallet creation happens in modal callback
-        } catch (error) {
-          console.error('Wallet creation error:', error);
-          setModuleStatus(`Wallet creation failed: ${getErrorMessage(error)}`);
-          setShouldCreateWalletAfterMint(false); // Reset flag on error
-          walletManager.setLoadingWallet(false);
-        }
-      };
-
-      // Small delay to ensure everything is ready
-      setTimeout(createWalletDirectly, 100);
-    }
-  }, [shouldCreateWalletAfterMint, activeMintUrl, cdkModule]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const testWalletCreation = async () => {
-    if (!cdkModule) {
-      setModuleStatus('CDK module not loaded');
-      return;
-    }
-
-    if (!activeMintUrl) {
-      setModuleStatus('Please set a mint URL first');
-      setShouldCreateWalletAfterMint(true);
-      promptForMintUrl();
-      return;
-    }
-
-    // Set loading state for wallet creation
-    walletManager.setLoadingWallet(true);
-
-    // Check if wallet already exists
-    const walletExists = await checkWalletExists(activeMintUrl);
-    if (walletExists) {
-      // Try to restore existing wallet instead of creating new one
-      const restored = await restoreExistingWallet(activeMintUrl);
-      if (restored) {
-        walletManager.setLoadingWallet(false);
-        return; // Successfully restored existing wallet
-      }
-      // If restoration failed, continue with creating new wallet
-      setModuleStatus(
-        'Existing wallet found but failed to restore. Creating new wallet...'
-      );
-    }
-
-    // Reset flag since we're proceeding with wallet creation
-    setShouldCreateWalletAfterMint(false);
-
     try {
-      const seed = new ArrayBuffer(32);
-      const seedView = new Uint8Array(seed);
-      for (let i = 0; i < 32; i++) {
-        seedView[i] = Math.floor(Math.random() * 256);
-      }
+      walletManager.setLoadingWallet(true);
 
-      let localStore;
-      try {
-        const dbPath = getMintDbPath(activeMintUrl);
-        localStore = createWalletDb(
-          WalletDbBackend.Sqlite.new({ path: dbPath })
-        );
-      } catch (storeError) {
-        console.error('Wallet database creation failed:', storeError);
-        const errorMsg = getErrorMessage(storeError);
-
-        try {
-          throw new Error('Failed to create wallet database');
-        } catch (fallbackError) {
-          const fallbackErrorMsg = getErrorMessage(fallbackError);
-          setModuleStatus(
-            `CDK storage failed: ${errorMsg}. Fallback failed: ${fallbackErrorMsg}`
-          );
+      // Check if wallet already exists
+      const walletExists = await checkWalletExists();
+      if (walletExists) {
+        const restored = await restoreExistingWallet();
+        if (restored) {
+          console.log('Existing wallet restored');
           return;
         }
       }
 
-      if (!localStore) {
-        console.error('LocalStore is undefined, cannot create wallet');
+      // Get current mint URLs (might have been just added)
+      const currentMintUrls = walletManager.getMintUrls();
+
+      // Load existing mints or prompt for first mint
+      const hasMintsLoaded = await loadMintUrlsFromStorage();
+      if (!hasMintsLoaded && currentMintUrls.length === 0) {
+        console.log('No mints found, prompting for mint URL');
+        setShouldCreateWalletAfterMint(true);
+        promptForMintUrl();
+        walletManager.setLoadingWallet(false);
         return;
       }
 
-      // Generate mnemonic and create wallet
-      const mnemonic = generateMnemonic();
+      // Use the mints we have (either loaded from storage or just added)
+      const mintsToUse = currentMintUrls.length > 0 ? currentMintUrls : mintUrls;
 
-      // Store wallet creation callback for when modal is closed
-      setPendingWalletCreation(() => async () => {
-        try {
-          // Store the seed phrase securely before creating the wallet
-          const stored = await SecureStorageService.storeSeedPhrase(mnemonic);
-          if (!stored) {
-            console.warn(
-              'Failed to store seed phrase securely, but continuing with wallet creation'
-            );
-          }
+      if (mintsToUse.length === 0) {
+        console.log('No mints available, prompting for mint URL');
+        setShouldCreateWalletAfterMint(true);
+        promptForMintUrl();
+        walletManager.setLoadingWallet(false);
+        return;
+      }
 
-          // Create wallet with the mnemonic after user confirms
-          let walletInstance;
-          try {
-            walletInstance = new Wallet(
-              activeMintUrl,
-              CurrencyUnit.Sat.new(),
-              mnemonic,
-              localStore,
-              WalletConfig.create({ targetProofCount: undefined })
-            );
-          } catch (walletCreationError) {
-            console.error('Wallet creation failed:', walletCreationError);
-            Alert.alert(
-              'Wallet Creation Failed',
-              'There was an error creating your wallet. Please check your mint URL and try again.',
-              [{ text: 'OK' }]
-            );
-            walletManager.setLoadingWallet(false);
-            return;
-          }
-
-          // Try to initialize wallet methods
-          try {
-            if (typeof walletInstance.getMintInfo === 'function') {
-              walletInstance.getMintInfo();
-            }
-          } catch (initError) {
-            console.warn('getMintInfo failed, but continuing:', initError);
-            // Continue anyway, this might not be critical
-          }
-
-          try {
-            await walletInstance.totalBalance();
-          } catch (balanceError) {
-            console.warn(
-              'Initial balance check failed, but continuing:',
-              balanceError
-            );
-            // Expected for new wallets, continue
-          }
-
-          walletManager.setWallet(walletInstance);
-
-          // Try to get balance
-          try {
-            const walletBalance = await walletInstance.totalBalance();
-            walletManager.setBalance(walletBalance.value);
-            setModuleStatus('Wallet created successfully!');
-          } catch (balanceError) {
-            console.warn(
-              'Balance retrieval failed, setting to 0:',
-              balanceError
-            );
-            walletManager.setBalance(BigInt(0));
-            setModuleStatus('Wallet created successfully!');
-          }
-
-          walletManager.setLoadingWallet(false);
-        } catch (error) {
-          console.error('Error in wallet creation callback:', error);
-          Alert.alert(
-            'Wallet Creation Error',
-            'An unexpected error occurred during wallet creation. Please try again.',
-            [{ text: 'OK' }]
-          );
-          walletManager.setLoadingWallet(false);
+      // Check if we have a seed phrase
+      const existingSeed = await SecureStorageService.getSeedPhrase();
+      if (existingSeed) {
+        const restored = await restoreExistingWallet();
+        if (restored) {
+          console.log('Wallet restored from existing seed');
+          return;
         }
-      });
+      }
 
-      // Set the generated mnemonic and show modal
-      setGeneratedMnemonic(mnemonic);
+      // No existing wallet, create new one
+      const newMnemonic = generateMnemonic();
+      console.log('Generated mnemonic:', newMnemonic ? 'exists' : 'is null/undefined');
+      console.log('Mnemonic type:', typeof newMnemonic);
+      setGeneratedMnemonic(newMnemonic);
+      setPendingWalletCreation({ mnemonic: newMnemonic, mintUrls: mintsToUse });
       setShowMnemonicModal(true);
-
-      return; // Return early since wallet creation happens in modal callback
+      walletManager.setLoadingWallet(false);
     } catch (error) {
-      console.error('Wallet creation error:', error);
-      setModuleStatus(`Wallet creation failed: ${getErrorMessage(error)}`);
+      console.error('Wallet creation failed:', error);
+      Alert.alert('Error', `Failed to create wallet: ${getErrorMessage(error)}`);
       walletManager.setLoadingWallet(false);
     }
   };
 
+  const handleMnemonicModalDone = async () => {
+    try {
+      setShowMnemonicModal(false);
+
+      if (!pendingWalletCreation) {
+        console.error('No pending wallet creation found');
+        return;
+      }
+
+      const { mnemonic, mintUrls: pendingMintUrls } = pendingWalletCreation;
+      console.log('Mnemonic from pending:', mnemonic ? 'exists' : 'is null/undefined');
+      console.log('Mnemonic type:', typeof mnemonic);
+      console.log('Mnemonic length:', mnemonic?.length);
+      console.log('Pending mint URLs:', pendingMintUrls);
+
+      if (!mnemonic || typeof mnemonic !== 'string') {
+        throw new Error('Invalid mnemonic: must be a non-empty string');
+      }
+
+      // Store seed phrase securely
+      await SecureStorageService.storeSeedPhrase(mnemonic);
+
+      // Create MultiMintWallet
+      console.log('Creating MultiMintWallet...');
+      const wallet = await createMultiMintWallet(mnemonic);
+      console.log('MultiMintWallet created successfully');
+      walletManager.setMultiMintWallet(wallet);
+
+      // Add all mints from pending creation
+      for (const mintUrl of pendingMintUrls) {
+        await wallet.addMint(MintUrl.new({ url: mintUrl }), undefined);
+      }
+
+      // Set first mint as active
+      if (pendingMintUrls.length > 0) {
+        walletManager.setActiveMintUrl(pendingMintUrls[0]);
+        setCurrentMintUrlRef(pendingMintUrls[0]);
+      }
+
+      // Update balance
+      await updateBalance();
+
+      setPendingWalletCreation(null);
+
+      // Mark initialization as complete
+      setIsInitializing(false);
+      walletManager.setLoadingWallet(false);
+
+      console.log('Wallet created successfully');
+    } catch (error) {
+      console.error('Failed to complete wallet creation:', error);
+      Alert.alert('Error', `Failed to create wallet: ${getErrorMessage(error)}`);
+      setIsInitializing(false);
+      walletManager.setLoadingWallet(false);
+    }
+  };
+
+  // ============================================================================
+  // PAYMENT OPERATIONS - RECEIVE (MINT)
+  // ============================================================================
+
   const handleReceive = () => {
-    if (!wallet) {
-      setModuleStatus('Please create a wallet first');
+    if (!multiMintWallet) {
+      Alert.alert('Error', 'Wallet not initialized');
+      return;
+    }
+    if (!activeMintUrl) {
+      Alert.alert('Error', 'No active mint selected');
       return;
     }
     setShowReceiveModal(true);
+  };
+
+  const closeReceiveModal = () => {
+    setShowReceiveModal(false);
     setReceiveAmount('');
     setInvoice('');
     setQuoteId('');
-    // Stop any existing payment checking
-    stopPaymentChecking();
-  };
-
-  // Custom function to close receive modal and stop payment checking
-  const closeReceiveModal = () => {
-    stopPaymentChecking();
-    setShowReceiveModal(false);
-    setInvoice('');
-    setQuoteId('');
-  };
-
-  const handleSend = () => {
-    if (!wallet) {
-      setModuleStatus('Please create a wallet first');
-      return;
-    }
-    setShowSendModal(true);
-    setLightningInvoice('');
-  };
-
-  // Function to calculate total balance across all mints using cached balances
-  const calculateTotalBalance = async (): Promise<bigint> => {
-    try {
-      const cachedBalances = await loadCachedBalances();
-      let totalBalance = BigInt(0);
-
-      for (const mintBalance of cachedBalances) {
-        totalBalance += mintBalance.balance;
-      }
-
-      return totalBalance;
-    } catch (error) {
-      console.error('Failed to calculate total balance:', error);
-      return BigInt(0);
-    }
-  };
-
-  // Function to update total balance display
-  const updateTotalBalance = async () => {
-    const total = await calculateTotalBalance();
-    walletManager.setBalance(total);
-  };
-
-  // Get the current active mint URL directly from storage (bypass React state)
-  const getCurrentActiveMintUrl = async (): Promise<string> => {
-    try {
-      const savedActiveMintUrl = await AsyncStorage.getItem(
-        ACTIVE_MINT_URL_STORAGE_KEY
-      );
-      if (savedActiveMintUrl) {
-        return savedActiveMintUrl;
-      }
-
-      // Fallback to first mint if no active mint saved
-      const savedMintUrls = await AsyncStorage.getItem(MINT_URLS_STORAGE_KEY);
-      if (savedMintUrls) {
-        const parsedUrls = JSON.parse(savedMintUrls);
-        return parsedUrls[0] || '';
-      }
-
-      return '';
-    } catch (error) {
-      console.error('Failed to get current active mint URL:', error);
-      return '';
-    }
-  };
-
-  const createInvoice = async () => {
-    if (!wallet || !receiveAmount || parseInt(receiveAmount, 10) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
-
-    setIsLoadingInvoice(true);
-    try {
-      if (typeof wallet.mintQuote !== 'function') {
-        throw new Error('Wallet mintQuote method not available');
-      }
-
-      const amount = { value: BigInt(receiveAmount) };
-      const mintQuote = await wallet.mintQuote(amount, 'Cashu wallet receive');
-
-      setInvoice(mintQuote.request);
-      setQuoteId(mintQuote.id);
-
-      // Start automatic payment checking with the quote ID directly
-      startPaymentChecking(mintQuote.id);
-    } catch (error) {
-      console.error('Failed to create invoice:', error);
-      const errorMsg = getErrorMessage(error);
-      Alert.alert('Error', `Failed to create invoice: ${errorMsg}`);
-    } finally {
-      setIsLoadingInvoice(false);
-    }
-  };
-
-  const copyToClipboard = () => {
-    Clipboard.setString(invoice);
-    Alert.alert('Copied!', 'Invoice copied to clipboard');
-  };
-
-  // Silent background payment checking
-  const checkPaymentStatus = async (currentQuoteId?: string) => {
-    const activeQuoteId = currentQuoteId || quoteId;
-
-    if (!wallet || !activeQuoteId) {
-      return false;
-    }
-
-    try {
-      if (typeof wallet.mint === 'function') {
-        try {
-          const proofs = await wallet.mint(
-            activeQuoteId,
-            SplitTarget.None.new(),
-            undefined
-          );
-
-          const mintedAmount = proofs.reduce((sum, proof) => {
-            return sum + (proof.amount?.value || BigInt(0));
-          }, BigInt(0));
-
-          const actualMintUrl = await getCurrentActiveMintUrl();
-          const currentCachedBalance =
-            await getCachedMintBalance(actualMintUrl);
-          const newBalance = currentCachedBalance.balance + mintedAmount;
-          await updateCachedMintBalance(actualMintUrl, newBalance);
-          await updateTotalBalance();
-
-          if (paymentCheckInterval.current) {
-            clearInterval(paymentCheckInterval.current);
-            paymentCheckInterval.current = null;
-          }
-
-          setInvoice('');
-          setQuoteId('');
-          setShowReceiveModal(false);
-
-          setPaymentReceivedAmount(mintedAmount);
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 3000);
-
-          return true;
-        } catch {
-          return false;
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error('Failed to check mint quote:', error);
-      return false;
-    }
-  };
-
-  // Start automatic payment checking
-  const startPaymentChecking = (targetQuoteId?: string) => {
-    // Clear any existing interval
-    if (paymentCheckInterval.current) {
-      clearInterval(paymentCheckInterval.current);
-    }
-
-    // Check immediately first
-    checkPaymentStatus(targetQuoteId);
-
-    // Start checking every second
-    paymentCheckInterval.current = setInterval(
-      () => checkPaymentStatus(targetQuoteId),
-      1000
-    );
-  };
-
-  // Stop automatic payment checking
-  const stopPaymentChecking = () => {
     if (paymentCheckInterval.current) {
       clearInterval(paymentCheckInterval.current);
       paymentCheckInterval.current = null;
     }
   };
 
-  const sendPayment = async (scannedInvoice?: string) => {
-    const invoiceToUse = scannedInvoice || lightningInvoice;
-
-    // Prevent duplicate calls
-    if (isProcessingPayment.current) {
-      console.log('Payment already in progress, ignoring duplicate call');
-      return;
-    }
-
-    if (!wallet || !invoiceToUse.trim()) {
-      Alert.alert('Error', 'Please enter a Lightning invoice');
-      return;
-    }
-
-    if (!cdkModule) {
-      Alert.alert('Error', 'CDK module not loaded');
-      return;
-    }
-
-    if (!invoiceToUse.toLowerCase().startsWith('lnbc')) {
-      Alert.alert(
-        'Error',
-        'Please enter a valid Lightning invoice (should start with lnbc)'
-      );
-      return;
-    }
-
-    isProcessingPayment.current = true;
-    setIsSending(true);
+  const createInvoice = async () => {
     try {
-      const currentBalance = await wallet.totalBalance();
+      if (!multiMintWallet || !activeMintUrl) {
+        throw new Error('Wallet not initialized or no active mint');
+      }
 
-      if (currentBalance.value <= 0) {
-        Alert.alert('Error', 'Insufficient balance to send payment');
-        setIsSending(false);
-        isProcessingPayment.current = false;
+      setIsLoadingInvoice(true);
+
+      const amount = BigInt(receiveAmount);
+      if (amount <= BigInt(0)) {
+        throw new Error('Amount must be greater than 0');
+      }
+
+      // Create mint quote
+      const quote = await multiMintWallet.mintQuote(
+        MintUrl.new({ url: activeMintUrl }),
+        { value: amount },
+        'Lightning invoice'
+      );
+
+      setInvoice(quote.request);
+      setQuoteId(quote.id);
+      setIsLoadingInvoice(false);
+
+      // Start checking for payment
+      startPaymentCheck(quote.id);
+    } catch (error) {
+      console.error('Failed to create invoice:', error);
+      Alert.alert('Error', `Failed to create invoice: ${getErrorMessage(error)}`);
+      setIsLoadingInvoice(false);
+    }
+  };
+
+  const startPaymentCheck = (mintQuoteId: string) => {
+    // Clear any existing interval
+    if (paymentCheckInterval.current) {
+      clearInterval(paymentCheckInterval.current);
+    }
+
+    // Check payment status every 3 seconds
+    paymentCheckInterval.current = setInterval(async () => {
+      if (!multiMintWallet || !activeMintUrl) {
         return;
       }
 
-      if (typeof wallet.meltQuote !== 'function') {
-        console.error(
-          'meltQuote is not a function, type:',
-          typeof wallet.meltQuote
-        );
-
-        Alert.alert(
-          'Lightning Payments Not Supported',
-          'This CDK version does not support Lightning payments (meltQuote/melt methods are missing).\n\nAvailable methods: ' +
-            Object.getOwnPropertyNames(Object.getPrototypeOf(wallet)).join(
-              ', '
-            ),
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setIsSending(false);
-                isProcessingPayment.current = false;
-              },
-            },
-          ]
-        );
+      if (isProcessingPayment.current) {
         return;
       }
 
       try {
-        const meltQuote = await wallet.meltQuote(invoiceToUse, undefined);
+        isProcessingPayment.current = true;
 
-        const prepareResult = {
-          amount: meltQuote.amount,
-          totalFee: meltQuote.feeReserve || { value: BigInt(0) },
-        };
+        // Check quote status
+        const quote = await multiMintWallet.checkMintQuote(
+          MintUrl.new({ url: activeMintUrl }),
+          mintQuoteId
+        );
 
-        const totalAmount =
-          prepareResult.amount.value + prepareResult.totalFee.value;
+        if (quote.state === QuoteState.Paid) {
+          // Quote is paid, execute mint
+          setShowReceivingLoader(true);
 
-        const walletBalance = await wallet.totalBalance();
-        if (walletBalance.value < totalAmount) {
-          Alert.alert(
-            'Insufficient Balance',
-            `You need ${formatSats(totalAmount)} but only have ${formatSats(walletBalance.value)}`
+          await multiMintWallet.mint(
+            MintUrl.new({ url: activeMintUrl }),
+            mintQuoteId,
+            undefined // spending conditions
           );
-          setIsSending(false);
-          isProcessingPayment.current = false;
-          return;
+
+          // Stop checking
+          if (paymentCheckInterval.current) {
+            clearInterval(paymentCheckInterval.current);
+            paymentCheckInterval.current = null;
+          }
+
+          // Update balance
+          await updateBalance();
+
+          // Show success
+          setPaymentReceivedAmount(BigInt(receiveAmount));
+          setShowReceivingLoader(false);
+          setShowConfetti(true);
+          closeReceiveModal();
+
+          setTimeout(() => {
+            setShowConfetti(false);
+            setPaymentReceivedAmount(BigInt(0));
+          }, 3000);
         }
-
-        Alert.alert(
-          'Confirm Payment',
-          `Amount: ${formatSats(prepareResult.amount.value)}\nFee: ${formatSats(prepareResult.totalFee.value)}\nTotal: ${formatSats(totalAmount)}\n\nDo you want to proceed?`,
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => {
-                setIsSending(false);
-                isProcessingPayment.current = false;
-              },
-            },
-            {
-              text: 'Send',
-              onPress: async () => {
-                try {
-                  // Show loading indicator
-                  setShowSendingLoader(true);
-
-                  // Small delay to ensure the loading indicator renders
-                  await new Promise((resolve) => setTimeout(resolve, 100));
-
-                  // Execute payment
-                  const meltResult = await wallet.melt(meltQuote.id);
-
-                  // Check if payment was successful
-                  if (meltResult.state !== QuoteState.Paid) {
-                    throw new Error(
-                      meltResult.state === QuoteState.Pending
-                        ? 'Payment is still pending'
-                        : 'Payment failed or expired'
-                    );
-                  }
-
-                  // Update cached balance arithmetically (faster than syncing)
-                  const actualMintUrl = await getCurrentActiveMintUrl();
-                  const currentCachedBalance =
-                    await getCachedMintBalance(actualMintUrl);
-                  const newBalance = currentCachedBalance.balance - totalAmount;
-                  await updateCachedMintBalance(actualMintUrl, newBalance);
-
-                  // Update total balance from cached balances
-                  await updateTotalBalance();
-
-                  // Clear invoice and close modal
-                  setLightningInvoice('');
-                  setShowSendModal(false);
-
-                  // Hide loading indicator
-                  setShowSendingLoader(false);
-
-                  // Show sent confetti animation
-                  setPaymentSentAmount(prepareResult.amount.value);
-                  setShowSentConfetti(true);
-
-                  // Hide confetti after 3 seconds
-                  setTimeout(() => setShowSentConfetti(false), 3000);
-                } catch (sendError) {
-                  console.error('Payment failed:', sendError);
-
-                  // Hide loading indicator on error
-                  setShowSendingLoader(false);
-
-                  const errorMsg = getErrorMessage(sendError);
-
-                  Alert.alert('Payment Failed', errorMsg);
-                } finally {
-                  setIsSending(false);
-                  isProcessingPayment.current = false;
-                }
-              },
-            },
-          ]
-        );
-      } catch (meltError) {
-        console.error('Melt quote failed:', meltError);
-        throw meltError;
+      } catch (error) {
+        console.error('Error checking payment:', error);
+      } finally {
+        isProcessingPayment.current = false;
       }
-    } catch (error) {
-      console.error('Payment preparation failed:', error);
-      const errorMsg = getErrorMessage(error);
-      Alert.alert('Error', `Failed to prepare payment: ${errorMsg}`);
-      setIsSending(false);
-      isProcessingPayment.current = false;
-    }
+    }, 3000);
   };
 
-  // Handle mnemonic modal done
-  const handleMnemonicModalDone = async () => {
-    setShowMnemonicModal(false);
-    if (pendingWalletCreation) {
-      await pendingWalletCreation();
-      setPendingWalletCreation(null);
-    }
-  };
+  // ============================================================================
+  // PAYMENT OPERATIONS - SEND (MELT)
+  // ============================================================================
 
-  // Handle recover wallet button
-  const handleRecoverWallet = () => {
-    if (!cdkModule) {
-      setModuleStatus('CDK module not loaded');
+  const handleSend = () => {
+    if (!multiMintWallet) {
+      Alert.alert('Error', 'Wallet not initialized');
       return;
     }
-
     if (!activeMintUrl) {
-      setModuleStatus('Please set a mint URL first');
-      setShouldShowRecoverAfterMint(true);
-      promptForMintUrl();
+      Alert.alert('Error', 'No active mint selected');
       return;
     }
-
-    setShowRecoverModal(true);
+    if (balance <= BigInt(0)) {
+      Alert.alert('Error', 'Insufficient balance');
+      return;
+    }
+    setShowSendModal(true);
   };
 
-  // Send cashu token directly (not Lightning)
-  const sendCashuToken = async (amount: string, memo?: string) => {
-    if (!wallet || !amount || parseInt(amount, 10) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return null;
-    }
-
+  const sendPayment = async () => {
     try {
-      const amountBigInt = BigInt(amount);
-      const currentBalance = await wallet.totalBalance();
-
-      if (currentBalance.value < amountBigInt) {
-        Alert.alert(
-          'Insufficient Balance',
-          `You need ${formatSats(amountBigInt)} but only have ${formatSats(currentBalance.value)}`
-        );
-        return null;
+      if (!multiMintWallet || !activeMintUrl) {
+        throw new Error('Wallet not initialized or no active mint');
       }
 
-      const cashuToken = await wallet.sendCashuToken(
-        { value: amountBigInt },
-        memo || undefined
+      if (!lightningInvoice) {
+        throw new Error('Please enter a Lightning invoice');
+      }
+
+      if (!lightningInvoice.toLowerCase().startsWith('lnbc')) {
+        throw new Error('Invalid Lightning invoice format');
+      }
+
+      setIsSending(true);
+      setShowSendingLoader(true);
+
+      // Get melt quote
+      const meltQuote = await multiMintWallet.meltQuote(
+        MintUrl.new({ url: activeMintUrl }),
+        lightningInvoice,
+        undefined // options
+      );
+
+      const totalAmount = BigInt(meltQuote.amount.value) + BigInt(meltQuote.feeReserve.value);
+
+      // Check balance
+      if (balance < totalAmount) {
+        throw new Error(
+          `Insufficient balance. Need ${totalAmount} sats but only have ${balance} sats`
+        );
+      }
+
+      // Stop the loading indicator before showing confirmation
+      setShowSendingLoader(false);
+      setIsSending(false);
+
+      // Show confirmation dialog with amount and fees
+      Alert.alert(
+        'Confirm Payment',
+        `Amount: ${formatSats(BigInt(meltQuote.amount.value))}\nFees: ${formatSats(BigInt(meltQuote.feeReserve.value))}\nTotal: ${formatSats(totalAmount)}\n\nSend this payment?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              setIsSending(false);
+              setShowSendingLoader(false);
+            },
+          },
+          {
+            text: 'Send',
+            onPress: async () => {
+              try {
+                setIsSending(true);
+                setShowSendingLoader(true);
+
+                // Execute payment using meltWithMint
+                await multiMintWallet.meltWithMint(
+                  MintUrl.new({ url: activeMintUrl }),
+                  meltQuote.id
+                );
+
+                // Update balance
+                await updateBalance();
+
+                // Show success
+                setPaymentSentAmount(BigInt(meltQuote.amount.value));
+                setShowSendingLoader(false);
+                setShowSentConfetti(true);
+                setShowSendModal(false);
+                setLightningInvoice('');
+                setIsSending(false);
+
+                setTimeout(() => {
+                  setShowSentConfetti(false);
+                  setPaymentSentAmount(BigInt(0));
+                }, 3000);
+              } catch (error) {
+                console.error('Payment failed:', error);
+                Alert.alert('Error', `Payment failed: ${getErrorMessage(error)}`);
+                setIsSending(false);
+                setShowSendingLoader(false);
+              }
+            },
+          },
+        ]
+      );
+      return; // Exit the try block after showing dialog
+    } catch (error) {
+      console.error('Payment failed:', error);
+      Alert.alert('Error', `Payment failed: ${getErrorMessage(error)}`);
+      setIsSending(false);
+      setShowSendingLoader(false);
+    }
+  };
+
+  // ============================================================================
+  // CASHU TOKEN OPERATIONS
+  // ============================================================================
+
+  const sendCashuToken = async (amount: bigint) => {
+    try {
+      if (!multiMintWallet || !activeMintUrl) {
+        throw new Error('Wallet not initialized or no active mint');
+      }
+
+      if (amount <= BigInt(0)) {
+        throw new Error('Amount must be greater than 0');
+      }
+
+      if (balance < amount) {
+        throw new Error('Insufficient balance');
+      }
+
+      // Prepare send (generates token)
+      const prepared = await multiMintWallet.prepareSend(
+        MintUrl.new({ url: activeMintUrl }),
+        { value: amount },
+        {
+          memo: undefined,
+          conditions: undefined,
+          amountSplitTarget: SplitTarget.None.new(),
+          sendKind: { OnlineExact: null },
+          includeFee: false,
+          maxProofs: undefined,
+          metadata: {},
+        }
       );
 
       // Update balance
-      const newBalance = await wallet.totalBalance();
-      walletManager.setBalance(newBalance.value);
+      await updateBalance();
 
-      return cashuToken;
+      // Return token string
+      return prepared.token.toString();
     } catch (error) {
-      console.error('Failed to send cashu token:', error);
-      const errorMsg = getErrorMessage(error);
-      Alert.alert('Error', `Failed to send cashu token: ${errorMsg}`);
-      return null;
+      console.error('Failed to create Cashu token:', error);
+      throw error;
     }
   };
 
-  // Receive cashu token
   const receiveCashuToken = async (tokenString: string) => {
-    if (!wallet || !tokenString.trim()) {
-      Alert.alert('Error', 'Please enter a valid cashu token');
-      return false;
-    }
-
     try {
-      // Parse the token first to extract mint information
-      const parsedToken = await wallet.parseCashuToken(tokenString);
-      const tokenMintUrl = parsedToken.mint;
-      const currentActiveMint = await getCurrentActiveMintUrl();
-
-      // Check if we need to add a new mint
-      let needsNewMint = false;
-
-      if (!mintUrls.includes(tokenMintUrl)) {
-        needsNewMint = true;
+      if (!multiMintWallet) {
+        throw new Error('Wallet not initialized');
       }
 
-      // Show confirmation dialog with mint information
-      const confirmationMessage = needsNewMint
-        ? `This token is from: ${tokenMintUrl}\n\nThis mint will be automatically added to your wallet.\n\nDo you want to redeem this cashu token?`
-        : `This token is from: ${tokenMintUrl}\n\nDo you want to redeem this cashu token to your wallet?`;
+      // Parse token to get mint URL
+      const token = { toString: () => tokenString };
 
-      Alert.alert('Redeem Cashu Token', confirmationMessage, [
+      // Receive token
+      const receivedAmount = await multiMintWallet.receive(
+        token as any,
         {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Redeem',
-          onPress: async () => {
-            try {
-              // Close the receive modal first
-              setShowReceiveModal(false);
-
-              // Show receiving loading indicator
-              setShowReceivingLoader(true);
-
-              // Small delay to ensure the loading indicator renders
-              await new Promise((resolve) => setTimeout(resolve, 100));
-
-              // Add mint if it doesn't exist
-              if (needsNewMint) {
-                await addMintUrl(tokenMintUrl);
-
-                // Wait for React state to update after adding the mint
-                await new Promise((resolve) => setTimeout(resolve, 500));
-              }
-
-              // Get the wallet instance for the token's mint
-              let targetWallet = wallet;
-              let previousMintUrl = null;
-
-              // If token is from a different mint, temporarily switch to it
-              if (tokenMintUrl !== currentActiveMint) {
-                previousMintUrl = currentActiveMint;
-
-                // Create wallet for the target mint directly instead of using setActiveMint
-                try {
-                  const dbPath = getMintDbPath(tokenMintUrl);
-                  const localStore = createWalletDb(
-                    WalletDbBackend.Sqlite.new({ path: dbPath })
-                  );
-
-                  const storedSeedPhrase =
-                    await SecureStorageService.getSeedPhrase();
-                  if (!storedSeedPhrase) {
-                    throw new Error(
-                      'No seed phrase available for target mint wallet creation'
-                    );
-                  }
-
-                  targetWallet = new Wallet(
-                    tokenMintUrl,
-                    CurrencyUnit.Sat.new(),
-                    storedSeedPhrase,
-                    localStore,
-                    WalletConfig.create({ targetProofCount: undefined })
-                  );
-
-                  // Verify wallet works by checking if it has the receiveCashuToken method
-                  if (typeof targetWallet.receiveCashuToken !== 'function') {
-                    throw new Error(
-                      'Target wallet does not have receiveCashuToken method'
-                    );
-                  }
-                } catch (walletCreationError) {
-                  console.error(
-                    'Failed to create target wallet:',
-                    walletCreationError
-                  );
-                  const errorMessage =
-                    walletCreationError instanceof Error
-                      ? walletCreationError.message
-                      : 'Unknown error';
-                  throw new Error(
-                    `Failed to create wallet for mint ${tokenMintUrl}: ${errorMessage}`
-                  );
-                }
-              }
-
-              // Redeem the token using the correct mint's wallet
-              const receivedAmount =
-                await targetWallet.receiveCashuToken(tokenString);
-
-              // Update cached balance for the correct mint
-              const currentCachedBalance =
-                await getCachedMintBalance(tokenMintUrl);
-              const newBalance =
-                currentCachedBalance.balance + receivedAmount.value;
-              await updateCachedMintBalance(tokenMintUrl, newBalance);
-
-              // Update total balance from cached balances
-              await updateTotalBalance();
-
-              // Switch back to previous mint if we changed it
-              if (previousMintUrl && previousMintUrl !== tokenMintUrl) {
-                await setActiveMint(previousMintUrl);
-              }
-
-              // Hide receiving loading indicator
-              setShowReceivingLoader(false);
-
-              // Show success confetti animation
-              setPaymentReceivedAmount(receivedAmount.value);
-              setShowConfetti(true);
-
-              // Hide confetti after 3 seconds
-              setTimeout(() => setShowConfetti(false), 3000);
-
-              return true;
-            } catch (error) {
-              console.error('Failed to receive cashu token:', error);
-
-              // Hide receiving loading indicator on error
-              setShowReceivingLoader(false);
-
-              const errorMsg = getErrorMessage(error);
-              Alert.alert(
-                'Error',
-                `Failed to receive cashu token: ${errorMsg}`
-              );
-              return false;
-            }
-          },
-        },
-      ]);
-
-      // Return true to indicate the dialog was shown
-      return true;
-    } catch (parseError) {
-      console.error('Failed to parse cashu token:', parseError);
-      const errorMsg = getErrorMessage(parseError);
-      Alert.alert('Invalid Token', `Failed to parse cashu token: ${errorMsg}`);
-      return false;
-    }
-  };
-
-  // Handle wallet recovery from mnemonic
-  const handleWalletRecovery = async (mnemonic: string) => {
-    if (!cdkModule || !activeMintUrl) {
-      Alert.alert('Error', 'CDK module or mint URL not available');
-      return;
-    }
-
-    walletManager.setLoadingWallet(true);
-    setShowRecoverModal(false);
-    setShowRecoveryLoader(true); // Show recovery loading indicator
-
-    // Small delay to ensure the loading indicator renders
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    try {
-      // Store the seed phrase securely first
-      const stored = await SecureStorageService.storeSeedPhrase(mnemonic);
-      if (!stored) {
-        Alert.alert(
-          'Warning',
-          'Failed to securely store seed phrase. The wallet will still be recovered, but you should backup your seed phrase manually.',
-          [{ text: 'Continue' }]
-        );
-      }
-
-      let localStore;
-      try {
-        const dbPath = getMintDbPath(activeMintUrl);
-        localStore = createWalletDb(
-          WalletDbBackend.Sqlite.new({ path: dbPath })
-        );
-      } catch (storeError) {
-        console.error('Wallet database creation failed:', storeError);
-        try {
-          throw new Error('Failed to create wallet database');
-        } catch (fallbackError) {
-          const fallbackErrorMsg = getErrorMessage(fallbackError);
-          setModuleStatus(
-            `CDK storage failed: ${getErrorMessage(storeError)}. Fallback failed: ${fallbackErrorMsg}`
-          );
-          walletManager.setLoadingWallet(false);
-          setShowRecoveryLoader(false);
-          return;
+          amountSplitTarget: SplitTarget.None.new(),
+          p2pkSigningKeys: [],
+          preimages: [],
+          metadata: {},
         }
-      }
-
-      if (!localStore) {
-        console.error('LocalStore is undefined, cannot recover wallet');
-        Alert.alert('Error', 'Failed to initialize wallet storage');
-        walletManager.setLoadingWallet(false);
-        setShowRecoveryLoader(false);
-        return;
-      }
-
-      // Use restoreFromMnemonic which calls restore() internally
-      const walletInstance = new Wallet(
-        activeMintUrl,
-        CurrencyUnit.Sat.new(),
-        mnemonic,
-        localStore,
-        WalletConfig.create({ targetProofCount: undefined })
       );
 
-      walletManager.setWallet(walletInstance);
+      // Update balance
+      await updateBalance();
 
-      try {
-        const walletBalance = await walletInstance.totalBalance();
-
-        // Update cached balance for this mint
-        await updateCachedMintBalance(activeMintUrl, walletBalance.value);
-
-        // Update total balance from cached balances
-        await updateTotalBalance();
-
-        setModuleStatus('Wallet recovered successfully!');
-      } catch {
-        // Update cached balance for this mint (0 for empty wallet)
-        await updateCachedMintBalance(activeMintUrl, BigInt(0));
-
-        // Update total balance from cached balances
-        await updateTotalBalance();
-
-        setModuleStatus('Wallet recovered successfully!');
-      }
-
-      walletManager.setLoadingWallet(false);
-      setShowRecoveryLoader(false); // Hide recovery loading indicator
-
-      // Show recovery confetti animation
-      setShowRecoveryConfetti(true);
-
-      // Hide confetti after 3 seconds
-      setTimeout(() => setShowRecoveryConfetti(false), 3000);
+      Alert.alert('Success', `Received ${receivedAmount.value} sats`);
+      return receivedAmount.value;
     } catch (error) {
-      console.error('Wallet recovery error:', error);
-      const errorMsg = getErrorMessage(error);
-      setModuleStatus(`Wallet recovery failed: ${errorMsg}`);
-      Alert.alert('Recovery Failed', `Failed to recover wallet: ${errorMsg}`);
-      walletManager.setLoadingWallet(false);
-      setShowRecoveryLoader(false); // Hide recovery loading indicator on error
+      console.error('Failed to receive Cashu token:', error);
+      throw error;
     }
   };
+
+  // ============================================================================
+  // CROSS-MINT OPERATIONS (SWAP)
+  // ============================================================================
 
   const handleSwapBetweenMints = async (
     fromMintUrl: string,
     toMintUrl: string,
     amount: bigint
   ) => {
-    if (!wallet || !cdkModule) {
-      throw new Error('Wallet or CDK module not initialized');
-    }
-
-    if (fromMintUrl === toMintUrl) {
-      throw new Error('Cannot swap to the same mint');
-    }
-
-    // Prevent concurrent swaps using a simple blocking mechanism
     if (isSwapping.current) {
-      Alert.alert(
-        'Swap in Progress',
-        'Another swap is already in progress. Please wait for it to complete.'
-      );
+      Alert.alert('Info', 'A swap is already in progress');
       return;
     }
 
-    isSwapping.current = true;
-    const originalActiveMintUrl = walletManager.getState().activeMintUrl;
-
     try {
-      // Step 1: Create separate wallet instances for both mints
-      const fromWallet = await createWalletForMint(fromMintUrl);
-      const toWallet = await createWalletForMint(toMintUrl);
-
-      if (!fromWallet || !toWallet) {
-        throw new Error('Failed to create wallet instances for mints');
+      if (!multiMintWallet) {
+        throw new Error('Wallet not initialized');
       }
 
-      // Step 2: Get current balance and validate
-      const fromBalance = await fromWallet.totalBalance();
-      if (fromBalance.value < amount) {
-        throw new Error(
-          `Insufficient balance. Available: ${formatSats(fromBalance.value)}, Required: ${formatSats(amount)}`
-        );
+      if (amount <= BigInt(0)) {
+        throw new Error('Amount must be greater than 0');
       }
 
-      // Step 3: Create mint quote at destination mint
-      const amountObj = { value: amount };
-      const mintQuote = await toWallet.mintQuote(amountObj, 'Cross-mint swap');
-      const swapLightningInvoice = mintQuote.request;
+      isSwapping.current = true;
+      setShowSendingLoader(true);
 
-      // Step 4: Create melt quote at source mint
-      const meltQuote = await fromWallet.meltQuote(
-        swapLightningInvoice,
-        undefined
+      // Use native transfer method!
+      const result = await multiMintWallet.transfer(
+        MintUrl.new({ url: fromMintUrl }),
+        MintUrl.new({ url: toMintUrl }),
+        TransferMode.ExactReceive.new({ amount: { value: amount } })
       );
 
-      // Calculate total cost including fees
-      const totalCost =
-        meltQuote.amount.value + (meltQuote.feeReserve?.value || BigInt(0));
-      if (fromBalance.value < totalCost) {
-        throw new Error(
-          `Insufficient balance for swap including fees. Available: ${formatSats(fromBalance.value)}, Required: ${formatSats(totalCost)}`
-        );
-      }
+      // Update balance
+      await updateBalance();
 
-      // Step 5: Execute the melt operation (pay Lightning invoice)
-      const meltResult = await fromWallet.melt(meltQuote.id);
-
-      // Check if payment was successful
-      if (meltResult.state !== QuoteState.Paid) {
-        throw new Error(
-          meltResult.state === QuoteState.Pending
-            ? 'Lightning payment is still pending'
-            : 'Lightning payment failed or expired'
-        );
-      }
-
-      // Step 6: Check if the Lightning payment succeeded and mint tokens at destination
-      // Wait a bit for Lightning payment to settle
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Check the mint quote status and mint if paid
-      await checkAndMintTokens(toWallet, mintQuote.id);
-
-      // Step 7: Update cached balances for both mints
-      await syncMintBalance(fromMintUrl);
-      await syncMintBalance(toMintUrl);
-
-      // Update total balance display
-      await updateTotalBalance();
+      setShowSendingLoader(false);
+      isSwapping.current = false;
 
       Alert.alert(
-        'Swap Successful',
-        `Successfully swapped ${formatSats(amount)} between mints`
+        'Swap Complete',
+        `Sent: ${result.amountSent.value} sats\nReceived: ${result.amountReceived.value} sats\nFees: ${result.feesPaid.value} sats`
       );
     } catch (error) {
       console.error('Swap failed:', error);
-      throw new Error(`Swap failed: ${getErrorMessage(error)}`);
-    } finally {
-      // Always restore original active mint and reset blocking flag
-      try {
-        if (originalActiveMintUrl) {
-          walletManager.setActiveMintUrl(originalActiveMintUrl);
-          await setActiveMint(originalActiveMintUrl);
-        }
-      } catch (restoreError) {
-        console.warn('Failed to restore original active mint:', restoreError);
-      }
+      Alert.alert('Error', `Swap failed: ${getErrorMessage(error)}`);
+      setShowSendingLoader(false);
       isSwapping.current = false;
     }
   };
 
-  // Helper function to create wallet instances for specific mints
-  const createWalletForMint = async (mintUrl: string) => {
-    try {
-      const dbPath = getMintDbPath(mintUrl);
-      const localStore = createWalletDb(
-        WalletDbBackend.Sqlite.new({ path: dbPath })
-      );
+  // ============================================================================
+  // WALLET RECOVERY
+  // ============================================================================
 
-      const storedSeedPhrase = await SecureStorageService.getSeedPhrase();
-      if (!storedSeedPhrase) {
-        throw new Error('No seed phrase available for wallet creation');
+  const handleRecoverWallet = () => {
+    setShowRecoverModal(true);
+  };
+
+  const handleWalletRecovery = async (recoveryMnemonic: string) => {
+    try {
+      if (!recoveryMnemonic || recoveryMnemonic.trim().length === 0) {
+        throw new Error('Please enter a recovery phrase');
       }
 
-      return new Wallet(
-        mintUrl,
-        CurrencyUnit.Sat.new(),
-        storedSeedPhrase,
-        localStore,
-        WalletConfig.create({ targetProofCount: undefined })
-      );
+      setShowRecoveryLoader(true);
+
+      // Store the seed phrase
+      await SecureStorageService.storeSeedPhrase(recoveryMnemonic);
+
+      // Create MultiMintWallet with recovery phrase
+      const wallet = await createMultiMintWallet(recoveryMnemonic);
+      walletManager.setMultiMintWallet(wallet);
+
+      // Load saved mints
+      await loadMintUrlsFromStorage();
+
+      // Add all mints and restore
+      for (const mintUrl of mintUrls) {
+        await wallet.addMint(MintUrl.new({ url: mintUrl }), undefined);
+
+        // Restore funds from this mint
+        await wallet.restore(MintUrl.new({ url: mintUrl }));
+      }
+
+      // Set active mint
+      if (mintUrls.length > 0) {
+        walletManager.setActiveMintUrl(mintUrls[0]);
+        setCurrentMintUrlRef(mintUrls[0]);
+      }
+
+      // Update balance
+      await updateBalance();
+
+      setShowRecoveryLoader(false);
+      setShowRecoverModal(false);
+      setShowRecoveryConfetti(true);
+
+      setTimeout(() => {
+        setShowRecoveryConfetti(false);
+      }, 3000);
+
+      Alert.alert('Success', 'Wallet recovered successfully');
     } catch (error) {
-      console.error(`Failed to create wallet for mint ${mintUrl}:`, error);
-      return null;
+      console.error('Recovery failed:', error);
+      Alert.alert('Error', `Recovery failed: ${getErrorMessage(error)}`);
+      setShowRecoveryLoader(false);
     }
   };
 
-  // Helper function to check Lightning payment and mint tokens
-  const checkAndMintTokens = async (
-    mintWallet: any,
-    swapQuoteId: string,
-    maxRetries = 5
-  ) => {
-    for (let i = 0; i < maxRetries; i++) {
+  // ============================================================================
+  // MINT URL MANAGEMENT UI
+  // ============================================================================
+
+  const promptForMintUrl = () => {
+    setShowMintUrlModal(true);
+  };
+
+  const handleMintUrlSubmit = async (url: string) => {
+    try {
+      if (!url || url.trim().length === 0) {
+        throw new Error('Please enter a mint URL');
+      }
+
+      // Validate URL format
       try {
-        // Try to mint - if quote isn't paid yet, this will fail
-        await mintWallet.mint(swapQuoteId, SplitTarget.None.new(), undefined);
-        // If mint succeeds, the quote was paid
-        return;
+        new URL(url);
       } catch {
-        // If this is the last retry, throw the error
-        if (i === maxRetries - 1) {
-          throw new Error('Lightning payment failed or timed out');
+        throw new Error('Invalid URL format');
+      }
+
+      await addMintUrl(url);
+
+      setShowMintUrlModal(false);
+
+      // If this was triggered by wallet creation, create the wallet now
+      if (shouldCreateWalletAfterMint) {
+        setShouldCreateWalletAfterMint(false);
+        await testWalletCreation();
+      }
+    } catch (error) {
+      console.error('Failed to add mint URL:', error);
+      Alert.alert('Error', `Failed to add mint: ${getErrorMessage(error)}`);
+    }
+  };
+
+  const handleMintUrlModalClose = () => {
+    setShowMintUrlModal(false);
+    setShouldCreateWalletAfterMint(false);
+  };
+
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
+
+  const copyToClipboard = (text: string) => {
+    Clipboard.setString(text);
+    Alert.alert('Copied', 'Copied to clipboard');
+  };
+
+  // ============================================================================
+  // MODULE INITIALIZATION
+  // ============================================================================
+
+  useEffect(() => {
+    const initializeWallet = async () => {
+      try {
+        setIsInitializing(true);
+
+        // Check if we have an existing wallet
+        const walletExists = await checkWalletExists();
+        if (walletExists) {
+          await restoreExistingWallet();
         }
 
-        // Otherwise wait and retry
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        setModuleStatus('Wallet Ready');
+        setIsInitializing(false);
+      } catch (error) {
+        console.error('Failed to initialize wallet:', error);
+        setModuleStatus('Initialization Failed');
+        setIsInitializing(false);
       }
-    }
+    };
 
-    throw new Error('Lightning payment check timed out');
-  };
+    initializeWallet();
+  }, []);
+
+  // Update balance when active mint changes
+  useEffect(() => {
+    if (multiMintWallet && activeMintUrl) {
+      updateBalance();
+    }
+  }, [multiMintWallet, activeMintUrl]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (paymentCheckInterval.current) {
+        clearInterval(paymentCheckInterval.current);
+      }
+    };
+  }, []);
+
+  // ============================================================================
+  // RETURN HOOK INTERFACE
+  // ============================================================================
 
   return {
+    // Wallet state
     balance,
+    totalBalance,
     moduleStatus,
-    wallet,
+    multiMintWallet,
+    wallet: multiMintWallet, // Alias for backwards compatibility
     mintUrls,
     activeMintUrl,
     isLoadingWallet,
     isInitializing,
+
+    // UI state
     showReceiveModal,
     receiveAmount,
     invoice,
@@ -1755,36 +1056,46 @@ export function useWallet() {
     showRecoveryLoader,
     showRecoveryConfetti,
 
-    // Actions
+    // Wallet actions
     testWalletCreation,
-    handleReceive,
-    handleSend,
-    createInvoice,
-    copyToClipboard,
-    sendPayment,
-    sendCashuToken,
-    receiveCashuToken,
-    promptForMintUrl,
-    handleMintUrlSubmit,
+    restoreExistingWallet,
+    checkWalletExists,
+    loadMintUrlsFromStorage,
+
+    // Mint management
     addMintUrl,
     setActiveMint,
     removeMintUrl,
     clearMintUrlsFromStorage,
-    checkWalletExists,
-    restoreExistingWallet,
-    loadMintUrlsFromStorage,
 
-    // Modal controls
+    // Payment actions
+    handleReceive,
+    handleSend,
+    createInvoice,
+    sendPayment,
+    sendCashuToken,
+    receiveCashuToken,
+
+    // Cross-mint operations
+    handleSwapBetweenMints,
+
+    // Recovery
+    handleRecoverWallet,
+    handleWalletRecovery,
+
+    // Balance
+    updateTotalBalance,
+
+    // UI controls
     closeReceiveModal,
     setReceiveAmount,
     setShowSendModal,
     setLightningInvoice,
+    promptForMintUrl,
+    handleMintUrlSubmit,
     handleMintUrlModalClose,
     handleMnemonicModalDone,
-    handleRecoverWallet,
-    handleWalletRecovery,
     setShowRecoverModal,
-    updateTotalBalance,
-    handleSwapBetweenMints,
+    copyToClipboard,
   };
 }

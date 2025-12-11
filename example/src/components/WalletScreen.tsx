@@ -46,6 +46,7 @@ export function WalletScreen() {
   const {
     // State
     balance,
+    totalBalance,
     wallet,
     isLoadingWallet,
     isInitializing,
@@ -128,7 +129,7 @@ export function WalletScreen() {
           </View>
         ) : (
           <>
-            <WalletBalance balance={balance} wallet={wallet} />
+            <WalletBalance balance={totalBalance} wallet={wallet} />
 
             <WalletActions
               wallet={wallet}

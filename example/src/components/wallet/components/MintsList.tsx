@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { MintItem } from './MintItem';
-import {
-  setBalanceUpdateCallback,
-  loadCachedBalances,
-  syncMintBalance,
-} from '../utils/mintBalanceUtils';
-import type { MintBalance } from '../utils/mintBalanceUtils';
+import type { MultiMintWalletInterface } from 'kashir';
 
 interface MintsListProps {
   mintUrls: string[];
   activeMintUrl: string;
+  multiMintWallet: MultiMintWalletInterface | null;
   onSetActive: (url: string) => void;
   onRemove: (url: string) => void;
   onAddMint: () => void;
@@ -28,6 +24,7 @@ interface MintsListProps {
 export function MintsList({
   mintUrls,
   activeMintUrl,
+  multiMintWallet,
   onSetActive,
   onRemove,
   onAddMint,
@@ -35,99 +32,65 @@ export function MintsList({
   onSwap,
   onReview,
 }: MintsListProps) {
-  const [mintBalances, setMintBalances] = useState<MintBalance[]>([]);
+  const [mintBalances, setMintBalances] = useState<Map<string, bigint>>(new Map());
 
   // Memoize the mint URLs to prevent unnecessary re-renders
   const memoizedMintUrls = useMemo(() => mintUrls, [mintUrls]);
 
-  // Load cached balances when component mounts or mintUrls change
+  // Load balances from MultiMintWallet when component mounts or wallet/mintUrls change
   useEffect(() => {
     const loadBalances = async () => {
-      if (memoizedMintUrls.length === 0) {
-        setMintBalances([]);
+      if (!multiMintWallet || memoizedMintUrls.length === 0) {
+        setMintBalances(new Map());
         return;
       }
 
       try {
-        // Load all cached balances
-        const cachedBalances = await loadCachedBalances();
+        // Get balances from MultiMintWallet (returns Map<string, Amount>)
+        const balances = await multiMintWallet.getBalances();
 
-        // Filter to only include balances for current mint URLs
-        const validBalances = cachedBalances.filter(
-          (balance) =>
-            balance &&
-            balance.mintUrl &&
-            memoizedMintUrls.includes(balance.mintUrl)
-        );
+        // Convert to Map<string, bigint> for easier use
+        const balanceMap = new Map<string, bigint>();
+        balances.forEach((amount, mintUrl) => {
+          balanceMap.set(mintUrl, BigInt(amount.value));
+        });
 
-        setMintBalances(validBalances);
+        setMintBalances(balanceMap);
       } catch (error) {
-        console.error('Failed to load cached balances:', error);
-        setMintBalances([]);
+        console.error('Failed to load mint balances:', error);
+        setMintBalances(new Map());
       }
     };
 
     loadBalances();
-  }, [memoizedMintUrls]);
-
-  // Stable callback for balance updates
-  const handleBalanceUpdate = useCallback((updatedBalances: MintBalance[]) => {
-    if (!updatedBalances || !Array.isArray(updatedBalances)) {
-      return;
-    }
-
-    setMintBalances((prev) => {
-      const newBalances = [...prev];
-      updatedBalances.forEach((updated) => {
-        if (updated && updated.mintUrl) {
-          const index = newBalances.findIndex(
-            (b) => b && b.mintUrl === updated.mintUrl
-          );
-          if (index >= 0) {
-            newBalances[index] = updated;
-          } else {
-            newBalances.push(updated);
-          }
-        }
-      });
-      return newBalances;
-    });
-  }, []);
-
-  // Set up callback for balance updates from main wallet
-  useEffect(() => {
-    setBalanceUpdateCallback(handleBalanceUpdate);
-    return () => setBalanceUpdateCallback(() => {});
-  }, [handleBalanceUpdate]);
+  }, [multiMintWallet, memoizedMintUrls]);
 
   // Helper function to get balance for a specific mint
-  const getMintBalance = (mintUrl: string): MintBalance | undefined => {
-    return mintBalances.find(
-      (balance) => balance && balance.mintUrl === mintUrl
-    );
+  const getMintBalance = (mintUrl: string): bigint | undefined => {
+    return mintBalances.get(mintUrl);
   };
 
   // Handle refresh for individual mint
   const handleMintRefresh = async (mintUrl: string) => {
     try {
-      await syncMintBalance(mintUrl);
+      if (!multiMintWallet) {
+        return;
+      }
 
-      // Reload cached balances to update the display
-      const cachedBalances = await loadCachedBalances();
-      const validBalances = cachedBalances.filter(
-        (balance) =>
-          balance &&
-          balance.mintUrl &&
-          memoizedMintUrls.includes(balance.mintUrl)
-      );
-      setMintBalances(validBalances);
+      // Refresh balances from wallet
+      const balances = await multiMintWallet.getBalances();
+      const balanceMap = new Map<string, bigint>();
+      balances.forEach((amount, url) => {
+        balanceMap.set(url, BigInt(amount.value));
+      });
+      setMintBalances(balanceMap);
 
       // Update total balance on main wallet screen
       if (onUpdateTotalBalance) {
         await onUpdateTotalBalance();
       }
-    } catch {
-      // Silently handle errors - balance will remain unchanged
+    } catch (error) {
+      console.error('Failed to refresh mint balance:', error);
     }
   };
 
@@ -153,7 +116,7 @@ export function MintsList({
               key={`${mintUrl}-${index}`}
               mintUrl={mintUrl}
               isActive={mintUrl === activeMintUrl}
-              balance={mintBalance?.balance}
+              balance={mintBalance}
               onSetActive={onSetActive}
               onRemove={onRemove}
               onRefresh={handleMintRefresh}

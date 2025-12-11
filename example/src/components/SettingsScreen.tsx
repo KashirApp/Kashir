@@ -32,8 +32,6 @@ import type { FollowSet } from '../services/ListService';
 import { FollowSetsStorageService, FollowSetProfileService } from '../services';
 import { ProfileService } from '../services/ProfileService';
 import { NostrPublicKey as PublicKey } from 'kashir';
-import { loadCachedBalances } from './wallet/utils/mintBalanceUtils';
-import type { MintBalance } from './wallet/utils/mintBalanceUtils';
 import packageInfo from '../../package.json';
 
 interface SettingsScreenProps {
@@ -62,7 +60,6 @@ export function SettingsScreen({
   const [zapAmount, setZapAmount] = useState<number>(21);
   const [showZapAmountModal, setShowZapAmountModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
-  const [mintBalances, setMintBalances] = useState<MintBalance[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewMintUrl, setReviewMintUrl] = useState<string>('');
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
@@ -80,6 +77,7 @@ export function SettingsScreen({
   >(undefined);
 
   const {
+    multiMintWallet,
     mintUrls,
     activeMintUrl,
     showMintUrlModal,
@@ -119,29 +117,6 @@ export function SettingsScreen({
     });
     return publicKeys;
   };
-
-  // Load cached mint balances for swap functionality
-  useEffect(() => {
-    const loadMintBalances = async () => {
-      try {
-        const balances = await loadCachedBalances();
-        const validBalances = balances.filter(
-          (balance) =>
-            balance && balance.mintUrl && mintUrls.includes(balance.mintUrl)
-        );
-        setMintBalances(validBalances);
-      } catch (error) {
-        console.warn('Failed to load mint balances for swap:', error);
-        setMintBalances([]);
-      }
-    };
-
-    if (mintUrls.length > 0) {
-      loadMintBalances();
-    } else {
-      setMintBalances([]);
-    }
-  }, [mintUrls]);
 
   // Load relays for display only (don't affect client initialization)
   const loadRelaysForDisplay = async () => {
@@ -1002,6 +977,7 @@ export function SettingsScreen({
             <MintsList
               mintUrls={mintUrls}
               activeMintUrl={activeMintUrl}
+              multiMintWallet={multiMintWallet}
               onSetActive={setActiveMint}
               onRemove={removeMintUrl}
               onAddMint={promptForMintUrl}
@@ -1136,7 +1112,8 @@ export function SettingsScreen({
       <SwapModal
         visible={showSwapModal}
         onClose={() => setShowSwapModal(false)}
-        mintBalances={mintBalances}
+        multiMintWallet={multiMintWallet}
+        mintUrls={mintUrls}
         onSwap={handleSwapBetweenMints}
       />
 
