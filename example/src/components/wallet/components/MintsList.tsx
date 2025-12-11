@@ -32,7 +32,9 @@ export function MintsList({
   onSwap,
   onReview,
 }: MintsListProps) {
-  const [mintBalances, setMintBalances] = useState<Map<string, bigint>>(new Map());
+  const [mintBalances, setMintBalances] = useState<Map<string, bigint>>(
+    new Map()
+  );
 
   // Memoize the mint URLs to prevent unnecessary re-renders
   const memoizedMintUrls = useMemo(() => mintUrls, [mintUrls]);
@@ -71,7 +73,7 @@ export function MintsList({
   };
 
   // Handle refresh for individual mint
-  const handleMintRefresh = async (mintUrl: string) => {
+  const handleMintRefresh = async (_mintUrl: string) => {
     try {
       if (!multiMintWallet) {
         return;

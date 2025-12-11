@@ -39,7 +39,9 @@ export function SwapModal({
   const [toMintUrl, setToMintUrl] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
   const [isSwapping, setIsSwapping] = useState(false);
-  const [mintBalances, setMintBalances] = useState<Map<string, bigint>>(new Map());
+  const [mintBalances, setMintBalances] = useState<Map<string, bigint>>(
+    new Map()
+  );
 
   // Load balances when modal opens or wallet changes
   useEffect(() => {
@@ -51,8 +53,8 @@ export function SwapModal({
       try {
         const balances = await multiMintWallet.getBalances();
         const balanceMap = new Map<string, bigint>();
-        balances.forEach((amount, mintUrl) => {
-          balanceMap.set(mintUrl, BigInt(amount.value));
+        balances.forEach((amt, mintUrl) => {
+          balanceMap.set(mintUrl, BigInt(amt.value));
         });
         setMintBalances(balanceMap);
       } catch (error) {

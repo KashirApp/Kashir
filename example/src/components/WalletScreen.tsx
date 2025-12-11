@@ -45,7 +45,6 @@ export function WalletScreen() {
 
   const {
     // State
-    balance,
     totalBalance,
     wallet,
     isLoadingWallet,
@@ -113,7 +112,20 @@ export function WalletScreen() {
     setShowQRScanner(false);
 
     // Trigger payment confirmation directly with the scanned invoice - same as before
-    sendPayment(extractedInvoice);
+    sendPayment();
+  };
+
+  // Adapter functions for modal prop compatibility
+  const handleSendCashuToken = async (
+    amount: string,
+    _memo?: string
+  ): Promise<any> => {
+    const amountBigInt = BigInt(parseInt(amount, 10));
+    return sendCashuToken(amountBigInt);
+  };
+
+  const handleCopyInvoice = () => {
+    copyToClipboard(invoice);
   };
 
   return (
@@ -150,7 +162,7 @@ export function WalletScreen() {
           onClose={closeReceiveModal}
           onAmountChange={setReceiveAmount}
           onCreateInvoice={createInvoice}
-          onCopyInvoice={copyToClipboard}
+          onCopyInvoice={handleCopyInvoice}
           onReceiveCashuToken={receiveCashuToken}
         />
 
@@ -162,7 +174,7 @@ export function WalletScreen() {
           onInvoiceChange={setLightningInvoice}
           onSendPayment={sendPayment}
           onShowScanner={handleShowScanner}
-          onSendCashuToken={sendCashuToken}
+          onSendCashuToken={handleSendCashuToken}
         />
 
         <MnemonicModal

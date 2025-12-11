@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Alert } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,7 +13,6 @@ import {
   generateMnemonic,
   TransferMode,
   type MultiMintWalletInterface,
-  type Amount,
 } from 'kashir';
 import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -31,13 +30,11 @@ export function useWallet() {
 
   // UI-only state (not shared across components)
   const [moduleStatus, setModuleStatus] = useState<string>('Loading...');
-  const [cdkModule, setCdkModule] = useState<any>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveAmount, setReceiveAmount] = useState('');
   const [invoice, setInvoice] = useState('');
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
-  const [quoteId, setQuoteId] = useState('');
   const [showSendModal, setShowSendModal] = useState(false);
   const [lightningInvoice, setLightningInvoice] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -56,8 +53,7 @@ export function useWallet() {
   const [showMnemonicModal, setShowMnemonicModal] = useState(false);
   const [pendingWalletCreation, setPendingWalletCreation] = useState<any>(null);
   const [showRecoverModal, setShowRecoverModal] = useState(false);
-  const [shouldShowRecoverAfterMint, setShouldShowRecoverAfterMint] =
-    useState(false);
+  const [shouldShowRecoverAfterMint] = useState(false);
   const [showRecoveryLoader, setShowRecoveryLoader] = useState(false);
   const [showRecoveryConfetti, setShowRecoveryConfetti] = useState(false);
 
@@ -68,9 +64,9 @@ export function useWallet() {
   // Track current mint URL to ensure synchronous updates
   const currentMintUrlRef = useRef<string>('');
 
-  const setCurrentMintUrlRef = (value: string) => {
+  const setCurrentMintUrlRef = useCallback((value: string) => {
     currentMintUrlRef.current = value;
-  };
+  }, []);
 
   // Ref for payment checking interval
   const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
@@ -98,7 +94,7 @@ export function useWallet() {
   // STORAGE HELPERS
   // ============================================================================
 
-  const loadMintUrlsFromStorage = async () => {
+  const loadMintUrlsFromStorage = useCallback(async () => {
     try {
       const savedMintUrls = await AsyncStorage.getItem(MINT_URLS_STORAGE_KEY);
       if (savedMintUrls) {
@@ -116,7 +112,7 @@ export function useWallet() {
       console.error('Failed to load mint URLs from storage:', error);
       return false;
     }
-  };
+  }, []);
 
   const saveActiveMintUrlToStorage = async (url: string) => {
     try {
@@ -126,7 +122,7 @@ export function useWallet() {
     }
   };
 
-  const loadActiveMintUrlFromStorage = async () => {
+  const loadActiveMintUrlFromStorage = useCallback(async () => {
     try {
       const savedActiveMintUrl = await AsyncStorage.getItem(
         ACTIVE_MINT_URL_STORAGE_KEY
@@ -136,7 +132,7 @@ export function useWallet() {
       console.error('Failed to load active mint URL from storage:', error);
       return null;
     }
-  };
+  }, []);
 
   const saveMintUrlsToStorage = async (urls: string[]) => {
     try {
@@ -253,7 +249,7 @@ export function useWallet() {
   // BALANCE OPERATIONS
   // ============================================================================
 
-  const updateBalance = async () => {
+  const updateBalance = useCallback(async () => {
     try {
       if (!multiMintWallet || !activeMintUrl) {
         setBalance(BigInt(0));
@@ -286,7 +282,7 @@ export function useWallet() {
       setBalance(BigInt(0));
       setTotalBalance(BigInt(0));
     }
-  };
+  }, [multiMintWallet, activeMintUrl]);
 
   const updateTotalBalance = async () => {
     await updateBalance();
@@ -296,27 +292,30 @@ export function useWallet() {
   // WALLET CREATION & INITIALIZATION
   // ============================================================================
 
-  const createMultiMintWallet = async (mnemonic: string): Promise<MultiMintWalletInterface> => {
-    try {
-      // Create shared database for all mints
-      const localStore = createWalletDb(
-        WalletDbBackend.Sqlite.new({ path: MULTIMINT_WALLET_DB_PATH })
-      );
+  const createMultiMintWallet = useCallback(
+    async (mnemonic: string): Promise<MultiMintWalletInterface> => {
+      try {
+        // Create shared database for all mints
+        const localStore = createWalletDb(
+          WalletDbBackend.Sqlite.new({ path: MULTIMINT_WALLET_DB_PATH })
+        );
 
-      // Create MultiMintWallet
-      const wallet = new MultiMintWallet(
-        CurrencyUnit.Sat.new(),
-        mnemonic,
-        localStore
-      );
+        // Create MultiMintWallet
+        const wallet = new MultiMintWallet(
+          CurrencyUnit.Sat.new(),
+          mnemonic,
+          localStore
+        );
 
-      console.log('Created MultiMintWallet with shared database');
-      return wallet;
-    } catch (error) {
-      console.error('Failed to create MultiMintWallet:', error);
-      throw error;
-    }
-  };
+        console.log('Created MultiMintWallet with shared database');
+        return wallet;
+      } catch (error) {
+        console.error('Failed to create MultiMintWallet:', error);
+        throw error;
+      }
+    },
+    []
+  );
 
   const checkWalletExists = async (): Promise<boolean> => {
     try {
@@ -329,7 +328,7 @@ export function useWallet() {
     }
   };
 
-  const restoreExistingWallet = async (): Promise<boolean> => {
+  const restoreExistingWallet = useCallback(async (): Promise<boolean> => {
     try {
       walletManager.setLoadingWallet(true);
 
@@ -376,7 +375,14 @@ export function useWallet() {
       walletManager.setLoadingWallet(false);
       return false;
     }
-  };
+  }, [
+    createMultiMintWallet,
+    loadMintUrlsFromStorage,
+    loadActiveMintUrlFromStorage,
+    mintUrls,
+    setCurrentMintUrlRef,
+    updateBalance,
+  ]);
 
   const testWalletCreation = async () => {
     try {
@@ -406,7 +412,8 @@ export function useWallet() {
       }
 
       // Use the mints we have (either loaded from storage or just added)
-      const mintsToUse = currentMintUrls.length > 0 ? currentMintUrls : mintUrls;
+      const mintsToUse =
+        currentMintUrls.length > 0 ? currentMintUrls : mintUrls;
 
       if (mintsToUse.length === 0) {
         console.log('No mints available, prompting for mint URL');
@@ -428,7 +435,10 @@ export function useWallet() {
 
       // No existing wallet, create new one
       const newMnemonic = generateMnemonic();
-      console.log('Generated mnemonic:', newMnemonic ? 'exists' : 'is null/undefined');
+      console.log(
+        'Generated mnemonic:',
+        newMnemonic ? 'exists' : 'is null/undefined'
+      );
       console.log('Mnemonic type:', typeof newMnemonic);
       setGeneratedMnemonic(newMnemonic);
       setPendingWalletCreation({ mnemonic: newMnemonic, mintUrls: mintsToUse });
@@ -436,7 +446,10 @@ export function useWallet() {
       walletManager.setLoadingWallet(false);
     } catch (error) {
       console.error('Wallet creation failed:', error);
-      Alert.alert('Error', `Failed to create wallet: ${getErrorMessage(error)}`);
+      Alert.alert(
+        'Error',
+        `Failed to create wallet: ${getErrorMessage(error)}`
+      );
       walletManager.setLoadingWallet(false);
     }
   };
@@ -451,7 +464,10 @@ export function useWallet() {
       }
 
       const { mnemonic, mintUrls: pendingMintUrls } = pendingWalletCreation;
-      console.log('Mnemonic from pending:', mnemonic ? 'exists' : 'is null/undefined');
+      console.log(
+        'Mnemonic from pending:',
+        mnemonic ? 'exists' : 'is null/undefined'
+      );
       console.log('Mnemonic type:', typeof mnemonic);
       console.log('Mnemonic length:', mnemonic?.length);
       console.log('Pending mint URLs:', pendingMintUrls);
@@ -492,7 +508,10 @@ export function useWallet() {
       console.log('Wallet created successfully');
     } catch (error) {
       console.error('Failed to complete wallet creation:', error);
-      Alert.alert('Error', `Failed to create wallet: ${getErrorMessage(error)}`);
+      Alert.alert(
+        'Error',
+        `Failed to create wallet: ${getErrorMessage(error)}`
+      );
       setIsInitializing(false);
       walletManager.setLoadingWallet(false);
     }
@@ -518,7 +537,6 @@ export function useWallet() {
     setShowReceiveModal(false);
     setReceiveAmount('');
     setInvoice('');
-    setQuoteId('');
     if (paymentCheckInterval.current) {
       clearInterval(paymentCheckInterval.current);
       paymentCheckInterval.current = null;
@@ -546,14 +564,16 @@ export function useWallet() {
       );
 
       setInvoice(quote.request);
-      setQuoteId(quote.id);
       setIsLoadingInvoice(false);
 
       // Start checking for payment
       startPaymentCheck(quote.id);
     } catch (error) {
       console.error('Failed to create invoice:', error);
-      Alert.alert('Error', `Failed to create invoice: ${getErrorMessage(error)}`);
+      Alert.alert(
+        'Error',
+        `Failed to create invoice: ${getErrorMessage(error)}`
+      );
       setIsLoadingInvoice(false);
     }
   };
@@ -665,7 +685,8 @@ export function useWallet() {
         undefined // options
       );
 
-      const totalAmount = BigInt(meltQuote.amount.value) + BigInt(meltQuote.feeReserve.value);
+      const totalAmount =
+        BigInt(meltQuote.amount.value) + BigInt(meltQuote.feeReserve.value);
 
       // Check balance
       if (balance < totalAmount) {
@@ -721,7 +742,10 @@ export function useWallet() {
                 }, 3000);
               } catch (error) {
                 console.error('Payment failed:', error);
-                Alert.alert('Error', `Payment failed: ${getErrorMessage(error)}`);
+                Alert.alert(
+                  'Error',
+                  `Payment failed: ${getErrorMessage(error)}`
+                );
                 setIsSending(false);
                 setShowSendingLoader(false);
               }
@@ -792,15 +816,12 @@ export function useWallet() {
       const token = { toString: () => tokenString };
 
       // Receive token
-      const receivedAmount = await multiMintWallet.receive(
-        token as any,
-        {
-          amountSplitTarget: SplitTarget.None.new(),
-          p2pkSigningKeys: [],
-          preimages: [],
-          metadata: {},
-        }
-      );
+      const receivedAmount = await multiMintWallet.receive(token as any, {
+        amountSplitTarget: SplitTarget.None.new(),
+        p2pkSigningKeys: [],
+        preimages: [],
+        metadata: {},
+      });
 
       // Update balance
       await updateBalance();
@@ -938,9 +959,16 @@ export function useWallet() {
       }
 
       // Validate URL format
+      let isValidUrl = false;
       try {
-        new URL(url);
+        const parsedUrl = new URL(url);
+        isValidUrl =
+          parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
       } catch {
+        isValidUrl = false;
+      }
+
+      if (!isValidUrl) {
         throw new Error('Invalid URL format');
       }
 
@@ -998,14 +1026,14 @@ export function useWallet() {
     };
 
     initializeWallet();
-  }, []);
+  }, [restoreExistingWallet]);
 
   // Update balance when active mint changes
   useEffect(() => {
     if (multiMintWallet && activeMintUrl) {
       updateBalance();
     }
-  }, [multiMintWallet, activeMintUrl]);
+  }, [multiMintWallet, activeMintUrl, updateBalance]);
 
   // Cleanup on unmount
   useEffect(() => {
