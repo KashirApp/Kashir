@@ -26,7 +26,7 @@ export function PostDetail({
   const [client, setClient] = useState<Client | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<string | null>(null);
-  const [profilesLoaded, setProfilesLoaded] = useState(false);
+  const [_profilesLoaded, setProfilesLoaded] = useState(false);
 
   const clientService = NostrClientService.getInstance();
   const profileService = sharedProfileService;
@@ -190,8 +190,7 @@ export function PostDetail({
       }
       return pubkey.substring(0, 8) + '...';
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profileService, profilesLoaded]
+    [profileService]
   );
 
   return (

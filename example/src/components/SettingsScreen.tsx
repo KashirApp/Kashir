@@ -119,7 +119,7 @@ export function SettingsScreen({
   };
 
   // Load relays for display only (don't affect client initialization)
-  const loadRelaysForDisplay = async () => {
+  const loadRelaysForDisplay = useCallback(async () => {
     try {
       // Always load from storage - the main app manages what goes in storage
       const storedRelays = await StorageService.loadRelays();
@@ -141,7 +141,7 @@ export function SettingsScreen({
       setHasUserRelayList(false);
       setUserRelayInfo([]);
     }
-  };
+  }, [lastRelayCheck]);
 
   // Helper function to publish relay list if user is logged in
   const publishRelayListIfLoggedIn = async (relayUrls: string[]) => {
@@ -179,6 +179,96 @@ export function SettingsScreen({
       // Don't throw error - relay list publishing is optional
     }
   };
+
+  // Helper function to fetch missing main following list
+  const fetchMissingMainFollowingList = useCallback(async () => {
+    try {
+      const clientService = NostrClientService.getInstance();
+      if (clientService.isReady()) {
+        const client = clientService.getClient();
+        const session = clientService.getCurrentSession();
+        const userFollowSets = await listService.fetchUserFollowSets(
+          client,
+          userNpub!,
+          session?.type
+        );
+
+        // Find just the main following list and add it
+        const mainFollowing = userFollowSets.find(
+          (set) => set.identifier === 'Following'
+        );
+        if (mainFollowing) {
+          setFollowSets((prev) => {
+            // Check if it already exists to avoid duplicates
+            const existingIndex = prev.findIndex(
+              (set) => set.identifier === 'Following'
+            );
+            if (existingIndex >= 0) {
+              // Replace existing
+              const updated = [...prev];
+              updated[existingIndex] = mainFollowing;
+              return updated;
+            } else {
+              // Add to beginning
+              return [mainFollowing, ...prev];
+            }
+          });
+
+          // Save the complete list including the main following
+          const allSets = [
+            mainFollowing,
+            ...userFollowSets.filter((set) => set.identifier !== 'Following'),
+          ];
+          await FollowSetsStorageService.saveFollowSets(allSets, userNpub!);
+        }
+      }
+    } catch (error) {
+      console.warn(
+        'SettingsScreen: Failed to fetch missing main following list:',
+        error
+      );
+    }
+  }, [listService, userNpub]);
+
+  // Helper function to fetch all follow sets from network
+  const fetchAllFollowSetsFromNetwork = useCallback(async () => {
+    const clientService = NostrClientService.getInstance();
+    if (clientService.isReady()) {
+      const client = clientService.getClient();
+      const session = clientService.getCurrentSession();
+      const userFollowSets = await listService.fetchUserFollowSets(
+        client,
+        userNpub!,
+        session?.type // Pass the loginType to enable decryption
+      );
+
+      setFollowSets(userFollowSets);
+      setHasLoadedFollowSets(true);
+
+      // Save follow sets to local storage
+      try {
+        await FollowSetsStorageService.saveFollowSets(
+          userFollowSets,
+          userNpub!
+        );
+      } catch {
+        // Handle storage errors silently
+      }
+
+      // Fetch and store user profiles in the background
+      try {
+        await followSetProfileService.fetchAndStoreProfilesForFollowSets(
+          client,
+          userFollowSets,
+          userNpub!
+        );
+      } catch {
+        // Handle profile errors silently
+      }
+    } else {
+      // Client not ready and no local data available
+    }
+  }, [listService, userNpub, followSetProfileService]);
 
   // Load user's follow sets - prioritize local storage, fallback to network
   const loadFollowSets = useCallback(async () => {
@@ -248,97 +338,12 @@ export function SettingsScreen({
     } finally {
       setIsLoadingFollowSets(false);
     }
-  }, [userNpub, followSetProfileService]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Helper function to fetch missing main following list
-  const fetchMissingMainFollowingList = async () => {
-    try {
-      const clientService = NostrClientService.getInstance();
-      if (clientService.isReady()) {
-        const client = clientService.getClient();
-        const session = clientService.getCurrentSession();
-        const userFollowSets = await listService.fetchUserFollowSets(
-          client,
-          userNpub!,
-          session?.type
-        );
-
-        // Find just the main following list and add it
-        const mainFollowing = userFollowSets.find(
-          (set) => set.identifier === 'Following'
-        );
-        if (mainFollowing) {
-          setFollowSets((prev) => {
-            // Check if it already exists to avoid duplicates
-            const existingIndex = prev.findIndex(
-              (set) => set.identifier === 'Following'
-            );
-            if (existingIndex >= 0) {
-              // Replace existing
-              const updated = [...prev];
-              updated[existingIndex] = mainFollowing;
-              return updated;
-            } else {
-              // Add to beginning
-              return [mainFollowing, ...prev];
-            }
-          });
-
-          // Save the complete list including the main following
-          const allSets = [
-            mainFollowing,
-            ...userFollowSets.filter((set) => set.identifier !== 'Following'),
-          ];
-          await FollowSetsStorageService.saveFollowSets(allSets, userNpub!);
-        }
-      }
-    } catch (error) {
-      console.warn(
-        'SettingsScreen: Failed to fetch missing main following list:',
-        error
-      );
-    }
-  };
-
-  // Helper function to fetch all follow sets from network
-  const fetchAllFollowSetsFromNetwork = async () => {
-    const clientService = NostrClientService.getInstance();
-    if (clientService.isReady()) {
-      const client = clientService.getClient();
-      const session = clientService.getCurrentSession();
-      const userFollowSets = await listService.fetchUserFollowSets(
-        client,
-        userNpub!,
-        session?.type // Pass the loginType to enable decryption
-      );
-
-      setFollowSets(userFollowSets);
-      setHasLoadedFollowSets(true);
-
-      // Save follow sets to local storage
-      try {
-        await FollowSetsStorageService.saveFollowSets(
-          userFollowSets,
-          userNpub!
-        );
-      } catch {
-        // Handle storage errors silently
-      }
-
-      // Fetch and store user profiles in the background
-      try {
-        await followSetProfileService.fetchAndStoreProfilesForFollowSets(
-          client,
-          userFollowSets,
-          userNpub!
-        );
-      } catch {
-        // Handle profile errors silently
-      }
-    } else {
-      // Client not ready and no local data available
-    }
-  };
+  }, [
+    userNpub,
+    followSetProfileService,
+    fetchMissingMainFollowingList,
+    fetchAllFollowSetsFromNetwork,
+  ]);
 
   // Fetch user profile when needed
   useEffect(() => {
@@ -407,7 +412,12 @@ export function SettingsScreen({
       loadRelaysForDisplay();
       loadFollowSets();
     }
-  }, [isVisible, loadFollowSets]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    isVisible,
+    loadFollowSets,
+    loadRelaysForDisplay,
+    loadMintUrlsFromStorage,
+  ]);
 
   // Also refresh when login state might have changed
   useEffect(() => {
@@ -420,7 +430,7 @@ export function SettingsScreen({
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isVisible, loadRelaysForDisplay]);
 
   // Monitor for session state changes when visible (reduced frequency)
   useEffect(() => {
@@ -434,7 +444,7 @@ export function SettingsScreen({
     return () => {
       clearInterval(interval);
     };
-  }, [isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isVisible, loadRelaysForDisplay]);
 
   // Removed automatic session checking - let the main app handle relay management
   // SettingsScreen only loads relays for display when explicitly requested
