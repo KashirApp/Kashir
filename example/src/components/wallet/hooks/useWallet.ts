@@ -13,6 +13,7 @@ import {
   generateMnemonic,
   TransferMode,
   Token,
+  SendKind,
   type MultiMintWalletInterface,
 } from 'kashir';
 import RNFS from 'react-native-fs';
@@ -783,23 +784,41 @@ export function useWallet() {
         MintUrl.new({ url: activeMintUrl }),
         { value: amount },
         {
-          memo: undefined,
-          conditions: undefined,
-          amountSplitTarget: SplitTarget.None.new(),
-          sendKind: { OnlineExact: null },
-          includeFee: false,
-          maxProofs: undefined,
-          metadata: {},
+          allowTransfer: false,
+          maxTransferAmount: undefined,
+          allowedMints: [],
+          excludedMints: [],
+          sendOptions: {
+            memo: undefined,
+            conditions: undefined,
+            amountSplitTarget: SplitTarget.None.new(),
+            sendKind: SendKind.OnlineExact.new(),
+            includeFee: false,
+            maxProofs: undefined,
+            metadata: new Map(),
+          },
         }
       );
+
+      console.log('prepareSend result:', prepared);
+
+      if (!prepared) {
+        throw new Error(
+          'Failed to prepare token: prepareSend returned invalid result'
+        );
+      }
+
+      // Confirm the prepared send to create the token
+      const token = await prepared.confirm(undefined);
 
       // Update balance
       await updateBalance();
 
-      // Return token string
-      return prepared.token.toString();
+      // Return token string in expected format
+      return { tokenString: token.encode() };
     } catch (error) {
       console.error('Failed to create Cashu token:', error);
+      console.error('Error details:', error?.message || error);
       throw error;
     }
   };
