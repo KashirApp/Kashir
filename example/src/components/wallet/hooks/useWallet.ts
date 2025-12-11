@@ -12,6 +12,7 @@ import {
   SplitTarget,
   generateMnemonic,
   TransferMode,
+  Token,
   type MultiMintWalletInterface,
 } from 'kashir';
 import RNFS from 'react-native-fs';
@@ -262,23 +263,17 @@ export function useWallet() {
 
       // Get balances for all mints (returns Map<string, Amount>)
       const balances = await multiMintWallet.getBalances();
-      console.log('Balances Map size:', balances.size);
-      console.log('Active mint URL:', activeMintUrl);
 
-      // Get active mint balance using Map.get()
+      // Get active mint balance from map
       const activeMintBalance = balances.get(activeMintUrl);
-      console.log('Active mint balance:', activeMintBalance);
       if (activeMintBalance) {
         setBalance(BigInt(activeMintBalance.value));
-        console.log('Set balance to:', activeMintBalance.value);
       } else {
         setBalance(BigInt(0));
-        console.log('No balance found for active mint, set to 0');
       }
 
       // Get total balance across all mints
       const total = await multiMintWallet.totalBalance();
-      console.log('Total balance:', total.value);
       setTotalBalance(BigInt(total.value));
     } catch (error) {
       console.error('Failed to update balance:', error);
@@ -815,16 +810,44 @@ export function useWallet() {
         throw new Error('Wallet not initialized');
       }
 
-      // Parse token to get mint URL
-      const token = { toString: () => tokenString };
+      // Parse the token string into a Token object
+      const token = Token.fromString(tokenString);
 
-      // Receive token
-      const receivedAmount = await multiMintWallet.receive(token as any, {
+      // Create receive options with defaults
+      const receiveOptions = {
         amountSplitTarget: SplitTarget.None.new(),
         p2pkSigningKeys: [],
         preimages: [],
-        metadata: {},
-      });
+        metadata: new Map(), // Use Map for FFI HashMap conversion
+      };
+
+      // Create multi-mint receive options
+      const multiMintReceiveOptions = {
+        allowUntrusted: true, // Allow receiving from mints not yet in our wallet
+        // transferToMint intentionally omitted - will be treated as None in Rust
+        receiveOptions: receiveOptions,
+      };
+
+      // Receive token
+      const receivedAmount = await multiMintWallet.receive(
+        token,
+        multiMintReceiveOptions
+      );
+
+      // Get the mint URL from the token and ensure it's in our mint URLs list
+      const tokenMintUrl = token.mintUrl().url;
+      if (!mintUrls.includes(tokenMintUrl)) {
+        const updatedMintUrls = [...mintUrls, tokenMintUrl];
+        walletManager.setMintUrls(updatedMintUrls);
+        await saveMintUrlsToStorage(updatedMintUrls);
+
+        // If this is the first mint, set it as active
+        if (mintUrls.length === 0) {
+          walletManager.setActiveMintUrl(tokenMintUrl);
+          setCurrentMintUrlRef(tokenMintUrl);
+          await saveActiveMintUrlToStorage(tokenMintUrl);
+        }
+      }
 
       // Update balance
       await updateBalance();
@@ -833,6 +856,8 @@ export function useWallet() {
       return receivedAmount.value;
     } catch (error) {
       console.error('Failed to receive Cashu token:', error);
+      const errorMsg = getErrorMessage(error);
+      Alert.alert('Error', `Failed to receive token: ${errorMsg}`);
       throw error;
     }
   };

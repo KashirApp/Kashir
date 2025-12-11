@@ -398,14 +398,7 @@ export function SettingsScreen({
     };
 
     // Load relays whenever screen becomes visible
-    console.log(
-      'SettingsScreen: Screen visibility changed, isVisible:',
-      isVisible
-    );
     if (isVisible) {
-      console.log(
-        'SettingsScreen: Screen is visible, starting to load data...'
-      );
       checkSeedPhrase();
       loadMintUrls();
       loadZapAmount();
