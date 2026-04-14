@@ -14,12 +14,12 @@ import {
   Platform,
 } from 'react-native';
 import { formatSats } from '../utils/formatUtils';
-import type { MultiMintWalletInterface } from 'kashir';
+import type { WalletRepositoryInterface } from 'kashir';
 
 interface SwapModalProps {
   visible: boolean;
   onClose: () => void;
-  multiMintWallet: MultiMintWalletInterface | null;
+  multiMintWallet: WalletRepositoryInterface | null;
   mintUrls: string[];
   onSwap: (
     fromMintUrl: string,

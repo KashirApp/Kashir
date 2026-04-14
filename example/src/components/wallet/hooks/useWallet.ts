@@ -3,18 +3,17 @@ import { Alert } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  MultiMintWallet,
+  WalletRepository,
   MintUrl,
-  WalletDbBackend,
-  createWalletDb,
+  sqliteWalletStore,
   CurrencyUnit,
+  PaymentMethod,
   QuoteState,
   SplitTarget,
   generateMnemonic,
-  TransferMode,
   Token,
   SendKind,
-  type MultiMintWalletInterface,
+  type WalletRepositoryInterface,
 } from 'kashir';
 import RNFS from 'react-native-fs';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -171,7 +170,11 @@ export function useWallet() {
 
         // If wallet exists, add mint to it
         if (multiMintWallet) {
-          await multiMintWallet.addMint(MintUrl.new({ url: url }), undefined);
+          await multiMintWallet.createWallet(
+            MintUrl.new({ url: url }),
+            undefined,
+            undefined
+          );
 
           // Set as active if it's the first one
           if (newUrls.length === 1) {
@@ -200,8 +203,11 @@ export function useWallet() {
         throw new Error('Wallet not initialized');
       }
 
-      // Remove from MultiMintWallet
-      await multiMintWallet.removeMint(MintUrl.new({ url: url }));
+      // Remove from WalletRepository
+      await multiMintWallet.removeWallet(
+        MintUrl.new({ url: url }),
+        CurrencyUnit.Sat.new()
+      );
 
       // Update storage
       const newUrls = mintUrls.filter((u) => u !== url);
@@ -262,20 +268,24 @@ export function useWallet() {
         return;
       }
 
-      // Get balances for all mints (returns Map<string, Amount>)
+      // Get balances for all mints (returns Map<WalletKey, Amount>)
       const balances = await multiMintWallet.getBalances();
+      const entries = [...balances.entries()];
 
-      // Get active mint balance from map
-      const activeMintBalance = balances.get(activeMintUrl);
-      if (activeMintBalance) {
-        setBalance(BigInt(activeMintBalance.value));
-      } else {
-        setBalance(BigInt(0));
-      }
+      // Get active mint balance by matching URL
+      const activeMintEntry = entries.find(
+        ([key]) => key.mintUrl.url === activeMintUrl
+      );
+      setBalance(
+        activeMintEntry ? BigInt(activeMintEntry[1].value) : BigInt(0)
+      );
 
-      // Get total balance across all mints
-      const total = await multiMintWallet.totalBalance();
-      setTotalBalance(BigInt(total.value));
+      // Sum all balances for total
+      const total = entries.reduce(
+        (sum, [, amount]) => sum + BigInt(amount.value),
+        BigInt(0)
+      );
+      setTotalBalance(total);
     } catch (error) {
       console.error('Failed to update balance:', error);
       setBalance(BigInt(0));
@@ -292,21 +302,12 @@ export function useWallet() {
   // ============================================================================
 
   const createMultiMintWallet = useCallback(
-    async (mnemonic: string): Promise<MultiMintWalletInterface> => {
+    async (mnemonic: string): Promise<WalletRepositoryInterface> => {
       try {
-        // Create shared database for all mints
-        const localStore = createWalletDb(
-          WalletDbBackend.Sqlite.new({ path: MULTIMINT_WALLET_DB_PATH })
-        );
+        const store = sqliteWalletStore(MULTIMINT_WALLET_DB_PATH);
+        const wallet = new WalletRepository(mnemonic, store);
 
-        // Create MultiMintWallet
-        const wallet = new MultiMintWallet(
-          CurrencyUnit.Sat.new(),
-          mnemonic,
-          localStore
-        );
-
-        console.log('Created MultiMintWallet with shared database');
+        console.log('Created WalletRepository with shared database');
         return wallet;
       } catch (error) {
         console.error('Failed to create MultiMintWallet:', error);
@@ -351,7 +352,11 @@ export function useWallet() {
       for (const mintUrl of currentMintUrls) {
         const hasMint = await wallet.hasMint(MintUrl.new({ url: mintUrl }));
         if (!hasMint) {
-          await wallet.addMint(MintUrl.new({ url: mintUrl }), undefined);
+          await wallet.createWallet(
+            MintUrl.new({ url: mintUrl }),
+            undefined,
+            undefined
+          );
         }
       }
 
@@ -486,7 +491,11 @@ export function useWallet() {
 
       // Add all mints from pending creation
       for (const mintUrl of pendingMintUrls) {
-        await wallet.addMint(MintUrl.new({ url: mintUrl }), undefined);
+        await wallet.createWallet(
+          MintUrl.new({ url: mintUrl }),
+          undefined,
+          undefined
+        );
       }
 
       // Set first mint as active
@@ -555,11 +564,18 @@ export function useWallet() {
         throw new Error('Amount must be greater than 0');
       }
 
-      // Create mint quote
-      const quote = await multiMintWallet.mintQuote(
+      // Get individual wallet for this mint
+      const mintWallet = await multiMintWallet.getWallet(
         MintUrl.new({ url: activeMintUrl }),
+        CurrencyUnit.Sat.new()
+      );
+
+      // Create mint quote
+      const quote = await mintWallet.mintQuote(
+        PaymentMethod.Bolt11.new(),
         { value: amount },
-        'Lightning invoice'
+        'Lightning invoice',
+        undefined
       );
 
       setInvoice(quote.request);
@@ -596,19 +612,22 @@ export function useWallet() {
       try {
         isProcessingPayment.current = true;
 
-        // Check quote status
-        const quote = await multiMintWallet.checkMintQuote(
+        // Get individual wallet for this mint
+        const mintWallet = await multiMintWallet.getWallet(
           MintUrl.new({ url: activeMintUrl }),
-          mintQuoteId
+          CurrencyUnit.Sat.new()
         );
+
+        // Check quote status
+        const quote = await mintWallet.checkMintQuote(mintQuoteId);
 
         if (quote.state === QuoteState.Paid) {
           // Quote is paid, execute mint
           setShowReceivingLoader(true);
 
-          await multiMintWallet.mint(
-            MintUrl.new({ url: activeMintUrl }),
+          await mintWallet.mint(
             mintQuoteId,
+            SplitTarget.None.new(),
             undefined // spending conditions
           );
 
@@ -677,11 +696,18 @@ export function useWallet() {
       setIsSending(true);
       setShowSendingLoader(true);
 
-      // Get melt quote
-      const meltQuote = await multiMintWallet.meltQuote(
+      // Get individual wallet for this mint
+      const mintWallet = await multiMintWallet.getWallet(
         MintUrl.new({ url: activeMintUrl }),
+        CurrencyUnit.Sat.new()
+      );
+
+      // Get melt quote
+      const meltQuote = await mintWallet.meltQuote(
+        PaymentMethod.Bolt11.new(),
         lightningInvoice,
-        undefined // options
+        undefined,
+        undefined
       );
 
       const totalAmount =
@@ -718,11 +744,9 @@ export function useWallet() {
                 setIsSending(true);
                 setShowSendingLoader(true);
 
-                // Execute payment using meltWithMint
-                await multiMintWallet.meltWithMint(
-                  MintUrl.new({ url: activeMintUrl }),
-                  meltQuote.id
-                );
+                // Execute payment using prepareMelt + confirm
+                const preparedMelt = await mintWallet.prepareMelt(meltQuote.id);
+                await preparedMelt.confirm();
 
                 // Update balance
                 await updateBalance();
@@ -779,24 +803,24 @@ export function useWallet() {
         throw new Error('Insufficient balance');
       }
 
-      // Prepare send (generates token)
-      const prepared = await multiMintWallet.prepareSend(
+      // Get individual wallet for this mint
+      const mintWallet = await multiMintWallet.getWallet(
         MintUrl.new({ url: activeMintUrl }),
+        CurrencyUnit.Sat.new()
+      );
+
+      // Prepare send (generates token)
+      const prepared = await mintWallet.prepareSend(
         { value: amount },
         {
-          allowTransfer: false,
-          maxTransferAmount: undefined,
-          allowedMints: [],
-          excludedMints: [],
-          sendOptions: {
-            memo: undefined,
-            conditions: undefined,
-            amountSplitTarget: SplitTarget.None.new(),
-            sendKind: SendKind.OnlineExact.new(),
-            includeFee: false,
-            maxProofs: undefined,
-            metadata: new Map(),
-          },
+          memo: undefined,
+          conditions: undefined,
+          amountSplitTarget: SplitTarget.None.new(),
+          sendKind: SendKind.OnlineExact.new(),
+          includeFee: false,
+          useP2bk: false,
+          maxProofs: undefined,
+          metadata: new Map(),
         }
       );
 
@@ -832,29 +856,31 @@ export function useWallet() {
       // Parse the token string into a Token object
       const token = Token.fromString(tokenString);
 
-      // Create receive options with defaults
-      const receiveOptions = {
+      // Get individual wallet for the token's mint, adding it first if needed
+      const tokenMint = token.mintUrl();
+      const mintExists = await multiMintWallet.hasMint(tokenMint);
+      if (!mintExists) {
+        await multiMintWallet.createWallet(
+          tokenMint,
+          CurrencyUnit.Sat.new(),
+          undefined
+        );
+      }
+      const mintWallet = await multiMintWallet.getWallet(
+        tokenMint,
+        CurrencyUnit.Sat.new()
+      );
+
+      // Receive token
+      const receivedAmount = await mintWallet.receive(token, {
         amountSplitTarget: SplitTarget.None.new(),
         p2pkSigningKeys: [],
         preimages: [],
-        metadata: new Map(), // Use Map for FFI HashMap conversion
-      };
-
-      // Create multi-mint receive options
-      const multiMintReceiveOptions = {
-        allowUntrusted: true, // Allow receiving from mints not yet in our wallet
-        // transferToMint intentionally omitted - will be treated as None in Rust
-        receiveOptions: receiveOptions,
-      };
-
-      // Receive token
-      const receivedAmount = await multiMintWallet.receive(
-        token,
-        multiMintReceiveOptions
-      );
+        metadata: new Map(),
+      });
 
       // Get the mint URL from the token and ensure it's in our mint URLs list
-      const tokenMintUrl = token.mintUrl().url;
+      const tokenMintUrl = tokenMint.url;
       if (!mintUrls.includes(tokenMintUrl)) {
         const updatedMintUrls = [...mintUrls, tokenMintUrl];
         walletManager.setMintUrls(updatedMintUrls);
@@ -886,9 +912,9 @@ export function useWallet() {
   // ============================================================================
 
   const handleSwapBetweenMints = async (
-    fromMintUrl: string,
-    toMintUrl: string,
-    amount: bigint
+    _fromMintUrl: string,
+    _toMintUrl: string,
+    _amount: bigint
   ) => {
     if (isSwapping.current) {
       Alert.alert('Info', 'A swap is already in progress');
@@ -896,34 +922,8 @@ export function useWallet() {
     }
 
     try {
-      if (!multiMintWallet) {
-        throw new Error('Wallet not initialized');
-      }
-
-      if (amount <= BigInt(0)) {
-        throw new Error('Amount must be greater than 0');
-      }
-
-      isSwapping.current = true;
-      setShowSendingLoader(true);
-
-      // Use native transfer method!
-      const result = await multiMintWallet.transfer(
-        MintUrl.new({ url: fromMintUrl }),
-        MintUrl.new({ url: toMintUrl }),
-        TransferMode.ExactReceive.new({ amount: { value: amount } })
-      );
-
-      // Update balance
-      await updateBalance();
-
-      setShowSendingLoader(false);
-      isSwapping.current = false;
-
-      Alert.alert(
-        'Swap Complete',
-        `Sent: ${result.amountSent.value} sats\nReceived: ${result.amountReceived.value} sats\nFees: ${result.feesPaid.value} sats`
-      );
+      // Native transfer was removed in CDK v0.16.0
+      throw new Error('Cross-mint swap is not currently supported');
     } catch (error) {
       console.error('Swap failed:', error);
       Alert.alert('Error', `Swap failed: ${getErrorMessage(error)}`);
@@ -960,7 +960,11 @@ export function useWallet() {
 
       // Add all mints and restore
       for (const mintUrl of mintUrls) {
-        await wallet.addMint(MintUrl.new({ url: mintUrl }), undefined);
+        await wallet.createWallet(
+          MintUrl.new({ url: mintUrl }),
+          undefined,
+          undefined
+        );
 
         // Restore funds from this mint
         await wallet.restore(MintUrl.new({ url: mintUrl }));
@@ -1006,14 +1010,9 @@ export function useWallet() {
       }
 
       // Validate URL format
-      let isValidUrl = false;
-      try {
-        const parsedUrl = new URL(url);
-        isValidUrl =
-          parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
-      } catch {
-        isValidUrl = false;
-      }
+      const trimmedUrl = url.trim();
+      const isValidUrl =
+        trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
 
       if (!isValidUrl) {
         throw new Error('Invalid URL format');

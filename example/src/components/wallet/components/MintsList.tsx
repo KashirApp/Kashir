@@ -7,12 +7,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { MintItem } from './MintItem';
-import type { MultiMintWalletInterface } from 'kashir';
+import type { WalletRepositoryInterface } from 'kashir';
 
 interface MintsListProps {
   mintUrls: string[];
   activeMintUrl: string;
-  multiMintWallet: MultiMintWalletInterface | null;
+  multiMintWallet: WalletRepositoryInterface | null;
   onSetActive: (url: string) => void;
   onRemove: (url: string) => void;
   onAddMint: () => void;
@@ -48,13 +48,13 @@ export function MintsList({
       }
 
       try {
-        // Get balances from MultiMintWallet (returns Map<string, Amount>)
+        // Get balances from WalletRepository (returns Map<WalletKey, Amount>)
         const balances = await multiMintWallet.getBalances();
 
-        // Convert to Map<string, bigint> for easier use
+        // Convert to Map<string, bigint> keyed by mint URL string
         const balanceMap = new Map<string, bigint>();
-        balances.forEach((amount, mintUrl) => {
-          balanceMap.set(mintUrl, BigInt(amount.value));
+        balances.forEach((amount, key) => {
+          balanceMap.set(key.mintUrl.url, BigInt(amount.value));
         });
 
         setMintBalances(balanceMap);
@@ -82,8 +82,8 @@ export function MintsList({
       // Refresh balances from wallet
       const balances = await multiMintWallet.getBalances();
       const balanceMap = new Map<string, bigint>();
-      balances.forEach((amount, url) => {
-        balanceMap.set(url, BigInt(amount.value));
+      balances.forEach((amount, key) => {
+        balanceMap.set(key.mintUrl.url, BigInt(amount.value));
       });
       setMintBalances(balanceMap);
 

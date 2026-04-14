@@ -4,13 +4,13 @@
  * Manages MultiMintWallet instance globally outside of React component state
  * to avoid UI state sharing issues while enabling wallet access across components.
  */
-import type { MultiMintWalletInterface } from 'kashir';
+import type { WalletRepositoryInterface } from 'kashir';
 
 export class WalletManager {
   private static instance: WalletManager | null = null;
 
   // Core wallet data - using MultiMintWallet for all mints
-  private multiMintWallet: MultiMintWalletInterface | null = null;
+  private multiMintWallet: WalletRepositoryInterface | null = null;
   private mintUrls: string[] = [];
   private activeMintUrl: string = '';
   private isLoadingWallet: boolean = false;
@@ -30,12 +30,12 @@ export class WalletManager {
   }
 
   // Wallet instance management
-  setMultiMintWallet(wallet: MultiMintWalletInterface | null): void {
+  setMultiMintWallet(wallet: WalletRepositoryInterface | null): void {
     this.multiMintWallet = wallet;
     this.notifyListeners();
   }
 
-  getMultiMintWallet(): MultiMintWalletInterface | null {
+  getMultiMintWallet(): WalletRepositoryInterface | null {
     return this.multiMintWallet;
   }
 
@@ -81,20 +81,22 @@ export class WalletManager {
       throw new Error('Wallet not initialized');
     }
 
-    const { MintUrl } = await import('kashir');
+    const { MintUrl, CurrencyUnit, PaymentMethod } = await import('kashir');
 
-    // Get melt quote
-    const meltQuote = await this.multiMintWallet.meltQuote(
+    const wallet = await this.multiMintWallet.getWallet(
       MintUrl.new({ url: this.activeMintUrl }),
+      CurrencyUnit.Sat.new()
+    );
+
+    const meltQuote = await wallet.meltQuote(
+      PaymentMethod.Bolt11.new(),
       invoice,
+      undefined,
       undefined
     );
 
-    // Execute payment
-    await this.multiMintWallet.meltWithMint(
-      MintUrl.new({ url: this.activeMintUrl }),
-      meltQuote.id
-    );
+    const preparedMelt = await wallet.prepareMelt(meltQuote.id);
+    await preparedMelt.confirm();
   }
 
   // State subscription for React components
