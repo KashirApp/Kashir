@@ -28,7 +28,7 @@ export function VideoModal({ visible, videoUrl, onClose }: VideoModalProps) {
   const [retryCount, setRetryCount] = useState(0);
   const [cachedVideoUrl, setCachedVideoUrl] = useState<string | null>(null);
   const videoRef = useRef<any>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hideControlsAfterDelay = useCallback(() => {
     if (controlsTimeoutRef.current) {

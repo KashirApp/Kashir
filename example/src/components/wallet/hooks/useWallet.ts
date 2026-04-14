@@ -70,7 +70,9 @@ export function useWallet() {
   }, []);
 
   // Ref for payment checking interval
-  const paymentCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const paymentCheckInterval = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
 
   // Ref to prevent duplicate payment calls
   const isProcessingPayment = useRef(false);

@@ -2,7 +2,7 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "jsx": "react-native",
-    "lib": ["es2017"],
+    "lib": ["es2020"],
     "target": "esnext",
     "strict": false,
     "paths": {

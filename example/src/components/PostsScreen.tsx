@@ -77,7 +77,7 @@ export function PostsScreen({
 
   // Monitor client readiness instead of initializing our own client
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
 
     const checkClientReadiness = () => {
       if (clientService.isReady()) {
