@@ -1,6 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { Client, NostrPublicKey as PublicKey, Filter, Kind } from 'kashir';
+import {
+  Client,
+  NostrPublicKey as PublicKey,
+  Filter,
+  Kind,
+  ReqTarget,
+} from 'kashir';
 import type { EventInterface } from 'kashir';
 import { sharedProfileService } from '../services/ProfileService';
 import { postProcessingUtils } from '../utils/postProcessingUtils';
@@ -35,7 +41,10 @@ export function usePosts(client: Client | null) {
         try {
           // Try with milliseconds as integer
           const timeoutMs = 30000; // 30 seconds in milliseconds
-          const events = await client.fetchEvents(filter, timeoutMs as any);
+          const events = await client.fetchEvents(
+            ReqTarget.auto([filter]),
+            timeoutMs
+          );
 
           const eventArray = events.toVec();
 
@@ -48,7 +57,10 @@ export function usePosts(client: Client | null) {
           // Try alternative approaches
           try {
             const duration = { secs: 30n, nanos: 0 };
-            const events2 = await client.fetchEvents(filter, duration as any);
+            const events2 = await client.fetchEvents(
+              ReqTarget.auto([filter]),
+              duration
+            );
             const eventArray2 = events2.toVec();
 
             if (eventArray2.length > 0) {

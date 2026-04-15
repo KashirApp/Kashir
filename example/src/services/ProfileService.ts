@@ -1,4 +1,10 @@
-import { Client, NostrPublicKey as PublicKey, Filter, Kind } from 'kashir';
+import {
+  Client,
+  NostrPublicKey as PublicKey,
+  Filter,
+  Kind,
+  ReqTarget,
+} from 'kashir';
 import type { PublicKeyInterface } from 'kashir';
 
 export class ProfileService {
@@ -24,7 +30,10 @@ export class ProfileService {
         .kinds([new Kind(0)])
         .limit(1n);
 
-      const events = await client.fetchEvents(profileFilter, 10000 as any);
+      const events = await client.fetchEvents(
+        ReqTarget.auto([profileFilter]),
+        10000
+      );
       const eventArray = events.toVec();
 
       if (eventArray.length > 0) {
@@ -112,7 +121,10 @@ export class ProfileService {
         .kinds([new Kind(0)])
         .limit(1n);
 
-      const events = await client.fetchEvents(profileFilter, 10000 as any);
+      const events = await client.fetchEvents(
+        ReqTarget.auto([profileFilter]),
+        10000
+      );
       const eventArray = events.toVec();
 
       if (eventArray.length > 0) {

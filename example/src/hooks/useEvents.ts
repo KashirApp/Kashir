@@ -1,5 +1,11 @@
 import { useState, useCallback } from 'react';
-import { Client, Filter, Kind, NostrPublicKey as PublicKey } from 'kashir';
+import {
+  Client,
+  Filter,
+  Kind,
+  NostrPublicKey as PublicKey,
+  ReqTarget,
+} from 'kashir';
 import type { EventInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { tagsToArray } from '../services/NostrUtils';
@@ -49,7 +55,10 @@ export function useEvents(
           eventsFilter = eventsFilter.author(authorPubkey);
         }
 
-        let responseEvents = await client.fetchEvents(eventsFilter, 15000);
+        let responseEvents = await client.fetchEvents(
+          ReqTarget.auto([eventsFilter]),
+          15000
+        );
 
         // Convert EventsInterface to array using toVec() method
         let eventsArray: EventInterface[] = [];

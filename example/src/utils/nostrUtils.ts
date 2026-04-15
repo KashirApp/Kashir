@@ -6,6 +6,7 @@ import {
   Filter,
   NostrKeys as Keys,
   NostrSecretKey as SecretKey,
+  ReqTarget,
 } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { CacheService } from '../services/CacheService';
@@ -343,7 +344,10 @@ export async function fetchEmbeddedPosts(
       try {
         const eventIdObj = eventIdObjects[i];
         const singleFilter = new Filter().id(eventIdObj).limit(BigInt(1));
-        const responseEvents = await client.fetchEvents(singleFilter, 15000);
+        const responseEvents = await client.fetchEvents(
+          ReqTarget.auto([singleFilter]),
+          15000
+        );
 
         if (responseEvents) {
           const eventsArray = responseEvents.toVec();

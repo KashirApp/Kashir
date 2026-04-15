@@ -6,7 +6,13 @@ import type { CalendarEvent } from '../hooks/useEvents';
 import type { Calendar } from '../hooks/useCalendars';
 import { EventList } from './EventList';
 import { styles } from '../App.styles';
-import { Client, Filter, Kind, NostrPublicKey as PublicKey } from 'kashir';
+import {
+  Client,
+  Filter,
+  Kind,
+  NostrPublicKey as PublicKey,
+  ReqTarget,
+} from 'kashir';
 import type { EventInterface } from 'kashir';
 import { tagsToArray } from '../services/NostrUtils';
 
@@ -85,7 +91,10 @@ export function CalendarDetail({ route, navigation }: CalendarDetailProps) {
               .author(authorPubkey)
               .limit(BigInt(200));
 
-            const responseEvents = await client.fetchEvents(filter, 10000);
+            const responseEvents = await client.fetchEvents(
+              ReqTarget.auto([filter]),
+              10000
+            );
             if (responseEvents) {
               const eventsArray = responseEvents.toVec();
 

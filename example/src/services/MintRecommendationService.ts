@@ -1,4 +1,4 @@
-import { Filter, Kind, NostrPublicKey as PublicKey } from 'kashir';
+import { Filter, Kind, NostrPublicKey as PublicKey, ReqTarget } from 'kashir';
 import { NostrClientService } from './NostrClient';
 import { tagsToArray } from './NostrUtils';
 
@@ -63,7 +63,7 @@ export class MintRecommendationService {
 
       const filter = new Filter().kinds([new Kind(38000)]).limit(2000n);
 
-      const events = await client.fetchEvents(filter, 30000 as any);
+      const events = await client.fetchEvents(ReqTarget.auto([filter]), 30000);
       const eventArray = events.toVec();
 
       const mintUrls: string[] = [];

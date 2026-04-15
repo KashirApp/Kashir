@@ -1,6 +1,6 @@
 #!/bin/bash
 # Patch CDK submodule configuration:
-# - Change uniffi version from 0.30 to =0.28.3 (in workspace Cargo.toml)
+# - Change uniffi version from 0.30 to =0.29.4 (in workspace Cargo.toml)
 # - Change default features from ["postgres", "npubcash", "bip353"] to ["npubcash", "bip353"] (in cdk-ffi Cargo.toml)
 
 set -e
@@ -27,12 +27,12 @@ echo "🔧 Patching CDK configuration..."
 # Use sed to replace the uniffi version in workspace Cargo.toml and default features in cdk-ffi
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS sed requires empty string after -i
-  sed -i '' 's/uniffi = "0.30"/uniffi = "=0.28.3"/' "$CDK_WORKSPACE_CARGO"
+  sed -i '' 's/uniffi = "0.30"/uniffi = "=0.29.4"/' "$CDK_WORKSPACE_CARGO"
   sed -i '' 's/default = \["postgres", "npubcash", "bip353"\]/default = ["npubcash", "bip353"]/' "$CDK_FFI_CARGO"
 else
   # Linux sed
-  sed -i 's/uniffi = "0.30"/uniffi = "=0.28.3"/' "$CDK_WORKSPACE_CARGO"
+  sed -i 's/uniffi = "0.30"/uniffi = "=0.29.4"/' "$CDK_WORKSPACE_CARGO"
   sed -i 's/default = \["postgres", "npubcash", "bip353"\]/default = ["npubcash", "bip353"]/' "$CDK_FFI_CARGO"
 fi
 
-echo "✅ Successfully patched CDK configuration (uniffi version + default features)"
+echo "✅ Successfully patched CDK configuration (uniffi =0.29.4 + default features)"

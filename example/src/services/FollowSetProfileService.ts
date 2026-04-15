@@ -1,4 +1,10 @@
-import { Client, NostrPublicKey as PublicKey, Filter, Kind } from 'kashir';
+import {
+  Client,
+  NostrPublicKey as PublicKey,
+  Filter,
+  Kind,
+  ReqTarget,
+} from 'kashir';
 import { FollowSetsStorageService } from './FollowSetsStorageService';
 import type { StoredUser } from './FollowSetsStorageService';
 import type { FollowSet } from './ListService';
@@ -145,7 +151,10 @@ export class FollowSetProfileService {
         .kinds([new Kind(0)])
         .limit(BigInt(publicKeys.length * 2)); // Get multiple events per author in case of updates
 
-      const events = await client.fetchEvents(profileFilter, 15000 as any);
+      const events = await client.fetchEvents(
+        ReqTarget.auto([profileFilter]),
+        15000
+      );
       const eventArray = events.toVec();
 
       // Process events and extract profiles

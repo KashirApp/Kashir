@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Client } from 'kashir';
-import { EventId, Filter } from 'kashir';
+import { EventId, Filter, ReqTarget } from 'kashir';
 import { DVMService } from '../services/DVMService';
 import { ProfileService } from '../services/ProfileService';
 import { postProcessingUtils } from '../utils/postProcessingUtils';
@@ -38,7 +38,7 @@ export function useTrending(
           const workingFilter = new Filter().id(parsedEventId).limit(BigInt(1));
 
           const fetchedEventsResult = await clientInstance.fetchEvents(
-            workingFilter,
+            ReqTarget.auto([workingFilter]),
             5000
           );
 

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { Client, Filter, Kind } from 'kashir';
+import { Client, Filter, Kind, ReqTarget } from 'kashir';
 import type { PublicKeyInterface } from 'kashir';
 import { ProfileService } from '../services/ProfileService';
 import { StorageService } from '../services/StorageService';
@@ -121,7 +121,10 @@ export function useFollowing(
           .kinds([new Kind(1)])
           .limit(10n);
 
-        const events = await client.fetchEvents(followingFilter, 30000 as any);
+        const events = await client.fetchEvents(
+          ReqTarget.auto([followingFilter]),
+          30000
+        );
         const eventArray = events.toVec();
 
         if (eventArray.length > 0) {

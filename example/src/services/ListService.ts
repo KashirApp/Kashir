@@ -13,6 +13,7 @@ import {
   nip44Encrypt,
   nip44Decrypt,
   Nip44Version,
+  ReqTarget,
 } from 'kashir';
 
 import { LoginType } from './NostrClient';
@@ -73,8 +74,8 @@ export class ListService {
           .limit(1n);
 
         const contactEvents = await client.fetchEvents(
-          contactListFilter,
-          10000 as any
+          ReqTarget.auto([contactListFilter]),
+          10000
         );
         const contactEventArray = contactEvents.toVec();
 
@@ -134,7 +135,7 @@ export class ListService {
         .kind(Kind.fromStd(KindStandard.FollowSet))
         .limit(100n); // Get up to 100 follow sets
 
-      const events = await client.fetchEvents(filter, 10000 as any);
+      const events = await client.fetchEvents(ReqTarget.auto([filter]), 10000);
       const eventArray = events.toVec();
       for (const event of eventArray) {
         try {

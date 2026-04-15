@@ -5,7 +5,9 @@ import {
   NostrPublicKey as PublicKey,
   extractRelayList,
   RelayMetadata,
+  RelayUrl,
   EventBuilder,
+  ReqTarget,
 } from 'kashir';
 
 import { LoginType } from './NostrClient';
@@ -52,7 +54,7 @@ export class RelayListService {
       );
 
       // Query relays for the user's relay list
-      const events = await client.fetchEvents(filter, 10000 as any); // 10 second timeout
+      const events = await client.fetchEvents(ReqTarget.auto([filter]), 10000); // 10 second timeout (ms)
       const eventArray = events.toVec();
 
       console.log(`RelayListService: Received ${eventArray.length} events`);
@@ -82,7 +84,8 @@ export class RelayListService {
 
       // Convert to our format
       const userRelays: UserRelayInfo[] = [];
-      relayMap.forEach((metadata, url) => {
+      relayMap.forEach((metadata, relayUrl) => {
+        const url = (relayUrl as RelayUrl).toString();
         console.log(
           `RelayListService: Found relay ${url} with metadata:`,
           metadata
@@ -177,9 +180,9 @@ export class RelayListService {
       );
 
       // Create a Map for the relay list - all relays as read/write (no metadata)
-      const relayMap = new Map<string, RelayMetadata | undefined>();
+      const relayMap = new Map<RelayUrl, RelayMetadata | undefined>();
       relayUrls.forEach((url) => {
-        relayMap.set(url, undefined); // undefined means read/write
+        relayMap.set(RelayUrl.parse(url), undefined); // undefined means read/write
       });
 
       // Create the NIP-65 relay list event

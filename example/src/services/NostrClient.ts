@@ -1,4 +1,9 @@
-import { Client, NostrSigner, NostrPublicKey as PublicKey } from 'kashir';
+import {
+  Client,
+  NostrSigner,
+  NostrPublicKey as PublicKey,
+  RelayUrl,
+} from 'kashir';
 import type { NostrSignerInterface } from 'kashir';
 import { StorageService } from './StorageService';
 import { SecureStorageService } from './SecureStorageService';
@@ -82,7 +87,7 @@ class NostrClientService {
       let successfulRelays = 0;
       for (const relay of relays) {
         try {
-          await newClient.addRelay(relay);
+          await newClient.addRelay(RelayUrl.parse(relay));
           successfulRelays++;
         } catch (error) {
           console.error(`Failed to add relay ${relay}:`, error);
@@ -347,7 +352,7 @@ class NostrClientService {
 
           for (const relay of storedRelays) {
             try {
-              await clientToUse.addRelay(relay);
+              await clientToUse.addRelay(RelayUrl.parse(relay));
             } catch (error) {
               console.error(`Failed to add temp relay ${relay}:`, error);
             }

@@ -1,4 +1,10 @@
-import { Filter, Kind, NostrPublicKey as PublicKey, EventId } from 'kashir';
+import {
+  Filter,
+  Kind,
+  NostrPublicKey as PublicKey,
+  EventId,
+  ReqTarget,
+} from 'kashir';
 import type { EventInterface, Client } from 'kashir';
 
 interface DVMResponse {
@@ -22,7 +28,10 @@ export class DVMService {
         .author(dvmPubkey)
         .limit(BigInt(50));
 
-      let responseEvents = await client.fetchEvents(dvmFilter, 15000);
+      let responseEvents = await client.fetchEvents(
+        ReqTarget.auto([dvmFilter]),
+        15000
+      );
 
       // Convert EventsInterface to array using toVec() method
       let eventsArray: EventInterface[] = [];
@@ -103,7 +112,10 @@ export class DVMService {
           // Use METHOD CHAINING - this is the key to success!
           const workingFilter = new Filter().id(parsedEventId).limit(BigInt(1));
 
-          const fetchedEvents = await client.fetchEvents(workingFilter, 5000);
+          const fetchedEvents = await client.fetchEvents(
+            ReqTarget.auto([workingFilter]),
+            5000
+          );
 
           if (fetchedEvents) {
             const eventsArray = fetchedEvents.toVec();

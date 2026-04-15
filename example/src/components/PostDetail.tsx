@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Client, Filter, Kind, EventId } from 'kashir';
+import { Client, Filter, Kind, EventId, ReqTarget } from 'kashir';
 import { NostrClientService } from '../services/NostrClient';
 import { sharedProfileService } from '../services/ProfileService';
 import { CacheService } from '../services/CacheService';
@@ -81,7 +81,10 @@ export function PostDetail({
           .events([eventIdObj]) // Find events with 'e' tags referencing this post
           .limit(1000n); // Allow for many replies
 
-        const events = await client.fetchEvents(replyFilter, 20000);
+        const events = await client.fetchEvents(
+          ReqTarget.auto([replyFilter]),
+          20000
+        );
         replyEvents = events.toVec();
       } catch (filterError) {
         console.error(
