@@ -89,7 +89,7 @@ export class CacheService {
         this.disconnect();
       };
 
-      const messageHandler = (event: MessageEvent) => {
+      const messageHandler = (event: WebSocketMessageEvent) => {
         try {
           const message = JSON.parse(event.data);
           const [type, subId, data] = message;
@@ -186,7 +186,7 @@ export class CacheService {
 
         // Small delay between batches to be respectful to the cache server
         if (i + BATCH_SIZE < eventIds.length) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await new Promise<void>((resolve) => setTimeout(resolve, 100));
         }
       }
 
@@ -248,7 +248,7 @@ export class CacheService {
           // Exponential backoff: wait longer between retries
           const delay = Math.pow(2, attempt) * 1000;
           console.log(`Retrying in ${delay}ms...`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise<void>((resolve) => setTimeout(resolve, delay));
         }
       }
     }

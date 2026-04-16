@@ -176,7 +176,7 @@ export class DVMService {
         }
 
         // Small delay between requests
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise<void>((resolve) => setTimeout(resolve, 100));
       }
 
       // Keep DVM trending order (don't sort by time)
