@@ -914,21 +914,77 @@ export function useWallet() {
   // ============================================================================
 
   const handleSwapBetweenMints = async (
-    _fromMintUrl: string,
-    _toMintUrl: string,
-    _amount: bigint
+    fromMintUrl: string,
+    toMintUrl: string,
+    amount: bigint
   ) => {
     if (isSwapping.current) {
       Alert.alert('Info', 'A swap is already in progress');
       return;
     }
 
+    if (!multiMintWallet) {
+      Alert.alert('Error', 'Wallet not initialized');
+      return;
+    }
+
+    isSwapping.current = true;
+    setShowSendingLoader(true);
+
     try {
-      // Native transfer was removed in CDK v0.16.0
-      throw new Error('Cross-mint swap is not currently supported');
+      // Step 1: Get a Lightning invoice from the destination mint
+      const toWallet = await multiMintWallet.getWallet(
+        MintUrl.new({ url: toMintUrl }),
+        CurrencyUnit.Sat.new()
+      );
+      const mintQuote = await toWallet.mintQuote(
+        PaymentMethod.Bolt11.new(),
+        { value: amount },
+        'Cross-mint swap',
+        undefined
+      );
+
+      // Step 2: Pay that invoice by melting at the source mint
+      const fromWallet = await multiMintWallet.getWallet(
+        MintUrl.new({ url: fromMintUrl }),
+        CurrencyUnit.Sat.new()
+      );
+      const meltQuote = await fromWallet.meltQuote(
+        PaymentMethod.Bolt11.new(),
+        mintQuote.request,
+        undefined,
+        undefined
+      );
+      const preparedMelt = await fromWallet.prepareMelt(meltQuote.id);
+      await preparedMelt.confirm();
+
+      // Step 3: Poll until the destination mint sees the payment, then mint
+      const maxAttempts = 30;
+      const pollIntervalMs = 2000;
+      let minted = false;
+
+      for (let i = 0; i < maxAttempts; i++) {
+        const quote = await toWallet.checkMintQuote(mintQuote.id);
+        if (quote.state === QuoteState.Paid) {
+          await toWallet.mint(mintQuote.id, SplitTarget.None.new(), undefined);
+          minted = true;
+          break;
+        }
+        await new Promise<void>((resolve) => {
+          setTimeout(() => resolve(), pollIntervalMs);
+        });
+      }
+
+      if (!minted) {
+        throw new Error('Destination mint did not confirm payment in time');
+      }
+
+      await updateBalance();
+      Alert.alert('Success', `Swapped ${formatSats(amount)} to ${toMintUrl}`);
     } catch (error) {
       console.error('Swap failed:', error);
       Alert.alert('Error', `Swap failed: ${getErrorMessage(error)}`);
+    } finally {
       setShowSendingLoader(false);
       isSwapping.current = false;
     }

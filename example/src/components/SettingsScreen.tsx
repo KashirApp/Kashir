@@ -60,6 +60,7 @@ export function SettingsScreen({
   const [zapAmount, setZapAmount] = useState<number>(21);
   const [showZapAmountModal, setShowZapAmountModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
+  const [mintsRefreshToken, setMintsRefreshToken] = useState(0);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewMintUrl, setReviewMintUrl] = useState<string>('');
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
@@ -987,6 +988,7 @@ export function SettingsScreen({
               onUpdateTotalBalance={updateTotalBalance}
               onSwap={() => setShowSwapModal(true)}
               onReview={handleReviewMint}
+              refreshToken={mintsRefreshToken}
             />
           </View>
         </View>
@@ -1118,6 +1120,10 @@ export function SettingsScreen({
         multiMintWallet={multiMintWallet}
         mintUrls={mintUrls}
         onSwap={handleSwapBetweenMints}
+        onSwapComplete={async () => {
+          await updateTotalBalance();
+          setMintsRefreshToken((t) => t + 1);
+        }}
       />
 
       <ZapAmountModal

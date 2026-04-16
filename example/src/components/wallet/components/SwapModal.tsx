@@ -26,6 +26,7 @@ interface SwapModalProps {
     toMintUrl: string,
     amount: bigint
   ) => Promise<void>;
+  onSwapComplete?: () => Promise<void>;
 }
 
 export function SwapModal({
@@ -34,6 +35,7 @@ export function SwapModal({
   multiMintWallet,
   mintUrls,
   onSwap,
+  onSwapComplete,
 }: SwapModalProps) {
   const [fromMintUrl, setFromMintUrl] = useState<string>('');
   const [toMintUrl, setToMintUrl] = useState<string>('');
@@ -42,28 +44,41 @@ export function SwapModal({
   const [mintBalances, setMintBalances] = useState<Map<string, bigint>>(
     new Map()
   );
+  const [balancesLoaded, setBalancesLoaded] = useState(false);
+
+  const loadBalances = useCallback(async () => {
+    if (!multiMintWallet) {
+      setBalancesLoaded(true);
+      return;
+    }
+
+    try {
+      const balances = await multiMintWallet.getBalances();
+      const balanceMap = new Map<string, bigint>();
+      balances.forEach(
+        (amt: { value: bigint }, key: { mintUrl: { url: string } }) => {
+          const url = key.mintUrl.url;
+          const existing = balanceMap.get(url) ?? BigInt(0);
+          balanceMap.set(url, existing + BigInt(amt.value));
+        }
+      );
+      setMintBalances(balanceMap);
+    } catch (error) {
+      console.error('Failed to load balances for swap modal:', error);
+    } finally {
+      setBalancesLoaded(true);
+    }
+  }, [multiMintWallet]);
 
   // Load balances when modal opens or wallet changes
   useEffect(() => {
-    const loadBalances = async () => {
-      if (!multiMintWallet || !visible) {
-        return;
-      }
-
-      try {
-        const balances = await multiMintWallet.getBalances();
-        const balanceMap = new Map<string, bigint>();
-        balances.forEach((amt, mintUrl) => {
-          balanceMap.set(mintUrl, BigInt(amt.value));
-        });
-        setMintBalances(balanceMap);
-      } catch (error) {
-        console.error('Failed to load balances for swap modal:', error);
-      }
-    };
+    if (!visible) {
+      setBalancesLoaded(false);
+      return;
+    }
 
     loadBalances();
-  }, [multiMintWallet, visible]);
+  }, [visible, loadBalances]);
 
   const handleSwap = useCallback(async () => {
     if (!fromMintUrl || !toMintUrl || !amount) {
@@ -103,6 +118,10 @@ export function SwapModal({
             setIsSwapping(true);
             try {
               await onSwap(fromMintUrl, toMintUrl, BigInt(amountSats));
+              await loadBalances();
+              if (onSwapComplete) {
+                await onSwapComplete();
+              }
               setFromMintUrl('');
               setToMintUrl('');
               setAmount('');
@@ -121,7 +140,16 @@ export function SwapModal({
         },
       ]
     );
-  }, [fromMintUrl, toMintUrl, amount, mintBalances, onSwap, onClose]);
+  }, [
+    fromMintUrl,
+    toMintUrl,
+    amount,
+    mintBalances,
+    onSwap,
+    onClose,
+    loadBalances,
+    onSwapComplete,
+  ]);
 
   const getMintDisplayName = (mintUrl: string) => {
     try {
@@ -143,7 +171,7 @@ export function SwapModal({
     return balance && balance > BigInt(0);
   });
 
-  if (availableMints.length < 2) {
+  if (!balancesLoaded || availableMints.length < 1) {
     return (
       <Modal
         visible={visible}
@@ -159,10 +187,17 @@ export function SwapModal({
           </View>
 
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>⚠️ Insufficient Mints</Text>
-            <Text style={styles.emptySubtext}>
-              You need at least 2 mints with positive balances to perform a swap
-            </Text>
+            {!balancesLoaded ? (
+              <ActivityIndicator size="large" color="#ff9500" />
+            ) : (
+              <>
+                <Text style={styles.emptyText}>⚠️ Insufficient Balance</Text>
+                <Text style={styles.emptySubtext}>
+                  You need at least 1 mint with a positive balance to perform a
+                  swap
+                </Text>
+              </>
+            )}
           </View>
         </View>
       </Modal>

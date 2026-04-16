@@ -19,6 +19,7 @@ interface MintsListProps {
   onUpdateTotalBalance?: () => Promise<void>;
   onSwap?: () => void;
   onReview?: (url: string) => void;
+  refreshToken?: number;
 }
 
 export function MintsList({
@@ -31,6 +32,7 @@ export function MintsList({
   onUpdateTotalBalance,
   onSwap,
   onReview,
+  refreshToken,
 }: MintsListProps) {
   const [mintBalances, setMintBalances] = useState<Map<string, bigint>>(
     new Map()
@@ -65,7 +67,7 @@ export function MintsList({
     };
 
     loadBalances();
-  }, [multiMintWallet, memoizedMintUrls]);
+  }, [multiMintWallet, memoizedMintUrls, refreshToken]);
 
   // Helper function to get balance for a specific mint
   const getMintBalance = (mintUrl: string): bigint | undefined => {
